@@ -1,7 +1,7 @@
 # GM-Bench Web
 
 The public GM-Bench site, built with [Vite](https://vite.dev), React,
-TypeScript and [Bun](https://bun.sh). It is a small data app: GM-Bench 2.0
+TypeScript and [Bun](https://bun.sh). It is a small data app: GM-Bench 2.1
 results first, with as little prose as possible.
 
 The site is fully static. Every page reads `src/data/leaderboard.json`, which
@@ -9,7 +9,7 @@ is generated only from committed, policy-validated evidence. There is one HTML
 entry per page (GitHub Pages has no SPA fallback, so every linked URL is a real
 file; see `vite.config.ts`):
 
-- `/` (`src/main.tsx`, `src/app/Standings.tsx`): the 2.0 standings. Every
+- `/` (`src/main.tsx`, `src/app/Standings.tsx`): the 2.1 standings. Every
   panel row with the scripted bots, sorted by score for reading, with a side
   panel for filters (harness, vendor, bots) and a row's details.
 - `/how-it-works/` (`src/app/HowItWorks.tsx`): a step-by-step walkthrough of
@@ -24,6 +24,8 @@ file; see `vite.config.ts`):
   play-along decision deck.
 - `/method/` (`src/app/Method.tsx`): rules, scoring, statistics, caveats, how
   to run it, and the in-browser replay verifier. Linked from the footer.
+- `/v2/` (`src/app/V2Archive.tsx`): the superseded 2.0 board, rescored with
+  score-v2. Linked from the footer.
 - `/v1/` (`src/app/V1Archive.tsx`): the superseded 1.0 (sota-v5) results.
   Linked from the footer.
 
@@ -98,7 +100,7 @@ python web/scripts/build_leaderboard.py      # sota-v2, the archived dataset
 git diff --exit-code -- web/src/data/leaderboard-sota-v2.json
 ```
 
-The site publishes `sota-v5`: `src/data/leaderboard.json` is written by
+The site's 1.0 archive publishes `sota-v5`: `src/data/leaderboard.json` is written by
 `build_study.py`, which refuses to build until every frozen publication input
 carries an explicit authorization decision. The analysis is reference-only—each
 model compared with `pick-trader`, no model-to-model tiers—so v5 rows carry no
@@ -110,6 +112,10 @@ decision model (`transport: decision-api`, see `docs/typesafe_jev_lane.md`).
 They render in their own section and never join `models`, the
 eligible-headline count, or the shot chart; `scripts/validate_results_data.ts`
 fails the build if they do.
+
+It also reads `results/agentic_v21/` into `agentic_v21_lane`, the rows the site
+leads with (GM-Bench 2.1, `docs/bench_v2_1_spec.md`, lane config
+`config/bench_v21_lane.json`), under the same rules as the 2.0 rows below.
 
 It also reads `results/agentic/` into `agentic_lane`: GM-Bench 2.0 rows
 (`docs/bench_v2_spec.md`), panel grade only, each validated against the
