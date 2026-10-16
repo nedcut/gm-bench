@@ -1,0 +1,883 @@
+{
+  "contract": "gm-bench-2.1",
+  "sources": [
+    {
+      "model": "gpt-6-astra",
+      "run": "codex-0.162.1-gpt-6-astra-panel-32x5-v21",
+      "row": "results/agentic_v21/codex-0.162.1-gpt-6-astra-panel-32x5.json"
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "run": "codex-0.162.1-gpt-6.1-sol-panel-32x5-v21",
+      "row": "results/agentic_v21/codex-0.162.1-gpt-6.1-sol-panel-32x5.json"
+    },
+    {
+      "model": "gpt-6-luna",
+      "run": "codex-0.162.1-gpt-6-luna-panel-32x5-v21",
+      "row": "results/agentic_v21/codex-0.162.1-gpt-6-luna-panel-32x5.json"
+    },
+    {
+      "model": "claude-opus-5-5",
+      "run": "claude-2.1.281-opus-5-5-panel-32x5-v21",
+      "row": "results/agentic_v21/claude-2.1.281-claude-opus-5-5-panel-32x5.json"
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "run": "claude-2.1.281-sonnet-5-5-panel-32x5-v21",
+      "row": "results/agentic_v21/claude-2.1.281-claude-sonnet-5-5-panel-32x5.json"
+    },
+    {
+      "model": "deepseek-v4.1-flash",
+      "run": "opencode-2.0.27-deepseek-v4.1-flash-panel-32x5-v21",
+      "row": "results/agentic_v21/opencode-2.0.27-deepseek-v4.1-flash-panel-32x5.json"
+    }
+  ],
+  "skipped_runs": [
+    {
+      "run": "claude-2.1.281-haiku-5-5-panel-32x5-v21",
+      "reason": "no committed row in results/agentic_v21/"
+    },
+    {
+      "run": "opencode-2.0.27-mimo-v2.6-flash-panel-32x5-v21",
+      "reason": "no committed row in results/agentic_v21/"
+    }
+  ],
+  "scope_note": "The committed 2.1 rows only. claude-haiku-5-5 and mimo-v2.6-flash had no committed 2.1 row when this was written (their panels were still running), so they are not measured.",
+  "definitions": {
+    "empty_phase": "a closed phase whose every ledger tool call (if any) was get_status or end_phase: the agent read nothing beyond the status and made no move",
+    "drafts_with_no_pick": "an empty draft phase in which the team held no current-season pick at open",
+    "closed_holding_unused_pick": "a draft phase closed with a current-season pick still unused",
+    "phases_ended_without_status_read": "a phase in which get_status was never called",
+    "roster_at_end": "players under contract after the final rollover, when the end-state terms are scored",
+    "extensions_ending_at_final_rollover": "successful extensions whose last season (the current season plus years minus 1) is season 5, so the player leaves before the end-state terms are scored",
+    "gap_to_default_at_draft_close": "team strength with the stored lineup minus with no stored lineup (the engine's default), no injury noise, as the draft phase closes and the rest of the season is played",
+    "draftees_benched_outranking_a_dressed_player": "players drafted in that phase, healthy and not dressed at its close, rated above the lowest-rated dressed player at their position",
+    "family_gap": "per seed, mean of the OpenAI rows minus mean of the Claude rows; terms are score-v2 contributions grouped as in TERM_GROUPS, penalty is minus the protocol penalty, and the terms sum to final_score"
+  },
+  "models": {
+    "gpt-6-astra": {
+      "episodes": 32,
+      "mean_final_score": 296.498,
+      "empty_phases": {
+        "count": 25,
+        "phases": 640,
+        "rate": 0.0391,
+        "by_phase": {
+          "preseason": 0,
+          "midseason": 1,
+          "trade_deadline": 9,
+          "draft": 15
+        },
+        "drafts_with_no_pick": 15,
+        "share_drafts_with_no_pick": 0.6,
+        "without_status_read": 0
+      },
+      "drafts": {
+        "count": 160,
+        "no_pick_at_open": 115,
+        "closed_holding_unused_pick": 0,
+        "set_lineup_in_draft": 145,
+        "with_live_deadline_offers": 117,
+        "with_a_stale_listed_offer": 55,
+        "trade_attempts_in_draft": 2,
+        "trade_attempts_at_deadline": 43,
+        "signings_in_draft": 0
+      },
+      "status_habit": {
+        "phases_ended_without_status_read": 0,
+        "rate_ended_without_status_read": 0.0,
+        "get_status_per_episode": 20.0,
+        "set_lineup_per_episode": 18.66
+      },
+      "end_of_run": {
+        "roster_before_final_rollover": 18.28,
+        "roster_at_end": 16.5,
+        "episodes_ending_with_5_or_fewer": 0,
+        "season_5_extensions_per_episode": 11.06,
+        "extensions_per_episode": 25.03,
+        "extensions_ending_at_final_rollover": 256,
+        "final_year_players_left_at_season_5_preseason_close": 55,
+        "season_5_signings": 48,
+        "season_5_signings_one_year": 17,
+        "mean_final_minus_after_season_4": 20.99,
+        "episodes_final_below_after_season_4": 0
+      },
+      "lineups": {
+        "mean_gap_to_default_at_draft_close": -0.018,
+        "draft_closes_more_than_0_5_below_default": 1,
+        "draftees": 48,
+        "draftees_benched_outranking_a_dressed_player": 0,
+        "phase_closes_with_2_healthy_goalies": 301,
+        "of_which_2_goalies_dressed": 132
+      },
+      "rejections": {
+        "penalized": 52,
+        "penalized_per_episode": 1.62,
+        "phases_closed_straight_after_a_penalized_rejection": 12,
+        "by_message": {
+          "pick seasons must be between N and N": 24,
+          "lineup includes players not on roster": 12,
+          "player is not an available free agent": 8,
+          "partner has no appetite for more trades this season": 4,
+          "trade would drop your roster below the N-player minimum": 2,
+          "trades must include assets from both teams": 1,
+          "lineup must contain N unique player ids": 1
+        },
+        "not_an_available_free_agent": {
+          "on a team": 6,
+          "on the waiver wire": 2
+        },
+        "pick_window_offering_current_season": 20,
+        "partner_broke_off_talks": 0
+      }
+    },
+    "gpt-6.1-sol": {
+      "episodes": 32,
+      "mean_final_score": 268.741,
+      "empty_phases": {
+        "count": 4,
+        "phases": 640,
+        "rate": 0.0063,
+        "by_phase": {
+          "preseason": 0,
+          "midseason": 0,
+          "trade_deadline": 0,
+          "draft": 4
+        },
+        "drafts_with_no_pick": 4,
+        "share_drafts_with_no_pick": 1.0,
+        "without_status_read": 0
+      },
+      "drafts": {
+        "count": 160,
+        "no_pick_at_open": 124,
+        "closed_holding_unused_pick": 0,
+        "set_lineup_in_draft": 156,
+        "with_live_deadline_offers": 124,
+        "with_a_stale_listed_offer": 56,
+        "trade_attempts_in_draft": 0,
+        "trade_attempts_at_deadline": 65,
+        "signings_in_draft": 0
+      },
+      "status_habit": {
+        "phases_ended_without_status_read": 0,
+        "rate_ended_without_status_read": 0.0,
+        "get_status_per_episode": 20.09,
+        "set_lineup_per_episode": 20.0
+      },
+      "end_of_run": {
+        "roster_before_final_rollover": 18.56,
+        "roster_at_end": 16.16,
+        "episodes_ending_with_5_or_fewer": 0,
+        "season_5_extensions_per_episode": 11.94,
+        "extensions_per_episode": 24.44,
+        "extensions_ending_at_final_rollover": 255,
+        "final_year_players_left_at_season_5_preseason_close": 79,
+        "season_5_signings": 60,
+        "season_5_signings_one_year": 18,
+        "mean_final_minus_after_season_4": 16.25,
+        "episodes_final_below_after_season_4": 2
+      },
+      "lineups": {
+        "mean_gap_to_default_at_draft_close": -0.109,
+        "draft_closes_more_than_0_5_below_default": 7,
+        "draftees": 39,
+        "draftees_benched_outranking_a_dressed_player": 3,
+        "phase_closes_with_2_healthy_goalies": 268,
+        "of_which_2_goalies_dressed": 77
+      },
+      "rejections": {
+        "penalized": 79,
+        "penalized_per_episode": 2.47,
+        "phases_closed_straight_after_a_penalized_rejection": 22,
+        "by_message": {
+          "lineup includes players not on roster": 22,
+          "pick seasons must be between N and N": 22,
+          "player is not an available free agent": 15,
+          "trade would drop your roster below the N-player minimum": 6,
+          "lineup must include at least N F, N D, N G": 4,
+          "partner has no appetite for more trades this season": 4,
+          "requested player is not on partner roster": 2,
+          "trade would exceed hard cap buffer": 2,
+          "TEAM does not own enough season-N picks": 1,
+          "release would drop roster below the N-player minimum": 1
+        },
+        "not_an_available_free_agent": {
+          "on a team": 14,
+          "on the waiver wire": 1
+        },
+        "pick_window_offering_current_season": 21,
+        "partner_broke_off_talks": 0
+      }
+    },
+    "gpt-6-luna": {
+      "episodes": 32,
+      "mean_final_score": 242.022,
+      "empty_phases": {
+        "count": 3,
+        "phases": 640,
+        "rate": 0.0047,
+        "by_phase": {
+          "preseason": 0,
+          "midseason": 1,
+          "trade_deadline": 0,
+          "draft": 2
+        },
+        "drafts_with_no_pick": 2,
+        "share_drafts_with_no_pick": 0.6667,
+        "without_status_read": 0
+      },
+      "drafts": {
+        "count": 160,
+        "no_pick_at_open": 11,
+        "closed_holding_unused_pick": 0,
+        "set_lineup_in_draft": 71,
+        "with_live_deadline_offers": 137,
+        "with_a_stale_listed_offer": 57,
+        "trade_attempts_in_draft": 0,
+        "trade_attempts_at_deadline": 12,
+        "signings_in_draft": 0
+      },
+      "status_habit": {
+        "phases_ended_without_status_read": 0,
+        "rate_ended_without_status_read": 0.0,
+        "get_status_per_episode": 20.62,
+        "set_lineup_per_episode": 15.72
+      },
+      "end_of_run": {
+        "roster_before_final_rollover": 22.53,
+        "roster_at_end": 15.94,
+        "episodes_ending_with_5_or_fewer": 0,
+        "season_5_extensions_per_episode": 4.97,
+        "extensions_per_episode": 17.25,
+        "extensions_ending_at_final_rollover": 105,
+        "final_year_players_left_at_season_5_preseason_close": 206,
+        "season_5_signings": 74,
+        "season_5_signings_one_year": 46,
+        "mean_final_minus_after_season_4": 17.58,
+        "episodes_final_below_after_season_4": 3
+      },
+      "lineups": {
+        "mean_gap_to_default_at_draft_close": -1.113,
+        "draft_closes_more_than_0_5_below_default": 86,
+        "draftees": 149,
+        "draftees_benched_outranking_a_dressed_player": 87,
+        "phase_closes_with_2_healthy_goalies": 565,
+        "of_which_2_goalies_dressed": 74
+      },
+      "rejections": {
+        "penalized": 21,
+        "penalized_per_episode": 0.66,
+        "phases_closed_straight_after_a_penalized_rejection": 2,
+        "by_message": {
+          "lineup includes players not on roster": 8,
+          "lineup must contain N unique player ids": 4,
+          "player is not an available free agent": 3,
+          "only incumbents signed before this season with one contract year remaining may be extended": 2,
+          "no current-season draft pick available": 2,
+          "player is not on your roster": 1,
+          "pick seasons must be between N and N": 1
+        },
+        "not_an_available_free_agent": {
+          "on a team": 3
+        },
+        "pick_window_offering_current_season": 1,
+        "partner_broke_off_talks": 0
+      }
+    },
+    "claude-opus-5-5": {
+      "episodes": 32,
+      "mean_final_score": 220.117,
+      "empty_phases": {
+        "count": 88,
+        "phases": 640,
+        "rate": 0.1375,
+        "by_phase": {
+          "preseason": 0,
+          "midseason": 6,
+          "trade_deadline": 0,
+          "draft": 82
+        },
+        "drafts_with_no_pick": 82,
+        "share_drafts_with_no_pick": 0.9318,
+        "without_status_read": 82
+      },
+      "drafts": {
+        "count": 160,
+        "no_pick_at_open": 83,
+        "closed_holding_unused_pick": 0,
+        "set_lineup_in_draft": 45,
+        "with_live_deadline_offers": 158,
+        "with_a_stale_listed_offer": 81,
+        "trade_attempts_in_draft": 0,
+        "trade_attempts_at_deadline": 113,
+        "signings_in_draft": 0
+      },
+      "status_habit": {
+        "phases_ended_without_status_read": 393,
+        "rate_ended_without_status_read": 0.6141,
+        "get_status_per_episode": 8.56,
+        "set_lineup_per_episode": 9.94
+      },
+      "end_of_run": {
+        "roster_before_final_rollover": 20.06,
+        "roster_at_end": 4.56,
+        "episodes_ending_with_5_or_fewer": 21,
+        "season_5_extensions_per_episode": 2.91,
+        "extensions_per_episode": 18.72,
+        "extensions_ending_at_final_rollover": 315,
+        "final_year_players_left_at_season_5_preseason_close": 506,
+        "season_5_signings": 140,
+        "season_5_signings_one_year": 140,
+        "mean_final_minus_after_season_4": -19.64,
+        "episodes_final_below_after_season_4": 25
+      },
+      "lineups": {
+        "mean_gap_to_default_at_draft_close": -0.892,
+        "draft_closes_more_than_0_5_below_default": 58,
+        "draftees": 77,
+        "draftees_benched_outranking_a_dressed_player": 27,
+        "phase_closes_with_2_healthy_goalies": 621,
+        "of_which_2_goalies_dressed": 68
+      },
+      "rejections": {
+        "penalized": 64,
+        "penalized_per_episode": 2.0,
+        "phases_closed_straight_after_a_penalized_rejection": 2,
+        "by_message": {
+          "pick seasons must be between N and N": 37,
+          "trade would drop your roster below the N-player minimum": 11,
+          "trades must include assets from both teams": 5,
+          "player is not an available free agent": 4,
+          "lineup must contain N unique player ids": 3,
+          "partner has no appetite for more trades this season": 1,
+          "trade would drop partner roster below the N-player minimum": 1,
+          "release would drop roster below the N-player minimum": 1,
+          "offer is stale: a player already changed teams": 1
+        },
+        "not_an_available_free_agent": {
+          "on a team": 4
+        },
+        "pick_window_offering_current_season": 37,
+        "partner_broke_off_talks": 0
+      }
+    },
+    "claude-sonnet-5-5": {
+      "episodes": 32,
+      "mean_final_score": 202.811,
+      "empty_phases": {
+        "count": 97,
+        "phases": 640,
+        "rate": 0.1516,
+        "by_phase": {
+          "preseason": 0,
+          "midseason": 40,
+          "trade_deadline": 31,
+          "draft": 26
+        },
+        "drafts_with_no_pick": 26,
+        "share_drafts_with_no_pick": 0.268,
+        "without_status_read": 81
+      },
+      "drafts": {
+        "count": 160,
+        "no_pick_at_open": 27,
+        "closed_holding_unused_pick": 1,
+        "set_lineup_in_draft": 0,
+        "with_live_deadline_offers": 158,
+        "with_a_stale_listed_offer": 62,
+        "trade_attempts_in_draft": 0,
+        "trade_attempts_at_deadline": 2,
+        "signings_in_draft": 0
+      },
+      "status_habit": {
+        "phases_ended_without_status_read": 457,
+        "rate_ended_without_status_read": 0.7141,
+        "get_status_per_episode": 5.94,
+        "set_lineup_per_episode": 5.5
+      },
+      "end_of_run": {
+        "roster_before_final_rollover": 21.41,
+        "roster_at_end": 4.69,
+        "episodes_ending_with_5_or_fewer": 23,
+        "season_5_extensions_per_episode": 1.12,
+        "extensions_per_episode": 16.66,
+        "extensions_ending_at_final_rollover": 247,
+        "final_year_players_left_at_season_5_preseason_close": 536,
+        "season_5_signings": 149,
+        "season_5_signings_one_year": 149,
+        "mean_final_minus_after_season_4": -23.64,
+        "episodes_final_below_after_season_4": 28
+      },
+      "lineups": {
+        "mean_gap_to_default_at_draft_close": -1.614,
+        "draft_closes_more_than_0_5_below_default": 105,
+        "draftees": 135,
+        "draftees_benched_outranking_a_dressed_player": 116,
+        "phase_closes_with_2_healthy_goalies": 567,
+        "of_which_2_goalies_dressed": 31
+      },
+      "rejections": {
+        "penalized": 43,
+        "penalized_per_episode": 1.34,
+        "phases_closed_straight_after_a_penalized_rejection": 2,
+        "by_message": {
+          "pick seasons must be between N and N": 30,
+          "trades must include assets from both teams": 7,
+          "release would drop roster below the N-player minimum": 1,
+          "extension years must be N-N": 1,
+          "trade would drop your roster below the N-player minimum": 1,
+          "player is not an available free agent": 1,
+          "partner has no appetite for more trades this season": 1,
+          "no current-season draft pick available": 1
+        },
+        "not_an_available_free_agent": {
+          "on the waiver wire": 1
+        },
+        "pick_window_offering_current_season": 25,
+        "partner_broke_off_talks": 24
+      }
+    },
+    "deepseek-v4.1-flash": {
+      "episodes": 32,
+      "mean_final_score": 250.782,
+      "empty_phases": {
+        "count": 34,
+        "phases": 640,
+        "rate": 0.0531,
+        "by_phase": {
+          "preseason": 0,
+          "midseason": 17,
+          "trade_deadline": 0,
+          "draft": 17
+        },
+        "drafts_with_no_pick": 17,
+        "share_drafts_with_no_pick": 0.5,
+        "without_status_read": 10
+      },
+      "drafts": {
+        "count": 160,
+        "no_pick_at_open": 20,
+        "closed_holding_unused_pick": 0,
+        "set_lineup_in_draft": 14,
+        "with_live_deadline_offers": 41,
+        "with_a_stale_listed_offer": 9,
+        "trade_attempts_in_draft": 2,
+        "trade_attempts_at_deadline": 36,
+        "signings_in_draft": 0
+      },
+      "status_habit": {
+        "phases_ended_without_status_read": 68,
+        "rate_ended_without_status_read": 0.1062,
+        "get_status_per_episode": 19.0,
+        "set_lineup_per_episode": 6.81
+      },
+      "end_of_run": {
+        "roster_before_final_rollover": 21.53,
+        "roster_at_end": 12.16,
+        "episodes_ending_with_5_or_fewer": 4,
+        "season_5_extensions_per_episode": 5.22,
+        "extensions_per_episode": 22.88,
+        "extensions_ending_at_final_rollover": 218,
+        "final_year_players_left_at_season_5_preseason_close": 298,
+        "season_5_signings": 46,
+        "season_5_signings_one_year": 40,
+        "mean_final_minus_after_season_4": 10.26,
+        "episodes_final_below_after_season_4": 8
+      },
+      "lineups": {
+        "mean_gap_to_default_at_draft_close": -0.262,
+        "draft_closes_more_than_0_5_below_default": 48,
+        "draftees": 141,
+        "draftees_benched_outranking_a_dressed_player": 103,
+        "phase_closes_with_2_healthy_goalies": 588,
+        "of_which_2_goalies_dressed": 263
+      },
+      "rejections": {
+        "penalized": 26,
+        "penalized_per_episode": 0.81,
+        "phases_closed_straight_after_a_penalized_rejection": 2,
+        "by_message": {
+          "pick seasons must be between N and N": 14,
+          "player is not an available free agent": 5,
+          "release would drop roster below the N-player minimum": 3,
+          "extension years must be N-N": 2,
+          "requested player is not on partner roster": 1,
+          "TEAM does not own enough season-N picks": 1
+        },
+        "not_an_available_free_agent": {
+          "on a team": 4,
+          "on the waiver wire": 1
+        },
+        "pick_window_offering_current_season": 11,
+        "partner_broke_off_talks": 0
+      }
+    }
+  },
+  "family_gap": {
+    "openai": [
+      "gpt-6-astra",
+      "gpt-6.1-sol",
+      "gpt-6-luna"
+    ],
+    "claude": [
+      "claude-opus-5-5",
+      "claude-sonnet-5-5"
+    ],
+    "seeds": 32,
+    "terms": {
+      "final_score": {
+        "mean": 57.623,
+        "sd": 20.796,
+        "se": 3.676,
+        "t": 15.674,
+        "ci95": [
+          50.417,
+          64.828
+        ],
+        "sign_flip_p": 0.0,
+        "ahead": 32,
+        "mde80": 10.299
+      },
+      "winning": {
+        "mean": 15.746,
+        "sd": 14.087,
+        "se": 2.49,
+        "t": 6.323,
+        "ci95": [
+          10.865,
+          20.627
+        ],
+        "sign_flip_p": 0.0,
+        "ahead": 28,
+        "mde80": 6.977
+      },
+      "end_roster": {
+        "mean": 45.531,
+        "sd": 15.288,
+        "se": 2.703,
+        "t": 16.848,
+        "ci95": [
+          40.234,
+          50.828
+        ],
+        "sign_flip_p": 0.0,
+        "ahead": 32,
+        "mde80": 7.571
+      },
+      "current_strength": {
+        "mean": 1.035,
+        "sd": 2.234,
+        "se": 0.395,
+        "t": 2.621,
+        "ci95": [
+          0.261,
+          1.809
+        ],
+        "sign_flip_p": 0.0046,
+        "ahead": 22,
+        "mde80": 1.106
+      },
+      "future_picks": {
+        "mean": -0.325,
+        "sd": 0.537,
+        "se": 0.095,
+        "t": -3.421,
+        "ci95": [
+          -0.511,
+          -0.139
+        ],
+        "sign_flip_p": 0.0016,
+        "ahead": 6,
+        "mde80": 0.266
+      },
+      "cap_room": {
+        "mean": -4.586,
+        "sd": 1.895,
+        "se": 0.335,
+        "t": -13.693,
+        "ci95": [
+          -5.242,
+          -3.93
+        ],
+        "sign_flip_p": 0.0,
+        "ahead": 0,
+        "mde80": 0.938
+      },
+      "penalty": {
+        "mean": 0.221,
+        "sd": 2.786,
+        "se": 0.493,
+        "t": 0.449,
+        "ci95": [
+          -0.744,
+          1.187
+        ],
+        "sign_flip_p": 0.6738,
+        "ahead": 17,
+        "mde80": 1.38
+      }
+    },
+    "share_of_gap": {
+      "winning": 0.273,
+      "end_roster": 0.79,
+      "current_strength": 0.018,
+      "future_picks": -0.006,
+      "cap_room": -0.08,
+      "penalty": 0.004
+    },
+    "seed_correlation_extra_empty_vs_score_gap": {
+      "gpt-6-astra vs claude-opus-5-5": 0.163,
+      "gpt-6-astra vs claude-sonnet-5-5": -0.071,
+      "gpt-6.1-sol vs claude-opus-5-5": -0.122,
+      "gpt-6.1-sol vs claude-sonnet-5-5": -0.246,
+      "gpt-6-luna vs claude-opus-5-5": 0.306,
+      "gpt-6-luna vs claude-sonnet-5-5": 0.125
+    }
+  },
+  "penalized_rejections": {
+    "penalized": 285,
+    "clusters": [
+      {
+        "message": "pick seasons must be between N and N",
+        "count": 128,
+        "share": 0.449,
+        "by_model": {
+          "gpt-6-astra": 24,
+          "gpt-6.1-sol": 22,
+          "gpt-6-luna": 1,
+          "claude-opus-5-5": 37,
+          "claude-sonnet-5-5": 30,
+          "deepseek-v4.1-flash": 14
+        }
+      },
+      {
+        "message": "lineup includes players not on roster",
+        "count": 42,
+        "share": 0.147,
+        "by_model": {
+          "gpt-6-astra": 12,
+          "gpt-6.1-sol": 22,
+          "gpt-6-luna": 8,
+          "claude-opus-5-5": 0,
+          "claude-sonnet-5-5": 0,
+          "deepseek-v4.1-flash": 0
+        }
+      },
+      {
+        "message": "player is not an available free agent",
+        "count": 36,
+        "share": 0.126,
+        "by_model": {
+          "gpt-6-astra": 8,
+          "gpt-6.1-sol": 15,
+          "gpt-6-luna": 3,
+          "claude-opus-5-5": 4,
+          "claude-sonnet-5-5": 1,
+          "deepseek-v4.1-flash": 5
+        }
+      },
+      {
+        "message": "trade would drop your roster below the N-player minimum",
+        "count": 20,
+        "share": 0.07,
+        "by_model": {
+          "gpt-6-astra": 2,
+          "gpt-6.1-sol": 6,
+          "gpt-6-luna": 0,
+          "claude-opus-5-5": 11,
+          "claude-sonnet-5-5": 1,
+          "deepseek-v4.1-flash": 0
+        }
+      },
+      {
+        "message": "trades must include assets from both teams",
+        "count": 13,
+        "share": 0.046,
+        "by_model": {
+          "gpt-6-astra": 1,
+          "gpt-6.1-sol": 0,
+          "gpt-6-luna": 0,
+          "claude-opus-5-5": 5,
+          "claude-sonnet-5-5": 7,
+          "deepseek-v4.1-flash": 0
+        }
+      },
+      {
+        "message": "partner has no appetite for more trades this season",
+        "count": 10,
+        "share": 0.035,
+        "by_model": {
+          "gpt-6-astra": 4,
+          "gpt-6.1-sol": 4,
+          "gpt-6-luna": 0,
+          "claude-opus-5-5": 1,
+          "claude-sonnet-5-5": 1,
+          "deepseek-v4.1-flash": 0
+        }
+      },
+      {
+        "message": "lineup must contain N unique player ids",
+        "count": 8,
+        "share": 0.028,
+        "by_model": {
+          "gpt-6-astra": 1,
+          "gpt-6.1-sol": 0,
+          "gpt-6-luna": 4,
+          "claude-opus-5-5": 3,
+          "claude-sonnet-5-5": 0,
+          "deepseek-v4.1-flash": 0
+        }
+      },
+      {
+        "message": "release would drop roster below the N-player minimum",
+        "count": 6,
+        "share": 0.021,
+        "by_model": {
+          "gpt-6-astra": 0,
+          "gpt-6.1-sol": 1,
+          "gpt-6-luna": 0,
+          "claude-opus-5-5": 1,
+          "claude-sonnet-5-5": 1,
+          "deepseek-v4.1-flash": 3
+        }
+      },
+      {
+        "message": "lineup must include at least N F, N D, N G",
+        "count": 4,
+        "share": 0.014,
+        "by_model": {
+          "gpt-6-astra": 0,
+          "gpt-6.1-sol": 4,
+          "gpt-6-luna": 0,
+          "claude-opus-5-5": 0,
+          "claude-sonnet-5-5": 0,
+          "deepseek-v4.1-flash": 0
+        }
+      },
+      {
+        "message": "requested player is not on partner roster",
+        "count": 3,
+        "share": 0.011,
+        "by_model": {
+          "gpt-6-astra": 0,
+          "gpt-6.1-sol": 2,
+          "gpt-6-luna": 0,
+          "claude-opus-5-5": 0,
+          "claude-sonnet-5-5": 0,
+          "deepseek-v4.1-flash": 1
+        }
+      },
+      {
+        "message": "no current-season draft pick available",
+        "count": 3,
+        "share": 0.011,
+        "by_model": {
+          "gpt-6-astra": 0,
+          "gpt-6.1-sol": 0,
+          "gpt-6-luna": 2,
+          "claude-opus-5-5": 0,
+          "claude-sonnet-5-5": 1,
+          "deepseek-v4.1-flash": 0
+        }
+      },
+      {
+        "message": "extension years must be N-N",
+        "count": 3,
+        "share": 0.011,
+        "by_model": {
+          "gpt-6-astra": 0,
+          "gpt-6.1-sol": 0,
+          "gpt-6-luna": 0,
+          "claude-opus-5-5": 0,
+          "claude-sonnet-5-5": 1,
+          "deepseek-v4.1-flash": 2
+        }
+      },
+      {
+        "message": "trade would exceed hard cap buffer",
+        "count": 2,
+        "share": 0.007,
+        "by_model": {
+          "gpt-6-astra": 0,
+          "gpt-6.1-sol": 2,
+          "gpt-6-luna": 0,
+          "claude-opus-5-5": 0,
+          "claude-sonnet-5-5": 0,
+          "deepseek-v4.1-flash": 0
+        }
+      },
+      {
+        "message": "TEAM does not own enough season-N picks",
+        "count": 2,
+        "share": 0.007,
+        "by_model": {
+          "gpt-6-astra": 0,
+          "gpt-6.1-sol": 1,
+          "gpt-6-luna": 0,
+          "claude-opus-5-5": 0,
+          "claude-sonnet-5-5": 0,
+          "deepseek-v4.1-flash": 1
+        }
+      },
+      {
+        "message": "only incumbents signed before this season with one contract year remaining may be extended",
+        "count": 2,
+        "share": 0.007,
+        "by_model": {
+          "gpt-6-astra": 0,
+          "gpt-6.1-sol": 0,
+          "gpt-6-luna": 2,
+          "claude-opus-5-5": 0,
+          "claude-sonnet-5-5": 0,
+          "deepseek-v4.1-flash": 0
+        }
+      },
+      {
+        "message": "player is not on your roster",
+        "count": 1,
+        "share": 0.004,
+        "by_model": {
+          "gpt-6-astra": 0,
+          "gpt-6.1-sol": 0,
+          "gpt-6-luna": 1,
+          "claude-opus-5-5": 0,
+          "claude-sonnet-5-5": 0,
+          "deepseek-v4.1-flash": 0
+        }
+      },
+      {
+        "message": "trade would drop partner roster below the N-player minimum",
+        "count": 1,
+        "share": 0.004,
+        "by_model": {
+          "gpt-6-astra": 0,
+          "gpt-6.1-sol": 0,
+          "gpt-6-luna": 0,
+          "claude-opus-5-5": 1,
+          "claude-sonnet-5-5": 0,
+          "deepseek-v4.1-flash": 0
+        }
+      },
+      {
+        "message": "offer is stale: a player already changed teams",
+        "count": 1,
+        "share": 0.004,
+        "by_model": {
+          "gpt-6-astra": 0,
+          "gpt-6.1-sol": 0,
+          "gpt-6-luna": 0,
+          "claude-opus-5-5": 1,
+          "claude-sonnet-5-5": 0,
+          "deepseek-v4.1-flash": 0
+        }
+      }
+    ]
+  },
+  "not_reproduced": [
+    "lineup counterfactual (engine default lineup at every phase close)",
+    "filling empty phases with cheap actions",
+    "drafting the best prospect in a forfeited draft",
+    "fixed-effects regressions of score on empty phases"
+  ]
+}
