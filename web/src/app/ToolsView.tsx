@@ -1,9 +1,11 @@
+import type { ReactNode } from "react";
+import { routes } from "../site";
 import { compact, num, type ModelRow } from "../v2";
 import { type WorkspaceView } from "./Workspace";
 
 interface Metric {
   title: string;
-  note: string;
+  note: ReactNode;
   value: (row: ModelRow) => number | null;
   text: (value: number) => string;
 }
@@ -15,7 +17,12 @@ const METRICS: Metric[] = [
   { title: "Output tokens", note: "Per game", value: (r) => r.outputTokens, text: (v) => compact(v) },
   {
     title: "Empty phases",
-    note: "Ended after only a status check; share of all phases",
+    note: (
+      <>
+        Share of phases ended with at most a status check. Mostly drafts with no pick and models that skip get_status,
+        not missed decisions: <a href={routes.findings}>findings</a>
+      </>
+    ),
     value: (r) => (r.emptyPhases === null || r.phases === 0 ? null : (100 * r.emptyPhases) / r.phases),
     text: (v) => `${num(v, v < 10 && v > 0 ? 1 : 0)}%`,
   },

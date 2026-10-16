@@ -1,4 +1,4 @@
-import findingsData from "./data/v21-findings.json";
+import findingsData from "./data/v21-findings.json" with { type: "json" };
 
 /* Built by scripts/build_v21_findings.py from the committed 2.1 behaviour
    diagnostic (results/diagnostics/v21_behavior/behavior.json). Aggregates only. */
