@@ -637,6 +637,7 @@ def test_run_panel_resume_replays_an_episode_the_provider_ended(
         ({"model": "other"}, "model"),
         ({"seeds": [11, 99]}, "seeds"),
         ({"max_nudges": 1}, "limits"),
+        ({"prompt_check": True}, "prompt_check"),
     ],
 )
 def test_run_panel_resume_refuses_a_different_run(
@@ -647,6 +648,9 @@ def test_run_panel_resume_refuses_a_different_run(
     with pytest.raises(KeyboardInterrupt):
         opencode_driver.run_panel([11, 12], model="m", run_dir=run_dir)
     _fake_panel(monkeypatch)
+    monkeypatch.setattr(
+        opencode_driver.OpenCodeDriver, "check_prompt", lambda self, **kwargs: {"checked": True, "problems": []}
+    )
     kwargs = {"model": "m", "run_dir": run_dir, "seeds": [11, 12], **change}
     seeds = kwargs.pop("seeds")
     with pytest.raises(opencode_driver.ResumeError, match=rf"cannot resume .*: {field} differ"):
@@ -669,6 +673,13 @@ def test_run_panel_refuses_to_start_over_a_started_run(tmp_path: Path, monkeypat
     with pytest.raises(opencode_driver.ResumeError, match="already holds a run"):
         opencode_driver.run_panel([11, 12], model="other", run_dir=run_dir)
     assert (run_dir / "panel-start.json").read_text() == start
+    assert (run_dir / "panel-start.json").stat().st_mode & 0o077 == 0
+    # Episodes from a run that never recorded its identity are not adopted by a fresh start.
+    legacy = tmp_path / "legacy"
+    (legacy / "seed-11").mkdir(parents=True)
+    with pytest.raises(opencode_driver.ResumeError, match="already holds a run"):
+        opencode_driver.run_panel([11, 12], model="m", run_dir=legacy)
+    assert not (legacy / "panel-start.json").exists()
 
 
 def test_run_panel_resume_refuses_another_driver(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

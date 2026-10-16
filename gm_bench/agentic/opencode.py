@@ -1685,6 +1685,15 @@ class ResumeError(ValueError):
     """A run directory that ``run_panel(resume=True)`` cannot continue."""
 
 
+def _write_private_json(path: Path, payload: dict[str, Any]) -> None:
+    """Write ``payload`` owner-only and atomically: a kill mid-write leaves the old file whole."""
+    tmp = path.with_name(f".{path.name}.tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload, indent=2, sort_keys=True))
+    os.replace(tmp, path)
+
+
 def _utc_now(clock: Callable[[], float]) -> str:
     return _dt.datetime.fromtimestamp(clock(), _dt.timezone.utc).isoformat(timespec="seconds")
 
@@ -1860,6 +1869,8 @@ def run_panel(
         isolation=isolation,
         driver_digest=driver_record["driver_digest"],
         name_episodes_by_position=name_episodes_by_position,
+        # A resume must not record a prompt check the episodes it keeps never had.
+        prompt_check=prompt_check,
         limits={
             "phase_guard_seconds": phase_guard_seconds,
             "max_nudges": max_nudges,
@@ -1873,11 +1884,12 @@ def run_panel(
     if resume:
         start = _resume_start(run_dir, identity)
         start["resumes"].append({"resumed_at_utc": _utc_now(clock), "reused": [], "set_aside": []})
-    elif start_path.exists():
+    elif any(run_dir.iterdir()):
+        # Episodes already here were played under an identity nobody recorded: never adopt them.
         raise ResumeError(f"{run_dir} already holds a run; pass resume to continue it, or use an empty run directory")
     else:
         start = {"identity": identity, "driver": driver_record, "resumes": []}
-    start_path.write_text(json.dumps(start, indent=2, sort_keys=True), encoding="utf-8")
+    _write_private_json(start_path, start)
     episodes = []
     attempts: dict[int, int] = {}
     width = max(2, len(str(len(seeds) - 1)))
@@ -1899,7 +1911,7 @@ def run_panel(
         name = f"episode-{position:0{width}d}" if name_episodes_by_position else f"seed-{seed}{suffix}"
         if resume:
             kept = _resume_episode(run_dir, name, position, seed, start["resumes"][-1])
-            start_path.write_text(json.dumps(start, indent=2, sort_keys=True), encoding="utf-8")
+            _write_private_json(start_path, start)
             if kept is not None:
                 if progress is not None:
                     progress({"stage": "reused", "seed": seed, "episode": position})
@@ -1991,7 +2003,7 @@ def run_panel(
         payload["stopped_for_provider"] = stopped_for_provider
     if start["resumes"]:
         payload["resumes"] = start["resumes"]
-    (run_dir / "run.json").write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    _write_private_json(run_dir / "run.json", payload)
     return payload
 
 
