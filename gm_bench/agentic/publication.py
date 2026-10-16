@@ -68,7 +68,8 @@ lane config of the contract it was played under (``LANE_CONFIGS``:
 2.1; both lanes share one private panel). Once the operator records the frozen panel's
 ``pick-trader`` and ``random`` means under ``reference_scores`` in that file,
 a panel row's reference must carry exactly those means. CI runs it on every
-file under ``results/agentic/``.
+file under ``results/agentic/`` (2.0 rows) and ``results/agentic_v21/`` (2.1
+rows).
 """
 
 from __future__ import annotations
@@ -750,6 +751,7 @@ def validate_agentic_artifact(
 
     recorded = artifact.get("contract") or {}
     version = recorded.get("benchmark_version") or DEFAULT_VERSION
+    lane_name = LANE_CONFIGS.get(version, LANE_CONFIG)
     if lane is None:
         lane = load_lane_config(version=version)
     elif (lane.get("benchmark_version") or DEFAULT_VERSION) != version:
@@ -800,7 +802,7 @@ def validate_agentic_artifact(
             errors.append("panel grade needs the harness isolated from the driver by user or container")
         if not redacted:
             errors.append("panel grade needs redacted seeds")
-        errors.extend(_lane_panel_errors(panel, distinct, lane))
+        errors.extend(_lane_panel_errors(panel, distinct, lane, lane_name))
     elif grade != "smoke":
         errors.append("grade must be 'panel' or 'smoke'")
     driver_errors, driver_warnings = _driver_findings(artifact, grade, checkout_driver_digest)
@@ -861,7 +863,9 @@ def validate_agentic_artifact(
         errors.append("a smoke row carries no reference contrast (spec, Panel design); drop the reference block")
     elif grade == "panel":
         errors.extend(_reference_errors(artifact.get("reference"), distinct, artifact.get("seasons"), candidate_mean))
-        pin_errors, pin_warnings = _reference_pin_errors(artifact.get("reference"), artifact.get("seasons"), lane)
+        pin_errors, pin_warnings = _reference_pin_errors(
+            artifact.get("reference"), artifact.get("seasons"), lane, lane_name
+        )
         errors.extend(pin_errors)
         warnings.extend(pin_warnings)
 
@@ -1067,7 +1071,9 @@ def _reference_coherence_errors(lift: float, ci: list[float] | None, stddev: Any
     return errors
 
 
-def _reference_pin_errors(reference: Any, seasons: Any, lane: dict[str, Any] | None) -> tuple[list[str], list[str]]:
+def _reference_pin_errors(
+    reference: Any, seasons: Any, lane: dict[str, Any] | None, lane_name: Path = LANE_CONFIG
+) -> tuple[list[str], list[str]]:
     """``pick-trader`` and ``random`` are deterministic, so on the one frozen panel their means are constants.
 
     ``reference_scores`` in the lane config records them once (from the first
@@ -1079,44 +1085,46 @@ def _reference_pin_errors(reference: Any, seasons: Any, lane: dict[str, Any] | N
         return [], []
     pins = lane.get("reference_scores")
     if not isinstance(pins, dict):
-        return [], [f"{LANE_CONFIG} has no reference_scores block; the reference means are not pinned"]
+        return [], [f"{lane_name} has no reference_scores block; the reference means are not pinned"]
     floor = reference.get("floor") if isinstance(reference.get("floor"), dict) else {}
     errors: list[str] = []
     warnings: list[str] = []
     pinned_seasons = pins.get("seasons")
     means = pins.get("mean_scores") or {}
     if seasons != pinned_seasons:
-        return [], [f"{LANE_CONFIG} reference_scores covers {pinned_seasons!r} seasons, not {seasons!r}; not pinned"]
+        return [], [f"{lane_name} reference_scores covers {pinned_seasons!r} seasons, not {seasons!r}; not pinned"]
     for agent, value in (
         (REFERENCE_AGENT, reference.get("mean_score")),
         (REFERENCE_FLOOR_AGENT, floor.get("mean_score")),
     ):
         pinned = means.get(agent)
         if pinned is None:
-            warnings.append(f"{LANE_CONFIG} reference_scores has no recorded {agent} mean; not pinned")
+            warnings.append(f"{lane_name} reference_scores has no recorded {agent} mean; not pinned")
         elif not _is_finite_number(pinned):
-            errors.append(f"{LANE_CONFIG} reference_scores.mean_scores.{agent} must be a number or null")
+            errors.append(f"{lane_name} reference_scores.mean_scores.{agent} must be a number or null")
         elif not (_is_finite_number(value) and abs(float(value) - float(pinned)) <= 1e-6):
             errors.append(
                 f"reference {agent} mean {value!r} is not the frozen panel's {pinned!r} "
-                f"({LANE_CONFIG} reference_scores); every panel row shares it"
+                f"({lane_name} reference_scores); every panel row shares it"
             )
     return errors, warnings
 
 
-def _lane_panel_errors(panel: dict[str, Any], distinct: int, lane: dict[str, Any] | None) -> list[str]:
+def _lane_panel_errors(
+    panel: dict[str, Any], distinct: int, lane: dict[str, Any] | None, lane_name: Path = LANE_CONFIG
+) -> list[str]:
     """A panel row is a run of the lane's frozen private panel, checked by digest and size only."""
     if lane is None:
-        return [f"{LANE_CONFIG} not found; a panel-grade row can only be validated against the lane's frozen panel"]
+        return [f"{lane_name} not found; a panel-grade row can only be validated against the lane's frozen panel"]
     seed_panel = lane.get("seed_panel") or {}
     expected_sha = seed_panel.get("artifact_panel_sha256")
     expected_count = seed_panel.get("count")
     errors: list[str] = []
     if not _SHA256_RE.match(str(expected_sha or "")) or not _is_int(expected_count):
-        return [f"{LANE_CONFIG} has no seed_panel.artifact_panel_sha256 and count to check a panel row against"]
+        return [f"{lane_name} has no seed_panel.artifact_panel_sha256 and count to check a panel row against"]
     if panel.get("sha256") != expected_sha:
         errors.append(
-            f"panel.sha256 is not the lane's frozen private panel ({LANE_CONFIG} seed_panel.artifact_panel_sha256)"
+            f"panel.sha256 is not the lane's frozen private panel ({lane_name} seed_panel.artifact_panel_sha256)"
         )
     if distinct != expected_count:
         errors.append(
@@ -1125,7 +1133,7 @@ def _lane_panel_errors(panel: dict[str, Any], distinct: int, lane: dict[str, Any
     reference_agent = (lane.get("panel_design") or {}).get("reference_agent", REFERENCE_AGENT)
     if reference_agent != REFERENCE_AGENT:
         errors.append(
-            f"{LANE_CONFIG} panel_design.reference_agent is {reference_agent!r}; this checkout computes {REFERENCE_AGENT!r}"
+            f"{lane_name} panel_design.reference_agent is {reference_agent!r}; this checkout computes {REFERENCE_AGENT!r}"
         )
     return errors
 

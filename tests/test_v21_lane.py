@@ -92,4 +92,6 @@ def test_a_2_1_row_with_the_2_0_reference_mean_is_rejected() -> None:
     artifact["reference"]["paired_lift_ci95"] = [round(b - shift, 3) for b in artifact["reference"]["paired_lift_ci95"]]
     report = validate_agentic_artifact(artifact)
     assert not report["ok"]
-    assert any("is not the frozen panel's" in error for error in report["errors"]), report["errors"]
+    assert any("is not the frozen panel's" in error and "bench_v21_lane.json" in error for error in report["errors"]), (
+        report["errors"]
+    )
