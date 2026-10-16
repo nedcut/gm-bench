@@ -2251,8 +2251,10 @@ class OpenCodeDriver(HarnessDriver):
         return ensure_image(docker=docker, env=env)
 
     def _key_provider(self) -> str:
-        """The provider the auth file's key is staged for: the run's model's (``opencode-go`` before any is named)."""
-        return self.model.split("/", 1)[0] if self.model is not None else "opencode-go"
+        """The provider the auth file's key is staged for: the run's model's, which ``check_model`` must name first."""
+        if self.model is None:
+            raise RuntimeError("check_model must name the run's model before its key is staged")
+        return self.model.split("/", 1)[0]
 
     def stage(self, launch: HarnessLaunch) -> None:
         stage_scratch(

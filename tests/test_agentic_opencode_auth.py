@@ -26,6 +26,13 @@ def _key_file(tmp_path: Path) -> Path:
     return path
 
 
+def _go_driver(key_file: Path) -> OpenCodeDriver:
+    """A driver whose run's model is named, as ``run_episode`` and ``run_panel`` name it before staging."""
+    driver = OpenCodeDriver(auth_file=key_file)
+    driver.check_model("opencode-go/kimi-k3")
+    return driver
+
+
 # Where the stand-in ``opencode`` keeps what ``auth import`` gave it, under its data directory.
 _STORE = Path("opencode") / "stand-in-credential-store.json"
 
@@ -105,7 +112,7 @@ def test_same_user_key_is_imported_into_the_private_data_dir_only(
     monkeypatch.setenv("OPENCODE_API_KEY", "sk-operator-env-key-must-not-pass")
     monkeypatch.setattr(opencode, "sandbox_problems", lambda scratch, env: [])
     episode = AgenticEpisode(1, seasons=1, ledger_path=tmp_path / "ledger.jsonl")
-    driver = OpenCodeDriver(auth_file=_key_file(tmp_path))
+    driver = _go_driver(_key_file(tmp_path))
     launch = opencode.HarnessLaunch(episode, binary=str(_fake_opencode(tmp_path)), driver=driver)
     try:
         launch.prepare()
@@ -155,7 +162,7 @@ def test_a_failed_import_stops_the_launch_without_quoting_the_key(
     failing.write_text(f"#!{sys.executable}\nimport sys\nprint(open(sys.argv[3]).read())\nsys.exit(3)\n")
     failing.chmod(0o755)
     episode = AgenticEpisode(1, seasons=1, ledger_path=tmp_path / "ledger.jsonl")
-    launch = opencode.HarnessLaunch(episode, binary=str(failing), driver=OpenCodeDriver(auth_file=_key_file(tmp_path)))
+    launch = opencode.HarnessLaunch(episode, binary=str(failing), driver=_go_driver(_key_file(tmp_path)))
     try:
         with pytest.raises(RuntimeError, match="auth import exited 3") as excinfo:
             launch.prepare()
@@ -174,7 +181,7 @@ def test_container_key_reaches_only_the_home_volume(tmp_path: Path) -> None:
     image = {"image": "gm-bench-agentic-opencode:test", "image_id": "sha256:" + "a" * 64}
     episode = AgenticEpisode(8675309, seasons=1, ledger_path=tmp_path / "run" / "ledger.jsonl")
     key = _key_file(tmp_path)
-    driver = OpenCodeDriver(auth_file=key)
+    driver = _go_driver(key)
     launch = opencode.HarnessLaunch(episode, isolation="container", image=image, docker=str(docker), driver=driver)
     try:
         launch.prepare()
@@ -450,3 +457,9 @@ def test_the_run_record_names_the_pinned_host(tmp_path: Path) -> None:
     record = driver.run_record(_Launch())  # type: ignore[arg-type]
     assert record["auth_providers"] == ["openrouter"]
     assert record["provider_routing"] == {"order": ["baidu"], "allow_fallbacks": False}
+
+
+def test_a_key_is_never_staged_before_the_run_names_its_model(tmp_path: Path) -> None:
+    driver = OpenCodeDriver(auth_file=_key_file(tmp_path))
+    with pytest.raises(RuntimeError, match="check_model must name the run's model"):
+        driver._key_provider()
