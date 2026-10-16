@@ -696,7 +696,8 @@ main:focus {
   padding: 32px 24px 48px;
 }
 
-.page h1 {
+.page h1,
+.archive-head h1 {
   margin: 0 0 8px;
   font-stretch: 72%;
   font-size: clamp(30px, 4vw, 42px);
@@ -724,6 +725,16 @@ main:focus {
 
 .lede {
   font-size: 15px;
+}
+
+/* The 2.0 archive: a content-page heading over the standings workspace. */
+.archive-head {
+  padding-bottom: 12px;
+}
+
+.archive-head p {
+  max-width: 80ch;
+  color: var(--text-2);
 }
 
 .data-table {

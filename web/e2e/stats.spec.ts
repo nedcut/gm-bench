@@ -18,7 +18,7 @@ for (const width of [1440, 620, 390, 320]) {
       const indexBox = await index.boundingBox();
       expect(box && indexBox && box.y >= indexBox.y + indexBox.height - 1).toBe(true);
     }
-    const row = page.locator(".row-name", { hasText: "gpt-6-astra" });
+    const row = page.locator("#standings .row-name", { hasText: "gpt-6-astra" });
     await row.click();
     await expect(page.locator(".side-panel h2")).toHaveText("gpt-6-astra");
     await expect(page.locator("#cost .pt[aria-pressed=true]")).toHaveCount(1);
@@ -29,7 +29,7 @@ for (const width of [1440, 620, 390, 320]) {
       if (width <= 900) await page.getByRole("button", { name: "Filter", exact: true }).click();
       await page.getByRole("checkbox", { name: /OpenAI/ }).uncheck();
       if (width <= 900) await page.getByRole("button", { name: "Close", exact: true }).click();
-      await expect(page.locator(".row-name", { hasText: "gpt-6-astra" })).toHaveCount(0);
+      await expect(page.locator("#standings .row-name", { hasText: "gpt-6-astra" })).toHaveCount(0);
       await expect(page.locator("#cost .pt", { hasText: "gpt-6-astra" })).toHaveCount(0);
       await expect(page.locator("#tools .hbar", { hasText: "gpt-6-astra" })).toHaveCount(0);
       if (width <= 900) await page.getByRole("button", { name: "Filter", exact: true }).click();
@@ -41,7 +41,7 @@ for (const width of [1440, 620, 390, 320]) {
     const point = page.getByRole("button", { name: /^gpt-6-astra, Codex: score/ });
     await point.focus();
     await page.keyboard.press("Enter");
-    await expect(page.locator(".standings tr[aria-selected=true]")).toHaveCount(1);
+    await expect(page.locator("#standings .standings tr[aria-selected=true]")).toHaveCount(1);
     if (width <= 900) await page.getByRole("button", { name: "Close", exact: true }).click();
     await index.getByRole("link", { name: "Tool use", exact: true }).click();
     await page.locator(".hbar", { hasText: "gpt-6-astra" }).first().click();

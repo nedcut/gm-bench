@@ -28,7 +28,7 @@ function ThemeToggle() {
 }
 
 export default function Shell({ page, data, children }: { page: PageKey; data: Leaderboard; children: ReactNode }) {
-  const contract = data.agentic_lane?.[0]?.contract;
+  const contract = data.agentic_v21_lane?.[0]?.contract;
   return (
     <div className={`app page-${page}`}>
       <a className="skip-link" href="#main">Skip to content</a>
@@ -54,13 +54,14 @@ export default function Shell({ page, data, children }: { page: PageKey; data: L
       </main>
       <footer className="footer">
         <span>
-          GM-Bench 2.0{contract ? ` · contract ${contract.agentic_fingerprint}` : ""}
+          GM-Bench 2.1{contract ? ` · contract ${contract.agentic_fingerprint}` : ""}
           {data.updated ? ` · updated ${data.updated}` : ""} · by <a href="https://github.com/nedcut">Ned Cutler</a>
         </span>
         <nav aria-label="More">
           <a href={routes.method} aria-current={page === "method" ? "page" : undefined}>Method</a>
+          <a href={routes.v2} aria-current={page === "v2" ? "page" : undefined}>2.0 archive</a>
           <a href={routes.v1} aria-current={page === "v1" ? "page" : undefined}>1.0 archive</a>
-          <a href={`${REPO_BLOB}docs/REPRODUCING_GM_BENCH_2_0.md`}>Reproduce</a>
+          <a href={`${REPO_BLOB}docs/bench_v2_1_spec.md#running-and-checking`}>Reproduce</a>
         </nav>
       </footer>
     </div>

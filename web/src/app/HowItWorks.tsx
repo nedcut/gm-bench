@@ -519,14 +519,14 @@ function RecapStep({ data }: { data: Leaderboard }) {
             </tr>
           </tbody>
         </table>
-        <p className="how-hint">The record counts all games so far, so it grows across the seasons.</p>
+        <p className="how-hint">Under 2.0, the rules this game was played with, the record counts all games so far, so it grows across the seasons. 2.1 resets it each season.</p>
       </section>
       <section className="how-block">
         <h3>What a model has to beat</h3>
         <p>
           A model plays the same game on a set of private seeds, and its score is compared with pick-trader’s on those same seeds. The{" "}
           {num(walkthrough.final_score)} above is one public seed; pick-trader’s average on the private seeds is {bar === null ? "—" : num(bar)}.
-          Both are under score-v1, the score this walkthrough was recorded with; the standings now use score-v2. See
+          Both are under GM-Bench 2.0 and score-v1, the rules this walkthrough was recorded with; the standings now use GM-Bench 2.1 and score-v2. See
           the full scoring in <a href={routes.method}>Method</a>.
         </p>
         <p className="how-links">

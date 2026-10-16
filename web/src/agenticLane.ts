@@ -226,6 +226,50 @@ export interface AgenticLanePanel {
   reference_scores_v1?: { seasons: number; mean_scores: Record<string, number | null> };
 }
 
+/* Checks every published lane row passes, whichever contract it was played under. */
+function panelRowIssues(row: AgenticLaneRow, lanePanel: AgenticLanePanel, label: string, artifactDir: string): string[] {
+  const issues: string[] = [];
+  if (row.lane !== "agentic") issues.push(`${label} is not labelled agentic`);
+  if (row.grade !== "panel") issues.push(`${label} is ${String(row.grade)} grade; only panel rows are published`);
+  const distinct = row.panel?.distinct_seeds;
+  if (!Number.isInteger(distinct) || distinct < AGENTIC_PANEL_MIN_SEEDS) {
+    issues.push(`${label} has ${String(distinct)} distinct seed groups; panel grade needs ${AGENTIC_PANEL_MIN_SEEDS}`);
+  } else if (distinct !== lanePanel.count) {
+    issues.push(`${label} has ${distinct} distinct seed groups; the lane's frozen panel has ${lanePanel.count}`);
+  }
+  if (row.panel?.sha256 !== lanePanel.artifact_panel_sha256) {
+    issues.push(`${label} is not on the lane's frozen private panel (panel.sha256)`);
+  }
+  if (typeof row.unpinned !== "boolean") {
+    issues.push(`${label} does not say whether its model is pinned (unpinned flag)`);
+  } else if (!row.unpinned && !(typeof row.pin === "string" && row.pin.trim())) {
+    issues.push(`${label} is marked pinned but names no pin`);
+  }
+  if (!AGENTIC_PANEL_ISOLATION.has(row.isolation)) {
+    issues.push(`${label} has isolation ${String(row.isolation)}; panel grade needs separate-user or container`);
+  }
+  if (!row.harness?.name || !row.harness?.version || !row.harness?.model) {
+    issues.push(`${label} is missing its harness name, version, or model`);
+  }
+  if (!row.artifact_path?.startsWith(artifactDir)) {
+    issues.push(`${label} does not point at a committed ${artifactDir} artifact`);
+  }
+  return issues;
+}
+
+/** Inference-looking keys anywhere in a row outside the blocks allowed to carry them. */
+function strayInference(row: AgenticLaneRow): string[] {
+  const outsideReference = Object.fromEntries(
+    Object.entries(row).filter(([key]) => key !== "reference" && key !== "score_v1"),
+  );
+  const v1 = row.score_v1;
+  const v1Rest =
+    v1 !== null && typeof v1 === "object"
+      ? Object.fromEntries(Object.entries(v1).filter(([key]) => key !== "reference"))
+      : {};
+  return [...inferenceKeyPaths(outsideReference, "row"), ...inferenceKeyPaths(v1Rest, "row.score_v1")];
+}
+
 export function agenticLaneIssues(data: Leaderboard, lanePanel: AgenticLanePanel): string[] {
   const issues: string[] = [];
   const rows: AgenticLaneRow[] = data.agentic_lane ?? [];
@@ -252,31 +296,7 @@ export function agenticLaneIssues(data: Leaderboard, lanePanel: AgenticLanePanel
     if (seen.has(row.id)) issues.push(`Duplicate agentic row ${row.id}`);
     seen.add(row.id);
     if (oneZeroIds.has(row.id)) issues.push(`${label} shares an id with a 1.0 row`);
-    if (row.lane !== "agentic") issues.push(`${label} is not labelled agentic`);
-    if (row.grade !== "panel") issues.push(`${label} is ${String(row.grade)} grade; only panel rows are published`);
-    const distinct = row.panel?.distinct_seeds;
-    if (!Number.isInteger(distinct) || distinct < AGENTIC_PANEL_MIN_SEEDS) {
-      issues.push(`${label} has ${String(distinct)} distinct seed groups; panel grade needs ${AGENTIC_PANEL_MIN_SEEDS}`);
-    } else if (distinct !== lanePanel.count) {
-      issues.push(`${label} has ${distinct} distinct seed groups; the lane's frozen panel has ${lanePanel.count}`);
-    }
-    if (row.panel?.sha256 !== lanePanel.artifact_panel_sha256) {
-      issues.push(`${label} is not on the lane's frozen private panel (panel.sha256)`);
-    }
-    if (typeof row.unpinned !== "boolean") {
-      issues.push(`${label} does not say whether its model is pinned (unpinned flag)`);
-    } else if (!row.unpinned && !(typeof row.pin === "string" && row.pin.trim())) {
-      issues.push(`${label} is marked pinned but names no pin`);
-    }
-    if (!AGENTIC_PANEL_ISOLATION.has(row.isolation)) {
-      issues.push(`${label} has isolation ${String(row.isolation)}; panel grade needs separate-user or container`);
-    }
-    if (!row.harness?.name || !row.harness?.version || !row.harness?.model) {
-      issues.push(`${label} is missing its harness name, version, or model`);
-    }
-    if (!row.artifact_path?.startsWith("results/agentic/")) {
-      issues.push(`${label} does not point at a committed results/agentic/ artifact`);
-    }
+    issues.push(...panelRowIssues(row, lanePanel, label, "results/agentic/"));
     if ((row as { scoring_version?: unknown }).scoring_version !== "score-v2") {
       issues.push(`${label} is not published under score-v2`);
     }
@@ -310,19 +330,53 @@ export function agenticLaneIssues(data: Leaderboard, lanePanel: AgenticLanePanel
           `${String(row.seasons)} seasons; on one frozen panel every reference must agree`,
       );
     }
-    const outsideReference = Object.fromEntries(
-      Object.entries(row).filter(([key]) => key !== "reference" && key !== "score_v1"),
-    );
-    const v1Rest =
-      v1 !== null && typeof v1 === "object"
-        ? Object.fromEntries(Object.entries(v1).filter(([key]) => key !== "reference"))
-        : {};
-    const stray = [...inferenceKeyPaths(outsideReference, "row"), ...inferenceKeyPaths(v1Rest, "row.score_v1")];
+    const stray = strayInference(row);
     if (stray.length > 0) {
       issues.push(
         `${label} carries a p-value or paired field outside its pick-trader reference (${stray.join(", ")}); ` +
           "2.0 compares no rows, harnesses, or models",
       );
+    }
+  }
+  return issues;
+}
+
+export const AGENTIC_V21_VERSION = "gm-bench-2.1";
+
+/* GM-Bench 2.1 rows (config/bench_v21_lane.json): the same publication rules
+ * on the same private panel, against the 2.1 pins. A 2.1 row is played under
+ * score-v2, so it has no score-v1 block, and it never shares an id with a 2.0
+ * row: the two contracts are two tables, compared with nothing but their own
+ * pick-trader. */
+export function agenticV21LaneIssues(data: Leaderboard, lanePanel: AgenticLanePanel): string[] {
+  const issues: string[] = [];
+  const v20Ids = new Set((data.agentic_lane ?? []).map((row) => row.id));
+  const seen = new Set<string>();
+  let firstMeans: { id: string; means: string } | null = null;
+  for (const row of data.agentic_v21_lane ?? []) {
+    const label = `2.1 row ${row.id}`;
+    if (seen.has(row.id)) issues.push(`Duplicate 2.1 row ${row.id}`);
+    seen.add(row.id);
+    if (!row.id.startsWith("agentic-2.1:")) issues.push(`${label} does not carry the agentic-2.1: id prefix`);
+    if (v20Ids.has(row.id)) issues.push(`${label} shares an id with a 2.0 row`);
+    if (row.contract?.benchmark_version !== AGENTIC_V21_VERSION) {
+      issues.push(`${label} was played under ${String(row.contract?.benchmark_version)}, not ${AGENTIC_V21_VERSION}`);
+    }
+    issues.push(...panelRowIssues(row, lanePanel, label, "results/agentic_v21/"));
+    if ((row as { scoring_version?: unknown }).scoring_version !== "score-v2") {
+      issues.push(`${label} is not published under score-v2`);
+    }
+    if ("score_v1" in row) issues.push(`${label} carries a score_v1 block; 2.1 was never scored with score-v1`);
+    issues.push(...referenceIssues(row, lanePanel, label, lanePanel.reference_scores, "config/bench_v21_lane.json reference_scores"));
+    issues.push(...telemetryIssues(row, label));
+    const means = JSON.stringify([row.reference?.mean_score, row.reference?.floor?.mean_score]);
+    if (firstMeans === null) firstMeans = { id: row.id, means };
+    else if (firstMeans.means !== means) {
+      issues.push(`${label} has pick-trader/random means ${means} but ${firstMeans.id} has ${firstMeans.means}`);
+    }
+    const stray = strayInference(row);
+    if (stray.length > 0) {
+      issues.push(`${label} carries a p-value or paired field outside its pick-trader reference (${stray.join(", ")})`);
     }
   }
   return issues;

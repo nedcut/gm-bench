@@ -40,9 +40,9 @@ export default function Stats({ data, start }: { data: Leaderboard; start?: "cos
               <span className="stats-count">{view.shown.length} of {view.models.length} models</span>
               {view.filterButton}
             </nav>
-            <StandingsSection data={data} view={view} />
-            <CostSection data={data} view={view} />
-            <ToolsSection data={data} view={view} />
+            <StandingsSection view={view} />
+            <CostSection view={view} />
+            <ToolsSection view={view} />
           </div>
         )}
       </Workspace>
