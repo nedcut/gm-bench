@@ -281,3 +281,33 @@ def test_a_call_opencode_refused_on_its_schema_is_skipped_not_counted() -> None:
     assert telemetry["harness_tool_events"] == {"gm-bench_draft": 1, "gm-bench_get_status": 1, "gm-bench_trade": 1}
     assert telemetry["harness_tool_calls_skipped"] == {"gm-bench_trade": 1}
     assert opencode.harness_tool_calls(telemetry) == 3
+
+
+def test_a_resumed_run_validates_and_publishes_its_resumes_by_position(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from gm_bench.agentic.publication import compact_agentic_run
+    from gm_bench.agentic.validate import validate_run
+
+    monkeypatch.setattr(opencode, "export_session", lambda launch, sid: (_EXPORT, None))
+    monkeypatch.setattr(opencode, "sandbox_problems", lambda scratch, env: [])
+    monkeypatch.setattr(opencode, "_run_harness", _scripted_harness([{"phases": 4}, {"phases": 4}], []))
+    run_dir = tmp_path / "run"
+    opencode.run_panel([11, 12], model="opencode/m", run_dir=run_dir, seasons=1, binary="none")
+    # As a kill mid-episode leaves it: no run.json, and the second episode without its result.
+    (run_dir / "run.json").unlink()
+    (run_dir / "seed-12" / "result.json").unlink()
+
+    monkeypatch.setattr(opencode, "_run_harness", _scripted_harness([{"phases": 4}], []))
+    payload = opencode.run_panel([11, 12], model="opencode/m", run_dir=run_dir, seasons=1, binary="none", resume=True)
+
+    assert [episode["seed"] for episode in payload["episodes"]] == [11, 12]
+    assert validate_run(run_dir)["ok"]
+    artifact = compact_agentic_run(run_dir, isolation="same-user")
+    assert artifact["resumes"] == [
+        {
+            "resumed_at_utc": payload["resumes"][0]["resumed_at_utc"],
+            "reused": [0],
+            "set_aside": [{"episode": 1, "reason": "unfinished"}],
+        }
+    ]

@@ -2079,6 +2079,38 @@ the harness: the run directory still holds them (ledger headers and finished
 episodes' `result.json`), so panel grade still needs
 `separate-user` or `container` isolation.
 
+### Resuming a stopped panel
+
+A panel is hours to days of serial episodes, and a run killed partway (a
+restart, a closed session) used to mean starting over. Before its first
+episode the driver writes `panel-start.json` in the run directory: the run's
+identity (model, variant, seeds, seasons, contract block, harness and its
+version, container image id, isolation, the episode limits, episode naming,
+and the driver digest). Rerun the same command with `--resume` (the launcher
+passes it to `gm-bench agentic`) and the driver:
+
+- refuses unless the identity is unchanged, naming the fields that differ
+  (never their values). The driver digest is part of it, so a resume is
+  played by the same driver code as the episodes it keeps. A run started
+  before `panel-start.json` existed cannot be resumed;
+- refuses a run whose `run.json` shows it finished; one that stopped for the
+  quota or the provider (`stopped_for_quota`, `stopped_for_provider`) can be
+  resumed;
+- keeps each episode with a `result.json` that ran to its end;
+- moves an episode that did not (no `result.json`: it was killed; or
+  `ended_by_quota` / `ended_by_provider`) to `set-aside/<name>-<n>` and plays
+  that seed again from the start, then runs the rest.
+
+`run.json` lists every resume under `resumes` (time, the positions reused,
+and each set-aside position with its reason), and `agentic-redact` publishes
+the same list without the directory names, so a row discloses which games
+were replayed. An episode set aside was not chosen by its score: it never
+finished, so it has none. Its tokens were still spent, so the row's cost
+does not include them. On a Linux host where a session manager runs your
+shell (a desktop app, systemd), start a panel in its own unit, for example
+`systemd-run --user --unit=gmb-panel ...`, so closing the session does not
+kill it.
+
 ## Red-teaming the sandbox
 
 ```bash

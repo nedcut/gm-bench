@@ -31,6 +31,10 @@ committed digests, so it cannot hand the driver a different panel.
 
 Episodes run serially: the driver has no parallel mode, on purpose.
 
+``--resume`` continues a panel that stopped in ``--output`` (which must then
+exist) instead of requiring an empty directory; the driver checks it is the
+same run (``panel-start.json``) and replays any unfinished episode.
+
 A paid panel must be reproducible from a commit, so the launcher refuses to
 start when any driver or contract file (``gm_bench/agentic/provenance.py``)
 differs from ``HEAD`` or is untracked, or when the checkout is not a git
@@ -201,10 +205,13 @@ def verified_seed_text(lane: dict[str, Any], shared_lane: dict[str, Any], *, req
     return seeds_text
 
 
-def _require_fresh_output(output: Path) -> None:
+def _require_fresh_output(output: Path, *, resume: bool = False) -> None:
     # The driver refuses a populated episode directory, but its error names the
     # directory, and the directory names the seed. Refuse before that point.
-    if output.exists() and (not output.is_dir() or any(output.iterdir())):
+    if resume:
+        if not output.is_dir():
+            raise ValueError(f"{output} is not a run directory; --resume continues a run that already started")
+    elif output.exists() and (not output.is_dir() or any(output.iterdir())):
         raise ValueError(f"{output} is not an empty directory; a panel run needs a fresh run directory")
     try:
         output.resolve().relative_to(ROOT.resolve())
@@ -254,6 +261,7 @@ def agentic_argv(args: argparse.Namespace, passthrough: list[str]) -> list[str]:
         str(args.output),
         "--seasons",
         str(args.seasons),
+        *(["--resume"] if getattr(args, "resume", False) else []),
         *passthrough,
     ]
 
@@ -263,6 +271,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--model", help="model id as the harness names it")
     parser.add_argument("--output", type=Path, help="fresh run directory outside the checkout")
     parser.add_argument("--seasons", type=int, default=PANEL_SEASONS, help="must be 5, the frozen panel length")
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="continue a stopped panel in --output (same model, seeds, driver and options); see gm-bench agentic --resume",
+    )
     parser.add_argument(
         "--verify-only",
         action="store_true",
@@ -288,7 +301,7 @@ def main(argv: list[str] | None = None) -> int:
         parser.error(f"the frozen 2.0 panel is {PANEL_SEASONS} seasons")
     output = args.output if args.output.is_absolute() else Path.cwd() / args.output
     args.output = output
-    _require_fresh_output(output)
+    _require_fresh_output(output, resume=args.resume)
     cli_argv = agentic_argv(args, passthrough)
     require_committed_driver()
     seeds_text = verified_seed_text(lane, shared_lane)

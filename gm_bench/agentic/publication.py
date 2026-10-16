@@ -360,6 +360,24 @@ def compact_agentic_run(
             for key in ("quota_pause_percent", "quota_pauses", "stopped_for_quota", "stopped_for_provider")
             if key in raw
         },
+        # A resumed run: which episodes each resume kept and which it set aside and replayed (positions only).
+        **(
+            {
+                "resumes": [
+                    {
+                        "resumed_at_utc": resume.get("resumed_at_utc"),
+                        "reused": resume.get("reused"),
+                        "set_aside": [
+                            {"episode": item.get("episode"), "reason": item.get("reason")}
+                            for item in resume.get("set_aside") or []
+                        ],
+                    }
+                    for resume in raw["resumes"]
+                ]
+            }
+            if raw.get("resumes")
+            else {}
+        ),
         "summary": raw.get("summary"),
         "agentic_summary": agentic_summary,
         "effective_reasoning_effort": effective_reasoning_effort(raw, run_path.parent),
