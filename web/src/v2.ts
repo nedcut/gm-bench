@@ -182,6 +182,12 @@ const ROW_CAVEATS: Record<string, string> = {
     "own figure at the Contributor rates, counted against the Go plan's limits rather than billed per token. " +
     "The cost shown is the same tokens at Muse Spark 1.3's standard list price, $69.90 for the panel. " +
     "Played on driver commit 3b82ca1.",
+  "agentic-2.1:claude-2.1.281:claude-haiku-5-5":
+    "Exploratory, not pre-registered: dropped from the first paid round and run after it. Claude Code " +
+    "reports no cost, so the cost shown is an API list-price estimate, and it is a lower bound: Haiku 5.5 " +
+    "charges 5x on every token category for a request whose prompt is over 100,000 tokens, and 1,044 of " +
+    "the 2,963 requests were. Pricing those requests at the higher tier puts the panel at about $12 to $17. " +
+    "Played on driver commit 765c427.",
   "agentic-2.1:claude-2.1.281:claude-opus-5-5":
     "Exploratory, not pre-registered: added after the first paid round. Paused once for " +
     "quota: after episode 18 the 5-hour window reached 97%, and the driver waited about 80 minutes for it " +
