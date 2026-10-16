@@ -67,6 +67,6 @@ def test_employer_facing_site_links_current_evidence_and_metadata() -> None:
     assert "REPRODUCING_SOTA_V5_RELEASE.md" in archive
     assert "holmRejectedCount" in archive
     assert 'href="%BASE_URL%favicon.svg"' in index
-    assert 'rel="canonical" href="https://nedcut.github.io/gm-bench/"' in index
+    assert 'rel="canonical" href="https://gm-bench.pages.dev/"' in index
     assert 'property="og:title"' in index
     assert "leaderboard that stays empty" not in index

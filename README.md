@@ -12,7 +12,20 @@ front-office dynasty games. Agents manage a fictional hockey-style league over
 multiple seasons by making roster, trade, free-agency, draft, and lineup
 decisions through a JSON-compatible API.
 
-The current result is the `sota-v5` publication panel (2026-09-03). Sixteen
+The current benchmark is **GM-Bench 2.1** (released 2026-10-16): an agentic
+lane where a model plays one five-season game inside its own agent harness,
+scored under score-v2 on a 32-seed private panel. Six rows are published, each
+compared only with the scripted `pick-trader` (249.6 under 2.1) on the same
+seeds. `gpt-6-astra` (+46.9, interval +36.5 to +57.4) and `gpt-6.1-sol`
+(+19.1, +10.6 to +27.8) beat it; `deepseek-v4.1-flash` (+1.2) and
+`gpt-6-luna` (-7.6) cannot be told apart from it; `claude-opus-5-5` (-29.5)
+and `claude-sonnet-5-5` (-46.8) trail it. Every row is `unpinned` (its model
+version is not pinned), so rows may not reproduce, and no model-to-model
+ranking is published. See [the 2.1 section of the changelog](CHANGELOG.md) and
+[docs/bench_v2_1_spec.md](docs/bench_v2_1_spec.md).
+
+GM-Bench 1.0 (below) is the earlier, single-prompt study. Its last result is
+the `sota-v5` publication panel (2026-09-03). Sixteen
 model cells were pre-registered and all sixteen are accounted for: eleven
 strict headline rows, three ineligible on model behavior, and two excluded at
 the two-attempt infrastructure limit. Every eligible model trails the
@@ -20,7 +33,7 @@ deterministic `pick-trader` baseline (mean 247.109), and ten of the eleven
 headline rows reject at Holm-adjusted alpha 0.05 against the registered family
 of sixteen. No model-to-model ranking is published.
 
-Beside that headline, a separate decision-model lane (2026-09-18) publishes
+Beside that 1.0 headline, a separate decision-model lane (2026-09-18) publishes
 TypeSafe's Jev, a model that answers typed questions instead of writing the
 action batch, on the same contract and private panel. It scores 229.0 against
 a baseline-panel mean of 175.3 and trails `pick-trader` by 18.1 points. That
@@ -31,9 +44,14 @@ family, and is never counted with the chat-lane rows; see
 Read the [v5 findings](docs/blog/sota-v5-findings.md), follow the
 [reproduction guide](docs/REPRODUCING_SOTA_V5_RELEASE.md), download the
 [tagged release](https://github.com/nedcut/gm-bench/releases/tag/sota-v5-publication-2026-09-03),
-or explore the [live leaderboard](https://nedcut.github.io/gm-bench/).
+or explore the [live leaderboard](https://gm-bench.pages.dev/).
 
-## GM-Bench 2.0 status
+## GM-Bench 2.0 status (archived)
+
+GM-Bench 2.0 is superseded by 2.1 (above), which is 2.0 plus three simulator
+fixes and score-v2; the 2.0 board is kept on the site's 2.0 archive, rescored
+with score-v2. The figures in this section are the 2.0 rows as first published,
+under score-v1, and are not comparable with 2.1 scores.
 
 The `sota-v5` contract above, with its decision-model lane, is GM-Bench 1.0.
 GM-Bench 2.0 is the agentic version. It uses the same simulator and the same
@@ -162,7 +180,7 @@ rows are public; a 2.0 tag and GitHub release have not been cut.
 
 ## Play along
 
-The site's [Replays](https://nedcut.github.io/gm-bench/replays/) tab has 24 real
+The site's [Replays](https://gm-bench.pages.dev/replays/) tab has 24 real
 decisions taken from recorded episodes. Each one shows the situation and several
 options, where every option is a move some policy actually made from that same
 observation. There are no invented distractors. Pick one and the board reveals
@@ -321,7 +339,7 @@ follow the [clean-clone reproduction guide](docs/REPRODUCING_SOTA_V2_RELEASE.md)
 
 The phase-one study remains frozen under its literal `sota-v2` contract, and the
 findings and release linked above are its record; the site's [1.0
-archive](https://nedcut.github.io/gm-bench/v1/) shows the later `sota-v5` table.
+archive](https://gm-bench.pages.dev/v1/) shows the later `sota-v5` table.
 The terminal `sota-v3` and `sota-v4` smoke campaigns preserve the post-release
 simulator fixes and route outcomes; neither ever ran a panel. `sota-v5` is the
 current published contract and superseded them after v4's Qwen route proved
@@ -386,9 +404,9 @@ GM-Bench includes:
 
 ## Leaderboard & Website
 
-The [live site](https://nedcut.github.io/gm-bench/) leads with the GM-Bench 2.1
+The [live site](https://gm-bench.pages.dev/) leads with the GM-Bench 2.1
 panel rows; the GM-Bench 2.0 rows are on its [2.0
-archive](https://nedcut.github.io/gm-bench/v2/) page. The generated leaderboard
+archive](https://gm-bench.pages.dev/v2/) page. The generated leaderboard
 JSON (`web/src/data/leaderboard.json`) holds both and the archived `sota-v5`
 1.0 table, built only from committed artifacts.
 
@@ -421,12 +439,13 @@ python -m gm_bench compact-result /tmp/openai-gpt-5.4.raw.json \
   --output /tmp/openai-gpt-5.4.compact.json --policy sota-v5
 python -m gm_bench validate-contract
 python -m gm_bench calibrate-score --json
-python web/scripts/build_leaderboard.py   # refresh web/src/data/leaderboard.json
+python -m web.scripts.build_study         # refresh web/src/data/leaderboard.json
 cd web && bun install && bun run dev      # local site
 ```
 
-The site in `web/` deploys to GitHub Pages automatically on pushes to `main`
-(`.github/workflows/pages.yml`).
+The site in `web/` is served at <https://gm-bench.pages.dev/> by Cloudflare Pages,
+which builds on pushes to `main` (root `web`, output `dist`). The older GitHub
+Pages workflow (`.github/workflows/pages.yml`) still runs until it is removed.
 
 The frozen phase-one headline API lane uses the common 4,096-token safety ceiling in
 [`config/sota_v2_lane.json`](config/sota_v2_lane.json), with native-minimum
@@ -617,8 +636,8 @@ The public site (Vite + React + TypeScript, managed with Bun) lives in
 [`web/`](web/README.md). It is a small data app over a committed snapshot of
 real benchmark output: Standings (`/`), How it works (`/how-it-works/`), Score
 vs cost (`/cost/`), Tool use
-(`/tools/`), Replays (`/replays/`), Method (`/method/`) and the 1.0 archive
-(`/v1/`). It builds to a fully static bundle:
+(`/tools/`), Replays (`/replays/`), Method (`/method/`) and the 2.0 and 1.0
+archives (`/v2/`, `/v1/`). It builds to a fully static bundle:
 
 ```bash
 cd web

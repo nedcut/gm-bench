@@ -291,11 +291,12 @@ test("the footer names 2.1 and links the 2.0 archive, which shows the 2.0 board 
   expect(errors).toEqual([]);
 });
 
-test("a 2.1 row's details say it was played under 2.1 and carry no 2.0 caveat", async ({ page }) => {
+test("a 2.1 row's details say it was played under 2.1 and carry its own caveat, not the 2.0 one", async ({ page }) => {
   await page.goto("/");
   await page.locator("#standings .row-name", { hasText: "claude-opus-5-5" }).click();
   await expect(page.locator(".side-panel h2")).toHaveText("claude-opus-5-5");
   await expect(page.locator(".side-panel")).toContainText("Played under GM-Bench 2.1");
-  await expect(page.locator(".side-panel")).not.toContainText("Paused once for quota");
+  await expect(page.locator(".side-panel")).toContainText("after episode 18");
+  await expect(page.locator(".side-panel")).not.toContainText("after episode 25");
   await expect(page.locator(".side-panel")).not.toContainText("Under score-v1");
 });

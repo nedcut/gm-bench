@@ -113,10 +113,11 @@ export interface BotRow {
 
 export type StandingsRow = ModelRow | BotRow;
 
-/* Caveats a row's numbers cannot carry, keyed by row id. These are 2.0 rows
-   (the archive); each fact is about that run. Source: docs/bench_v2_spec.md,
-   "Changes after the freeze". A 2.1 row gets a caveat only for a fact about
-   its own run. */
+/* Caveats a row's numbers cannot carry, keyed by row id. The `agentic:` rows
+   are 2.0 (the archive); source: docs/bench_v2_spec.md, "Changes after the
+   freeze". The `agentic-2.1:` rows are 2.1; source: docs/bench_v2_1_spec.md,
+   "First paid round" and "Lane", and each row's artifact. Each fact is about
+   that run. */
 const ROW_CAVEATS: Record<string, string> = {
   "agentic:claude-2.1.281:claude-haiku-4-5":
     "Admitted under a post-hoc audit rule adopted on 2026-09-27, after this panel ran: in 4 episodes the " +
@@ -181,6 +182,31 @@ const ROW_CAVEATS: Record<string, string> = {
     "own figure at the Contributor rates, counted against the Go plan's limits rather than billed per token. " +
     "The cost shown is the same tokens at Muse Spark 1.3's standard list price, $69.90 for the panel. " +
     "Played on driver commit 3b82ca1.",
+  "agentic-2.1:claude-2.1.281:claude-opus-5-5":
+    "Exploratory, not pre-registered: added after the first paid round. Paused once for " +
+    "quota: after episode 18 the 5-hour window reached 97%, and the driver waited about 80 minutes for it " +
+    "to reset; no episode was cut short. Claude Code reports no cost, so the cost shown is an API " +
+    "list-price estimate. Played on driver commit 765c427.",
+  "agentic-2.1:claude-2.1.281:claude-sonnet-5-5":
+    "Paused once for quota: after episode 12 the 5-hour window reached 98%, and the driver waited about " +
+    "2 hours for it to reset; no episode was cut short. Claude Code compacted its context once. Claude Code " +
+    "reports no cost, so the cost shown is an API list-price estimate. Played on driver commit f8befed.",
+  "agentic-2.1:codex-0.162.1:gpt-6-astra":
+    "Exploratory, not pre-registered: added after the first paid round. Ran with the " +
+    "ChatGPT account's apps and plugins turned off. Codex reports no cost; the estimate is at list prices " +
+    "and may be low, because turns passed the long-context threshold. Played on driver commit 765c427.",
+  "agentic-2.1:codex-0.162.1:gpt-6-luna":
+    "Exploratory: added after the first paid round started, not pre-registered. Ran on Codex 0.162.1 with " +
+    "the ChatGPT account's apps and plugins turned off; its 2.0 row ran on 0.156.1 with them available. " +
+    "Codex reports no cost; the estimate is at list prices and may be low, because turns passed the " +
+    "long-context threshold. Played on driver commit f8befed.",
+  "agentic-2.1:codex-0.162.1:gpt-6.1-sol":
+    "Ran with the ChatGPT account's apps and plugins turned off. Codex reports no cost; the estimate is at " +
+    "list prices and may be low, because turns passed the long-context threshold. Played on driver commit f8befed.",
+  "agentic-2.1:opencode-2.0.27:opencode-go/deepseek-v4.1-flash":
+    "Run on an OpenCode Go subscription. The cost shown is OpenCode's own figure; Go counts usage against " +
+    "the plan's limits rather than billing per token, and there is no API-equivalent estimate. Played on " +
+    "driver commit f8befed.",
 };
 
 function v1Comparison(row: AgenticLaneRow): ModelRow["v1"] {
