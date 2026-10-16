@@ -1,4 +1,4 @@
-"""Publication artifacts for GM-Bench 2.0 rows.
+"""Publication artifacts for GM-Bench 2.0 and 2.1 rows.
 
 A run directory written by ``gm-bench agentic`` is raw evidence: it holds the
 seeds, every ledger, the harness event stream, and local paths. None of that
@@ -61,9 +61,11 @@ artifact per row, produced by :func:`compact_agentic_run`, which
 
 :func:`validate_agentic_artifact` checks a committed artifact against the
 contract this checkout computes and against those grade rules. A panel-grade
-row must also be a run of the lane's frozen private panel: its
-``panel.sha256`` and distinct-seed count must equal ``seed_panel`` in
-``config/bench_v2_lane.json``. Once the operator records the frozen panel's
+row must also be a run of its lane's frozen private panel: its
+``panel.sha256`` and distinct-seed count must equal ``seed_panel`` in the
+lane config of the contract it was played under (``LANE_CONFIGS``:
+``config/bench_v2_lane.json`` for 2.0, ``config/bench_v21_lane.json`` for
+2.1; both lanes share one private panel). Once the operator records the frozen panel's
 ``pick-trader`` and ``random`` means under ``reference_scores`` in that file,
 a panel row's reference must carry exactly those means. CI runs it on every
 file under ``results/agentic/``.
@@ -79,6 +81,7 @@ from pathlib import Path
 from typing import Any
 
 from gm_bench.agentic import claude, codex, opencode
+from gm_bench.agents import AGENTS
 from gm_bench.agentic.contract import AGENTIC_BENCHMARK_VERSION
 from gm_bench.agentic.cursor import prompt_audit_problems
 from gm_bench.agentic.opencode import TOKEN_SHAPE, _api_equivalent_summary, normalized_tokens
@@ -86,6 +89,8 @@ from gm_bench.agentic.prompt_check import prompt_check_problems, unchecked_same_
 from gm_bench.agentic.provenance import driver_digest, provenance_problems, reproducible_driver
 from gm_bench.agentic.validate import EMPTY_PHASE_DEFINITION, provider_ended, validate_run
 from gm_bench.agentic.versions import DEFAULT_VERSION, VERSIONS, contract_block
+from gm_bench.v21 import contract as v21_contract
+from gm_bench.v21 import runner as v21_runner
 from gm_bench.publication import canonical_sha256
 from gm_bench.runner import _paired_analysis, _precise_mean_score, run_many_cached_baselines
 from gm_bench.telemetry import api_equivalent_cost_usd, model_price_entry
@@ -93,6 +98,9 @@ from gm_bench.telemetry import api_equivalent_cost_usd, model_price_entry
 AGENTIC_PUBLICATION_FORMAT = "gm-bench-agentic-summary-v1"
 RESULTS_DIR = Path("results") / "agentic"
 LANE_CONFIG = Path("config") / "bench_v2_lane.json"
+LANE_CONFIG_V21 = Path("config") / "bench_v21_lane.json"
+# Each contract's rows are checked against its own lane: frozen panel and reference pins.
+LANE_CONFIGS = {AGENTIC_BENCHMARK_VERSION: LANE_CONFIG, v21_contract.BENCHMARK_VERSION: LANE_CONFIG_V21}
 # The lane config is a checkout file, not package data: panel rows are only
 # ever validated from a checkout (CI, the operator before committing).
 _CHECKOUT_ROOT = Path(__file__).resolve().parents[2]
@@ -396,11 +404,8 @@ def reference_contrast(raw: dict[str, Any]) -> dict[str, Any]:
     ``per_seed`` is emptied and no cache path or hit count is kept.
     """
     version = (raw.get("contract") or {}).get("benchmark_version") or AGENTIC_BENCHMARK_VERSION
-    if version != AGENTIC_BENCHMARK_VERSION:
-        # The reference below plays the 1.0 simulator and score, which is 2.0's
-        # league; a 2.1 row would be paired with the wrong one. 2.1 rows are
-        # not publishable until a 2.1 lane (panel, reference pins) is frozen.
-        raise ValueError(f"{version} rows cannot be published yet: no frozen lane pairs them with a reference")
+    if version not in LANE_CONFIGS:
+        raise ValueError(f"{version} rows cannot be published: no lane pairs them with a reference")
     raw_episodes = raw.get("episodes") or []
     seasons = raw.get("seasons")
     if not _is_int(seasons) or seasons < 1:
@@ -415,8 +420,13 @@ def reference_contrast(raw: dict[str, Any]) -> dict[str, Any]:
     seeds = list(dict.fromkeys(episode["seed"] for episode in candidate["episodes"]))
     if not seeds:
         raise ValueError("the raw run has no episodes to pair with the reference")
-    reference, _ = run_many_cached_baselines(REFERENCE_AGENT, seeds, seasons, use_cache=False)
-    floor, _ = run_many_cached_baselines(REFERENCE_FLOOR_AGENT, seeds, seasons, use_cache=False)
+    if version == v21_contract.BENCHMARK_VERSION:
+        # A 2.1 row is paired with the references played under the 2.1 rules and score-v2.
+        reference = v21_runner.run_many(AGENTS[REFERENCE_AGENT](), seeds, seasons)
+        floor = v21_runner.run_many(AGENTS[REFERENCE_FLOOR_AGENT](), seeds, seasons)
+    else:
+        reference, _ = run_many_cached_baselines(REFERENCE_AGENT, seeds, seasons, use_cache=False)
+        floor, _ = run_many_cached_baselines(REFERENCE_FLOOR_AGENT, seeds, seasons, use_cache=False)
     paired = _paired_analysis(seeds, candidate, [reference])
     p_value = paired["sign_flip_p_value"]
     # Beyond 20 seeds the runner samples SIGN_FLIP_DRAWS flips; with no draw as extreme it
@@ -679,9 +689,11 @@ def token_shape_problems(episode: dict[str, Any]) -> list[str]:
     return problems
 
 
-def load_lane_config(path: str | Path | None = None) -> dict[str, Any] | None:
-    """The committed 2.0 lane config, or ``None`` when this is not a checkout."""
-    lane_path = Path(path) if path is not None else _CHECKOUT_ROOT / LANE_CONFIG
+def load_lane_config(path: str | Path | None = None, *, version: str | None = None) -> dict[str, Any] | None:
+    """The committed lane config of a contract (default 2.0), or ``None`` when this is not a checkout."""
+    if path is None and (version or DEFAULT_VERSION) not in LANE_CONFIGS:
+        return None
+    lane_path = Path(path) if path is not None else _CHECKOUT_ROOT / LANE_CONFIGS[version or DEFAULT_VERSION]
     if not lane_path.is_file():
         return None
     payload = json.loads(lane_path.read_text(encoding="utf-8"))
@@ -737,6 +749,11 @@ def validate_agentic_artifact(
         errors.append("lane must be 'agentic'")
 
     recorded = artifact.get("contract") or {}
+    version = recorded.get("benchmark_version") or DEFAULT_VERSION
+    if lane is None:
+        lane = load_lane_config(version=version)
+    elif (lane.get("benchmark_version") or DEFAULT_VERSION) != version:
+        errors.append(f"the lane config is for {lane.get('benchmark_version') or DEFAULT_VERSION}, the row for {version}")
     if checkout_contract is not None:
         expected = checkout_contract
     elif (recorded.get("benchmark_version") or DEFAULT_VERSION) in VERSIONS:
@@ -781,7 +798,7 @@ def validate_agentic_artifact(
             errors.append("panel grade needs the harness isolated from the driver by user or container")
         if not redacted:
             errors.append("panel grade needs redacted seeds")
-        errors.extend(_lane_panel_errors(panel, distinct, lane if lane is not None else load_lane_config()))
+        errors.extend(_lane_panel_errors(panel, distinct, lane))
     elif grade != "smoke":
         errors.append("grade must be 'panel' or 'smoke'")
     driver_errors, driver_warnings = _driver_findings(artifact, grade, checkout_driver_digest)
@@ -843,7 +860,7 @@ def validate_agentic_artifact(
     elif grade == "panel":
         errors.extend(_reference_errors(artifact.get("reference"), distinct, artifact.get("seasons"), candidate_mean))
         pin_errors, pin_warnings = _reference_pin_errors(
-            artifact.get("reference"), artifact.get("seasons"), lane if lane is not None else load_lane_config()
+            artifact.get("reference"), artifact.get("seasons"), lane
         )
         errors.extend(pin_errors)
         warnings.extend(pin_warnings)
