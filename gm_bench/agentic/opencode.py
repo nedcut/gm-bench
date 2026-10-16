@@ -1677,6 +1677,74 @@ def finalize_episode(
     return episode
 
 
+PANEL_START = "panel-start.json"
+SET_ASIDE_DIR = "set-aside"
+
+
+class ResumeError(ValueError):
+    """A run directory that ``run_panel(resume=True)`` cannot continue."""
+
+
+def _utc_now(clock: Callable[[], float]) -> str:
+    return _dt.datetime.fromtimestamp(clock(), _dt.timezone.utc).isoformat(timespec="seconds")
+
+
+def run_identity(seeds: list[int], *, image: dict[str, Any] | None, **fields: Any) -> dict[str, Any]:
+    """What a panel run is: a resume must match it exactly, or it would mix two runs in one row."""
+    identity = {"seeds": list(seeds), "image_id": image.get("image_id") if image is not None else None, **fields}
+    # As ``panel-start.json`` will read it back, so the comparison is exact.
+    return json.loads(json.dumps(identity))
+
+
+def _resume_start(run_dir: Path, identity: dict[str, Any]) -> dict[str, Any]:
+    """The run's ``panel-start.json``, checked against what this resume would play."""
+    path = run_dir / PANEL_START
+    if not path.is_file():
+        raise ResumeError(f"{run_dir} has no {PANEL_START}: it never started, or predates resume; start a fresh run")
+    start = json.loads(path.read_text(encoding="utf-8"))
+    recorded = start.get("identity") or {}
+    # Names the differing fields only: the values include the seeds.
+    changed = sorted(key for key in identity.keys() | recorded.keys() if identity.get(key) != recorded.get(key))
+    if changed:
+        raise ResumeError(
+            f"cannot resume {run_dir}: {', '.join(changed)} differ from the run's start; start a fresh run"
+        )
+    run_path = run_dir / "run.json"
+    if run_path.is_file():
+        finished = json.loads(run_path.read_text(encoding="utf-8"))
+        if not any(key in finished for key in ("stopped_for_quota", "stopped_for_provider")):
+            raise ResumeError(f"{run_dir} already finished; there is nothing to resume")
+    return start
+
+
+def _resume_episode(
+    run_dir: Path, name: str, position: int, seed: int, resume: dict[str, Any]
+) -> dict[str, Any] | None:
+    """The finished episode in ``run_dir/name`` to keep, or ``None`` after setting aside what is there."""
+    episode_dir = run_dir / name
+    result_path = episode_dir / "result.json"
+    if result_path.is_file():
+        result = json.loads(result_path.read_text(encoding="utf-8"))
+        if result.get("seed") != seed:
+            raise ResumeError(f"cannot resume {run_dir}: {name} holds a different seed")
+        run = result.get("harness_run") or {}
+        reason = next((key for key in ("ended_by_quota", "ended_by_provider") if run.get(key)), None)
+        if reason is None:
+            resume["reused"].append(position)
+            return result
+    elif episode_dir.exists():
+        reason = "unfinished"
+    else:
+        return None
+    aside = run_dir / SET_ASIDE_DIR
+    aside.mkdir(exist_ok=True)
+    attempt = 1 + sum(1 for path in aside.iterdir() if path.name.rsplit("-", 1)[0] == name)
+    target = aside / f"{name}-{attempt}"
+    episode_dir.rename(target)
+    resume["set_aside"].append({"episode": position, "reason": reason, "moved_to": str(target.relative_to(run_dir))})
+    return None
+
+
 def run_panel(
     seeds: list[int],
     *,
@@ -1700,6 +1768,7 @@ def run_panel(
     driver: HarnessDriver | None = None,
     quota_pause_percent: float = QUOTA_PAUSE_PERCENT,
     prompt_check: bool = False,
+    resume: bool = False,
     sleep: Callable[[float], None] = time.sleep,
     clock: Callable[[], float] = time.time,
 ) -> dict[str, Any]:
@@ -1748,6 +1817,17 @@ def run_panel(
     home volume reach the harness there) unless the driver checks them in the
     image: Cursor does, because its servers add account content whatever the
     isolation.
+
+    Before the first episode the driver writes ``panel-start.json``: what the
+    run is (``run_identity``: model, seeds, contract, harness, image, limits
+    and the driver digest). ``resume`` continues a run that stopped (killed, or
+    ``stopped_for_quota`` / ``stopped_for_provider``) in the same directory.
+    It refuses unless that identity is unchanged, keeps every episode with a
+    ``result.json`` that ran to its end, moves an episode that did not (no
+    ``result.json``, or ended by the quota or the provider) to
+    ``set-aside/<name>-<n>`` and plays it again from the start, then runs the
+    rest. Each resume is listed in ``run.json`` ``resumes`` with the episodes
+    it reused and set aside, by position, never seed.
     """
     contract_version = resolve(contract_version)
     driver = driver if driver is not None else OPENCODE_DRIVER
@@ -1768,6 +1848,36 @@ def run_panel(
     driver_record = driver_provenance()
     run_dir.mkdir(parents=True, exist_ok=True)
     version = image[driver.image_version_key] if image is not None else driver.version(binary)
+    identity = run_identity(
+        seeds,
+        model=model,
+        variant=variant,
+        seasons=seasons,
+        contract=contract_block(contract_version),
+        harness=driver.name,
+        version=version,
+        image=image,
+        isolation=isolation,
+        driver_digest=driver_record["driver_digest"],
+        name_episodes_by_position=name_episodes_by_position,
+        limits={
+            "phase_guard_seconds": phase_guard_seconds,
+            "max_nudges": max_nudges,
+            "max_provider_stalls": max_provider_stalls,
+            "max_provider_stall_wait_seconds": max_provider_stall_wait_seconds,
+            "max_provider_wait_seconds": max_provider_wait_seconds,
+            "silent_harness_seconds": silent_harness_seconds,
+        },
+    )
+    start_path = run_dir / PANEL_START
+    if resume:
+        start = _resume_start(run_dir, identity)
+        start["resumes"].append({"resumed_at_utc": _utc_now(clock), "reused": [], "set_aside": []})
+    elif start_path.exists():
+        raise ResumeError(f"{run_dir} already holds a run; pass resume to continue it, or use an empty run directory")
+    else:
+        start = {"identity": identity, "driver": driver_record, "resumes": []}
+    start_path.write_text(json.dumps(start, indent=2, sort_keys=True), encoding="utf-8")
     episodes = []
     attempts: dict[int, int] = {}
     width = max(2, len(str(len(seeds) - 1)))
@@ -1787,6 +1897,14 @@ def run_panel(
         attempts[seed] = attempts.get(seed, 0) + 1
         suffix = "" if attempts[seed] == 1 else f"-r{attempts[seed]}"
         name = f"episode-{position:0{width}d}" if name_episodes_by_position else f"seed-{seed}{suffix}"
+        if resume:
+            kept = _resume_episode(run_dir, name, position, seed, start["resumes"][-1])
+            start_path.write_text(json.dumps(start, indent=2, sort_keys=True), encoding="utf-8")
+            if kept is not None:
+                if progress is not None:
+                    progress({"stage": "reused", "seed": seed, "episode": position})
+                episodes.append(kept)
+                continue
         episodes.append(
             run_episode(
                 seed,
@@ -1871,6 +1989,8 @@ def run_panel(
     if stopped_for_provider is not None:
         # Incomplete too, and its last episode was ended by the provider: not publishable.
         payload["stopped_for_provider"] = stopped_for_provider
+    if start["resumes"]:
+        payload["resumes"] = start["resumes"]
     (run_dir / "run.json").write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     return payload
 

@@ -422,6 +422,11 @@ def main(argv: list[str] | None = None) -> None:
         "for development only",
     )
     agentic_parser.add_argument("--keep-scratch", action="store_true", help="leave the agent workspace on disk")
+    agentic_parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="continue a stopped run in --output: keep its finished episodes, replay an unfinished one, run the rest",
+    )
     agentic_parser.add_argument("--json", action="store_true")
 
     agentic_validate_parser = subparsers.add_parser(
@@ -1379,9 +1384,10 @@ def _agentic_command(args: argparse.Namespace) -> None:
                 isolation=args.isolation,
                 docker=args.docker,
                 prompt_check=not args.skip_prompt_check,
+                resume=args.resume,
                 **harness_options,
             )
-    except (ContainerError, PromptCheckError) as exc:
+    except (ContainerError, PromptCheckError, opencode_driver.ResumeError) as exc:
         # Docker missing or not running, the harness image would not build, or the prompt check failed.
         raise SystemExit(f"gm-bench agentic: {exc}") from None
     if args.json:

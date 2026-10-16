@@ -543,3 +543,141 @@ def test_run_panel_names_episode_directories_by_position_only_when_asked(
     # The driver code that played the run is recorded beside the contract.
     assert recorded["driver"]["driver_digest"] == driver_digest()
     assert recorded["driver"]["changed_during_run"] is False
+
+
+def test_launcher_resume_continues_a_started_run_and_refuses_a_missing_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _install_fixture(tmp_path, monkeypatch)
+    calls = _capture_cli(monkeypatch)
+    started = tmp_path / "started"
+    (started / "episode-00").mkdir(parents=True)
+
+    with pytest.raises(ValueError, match="not a run directory"):
+        launcher.main(["--model", "m", "--output", str(tmp_path / "missing"), "--resume", "--isolation", "container"])
+    assert launcher.main(["--model", "m", "--output", str(started), "--resume", "--isolation", "container"]) == 0
+    (call,) = calls
+    assert call["argv"][call["argv"].index("--seasons") + 2] == "--resume"
+
+
+def _fake_panel(monkeypatch: pytest.MonkeyPatch, *, stop_at: int | None = None) -> list[int]:
+    """Episodes that write ``result.json`` as the real one does; ``stop_at`` kills the panel mid-episode."""
+    played: list[int] = []
+
+    def fake_run_episode(seed, *, run_dir, episode_dir, **kwargs):
+        episode_dir.mkdir(parents=True)
+        (episode_dir / "ledger.jsonl").write_text("{}\n")
+        if seed == stop_at:
+            raise KeyboardInterrupt
+        played.append(seed)
+        result = {"seed": seed, "final_score": float(seed), "harness_run": {}}
+        (episode_dir / "result.json").write_text(json.dumps(result))
+        return result
+
+    monkeypatch.setattr(opencode_driver, "run_episode", fake_run_episode)
+    monkeypatch.setattr(opencode_driver, "opencode_version", lambda binary: "x")
+    monkeypatch.setattr(opencode_driver, "summarize_episodes", lambda episodes: {"n": len(episodes)})
+    monkeypatch.setattr(opencode_driver, "_agentic_summary", lambda episodes: {})
+    return played
+
+
+def test_run_panel_resume_keeps_finished_episodes_and_replays_the_unfinished_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    played = _fake_panel(monkeypatch, stop_at=13)
+    with pytest.raises(KeyboardInterrupt):
+        opencode_driver.run_panel([11, 12, 13, 14], model="m", run_dir=run_dir, name_episodes_by_position=True)
+    assert played == [11, 12]
+    assert not (run_dir / "run.json").exists()
+
+    played = _fake_panel(monkeypatch)
+    payload = opencode_driver.run_panel(
+        [11, 12, 13, 14], model="m", run_dir=run_dir, name_episodes_by_position=True, resume=True
+    )
+
+    assert played == [13, 14]
+    assert [episode["seed"] for episode in payload["episodes"]] == [11, 12, 13, 14]
+    (resume,) = payload["resumes"]
+    assert resume["reused"] == [0, 1]
+    assert resume["set_aside"] == [{"episode": 2, "reason": "unfinished", "moved_to": "set-aside/episode-02-1"}]
+    assert (run_dir / "set-aside" / "episode-02-1" / "ledger.jsonl").exists()
+    assert json.loads((run_dir / "run.json").read_text())["resumes"] == payload["resumes"]
+    with pytest.raises(opencode_driver.ResumeError, match="already finished"):
+        opencode_driver.run_panel(
+            [11, 12, 13, 14], model="m", run_dir=run_dir, name_episodes_by_position=True, resume=True
+        )
+
+
+def test_run_panel_resume_replays_an_episode_the_provider_ended(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    _fake_panel(monkeypatch)
+    opencode_driver.run_panel([11, 12], model="m", run_dir=run_dir)
+    result_path = run_dir / "seed-12" / "result.json"
+    result = json.loads(result_path.read_text())
+    result["harness_run"] = {"ended_by_provider": {"reason": "stall_wait_budget"}}
+    result_path.write_text(json.dumps(result))
+    run = json.loads((run_dir / "run.json").read_text())
+    run["stopped_for_provider"] = {"after_episode": 1}
+    (run_dir / "run.json").write_text(json.dumps(run))
+
+    played = _fake_panel(monkeypatch)
+    payload = opencode_driver.run_panel([11, 12], model="m", run_dir=run_dir, resume=True)
+
+    assert played == [12]
+    assert payload["resumes"][0]["set_aside"][0]["reason"] == "ended_by_provider"
+    assert "stopped_for_provider" not in payload
+
+
+@pytest.mark.parametrize(
+    ("change", "field"),
+    [
+        ({"model": "other"}, "model"),
+        ({"seeds": [11, 99]}, "seeds"),
+        ({"max_nudges": 1}, "limits"),
+    ],
+)
+def test_run_panel_resume_refuses_a_different_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, change: dict, field: str
+) -> None:
+    run_dir = tmp_path / "run"
+    _fake_panel(monkeypatch, stop_at=12)
+    with pytest.raises(KeyboardInterrupt):
+        opencode_driver.run_panel([11, 12], model="m", run_dir=run_dir)
+    _fake_panel(monkeypatch)
+    kwargs = {"model": "m", "run_dir": run_dir, "seeds": [11, 12], **change}
+    seeds = kwargs.pop("seeds")
+    with pytest.raises(opencode_driver.ResumeError, match=rf"cannot resume .*: {field} differ"):
+        opencode_driver.run_panel(seeds, resume=True, **kwargs)
+
+
+def test_run_panel_resume_refuses_a_run_without_a_start_record(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (tmp_path / "run" / "episode-00").mkdir(parents=True)
+    _fake_panel(monkeypatch)
+    with pytest.raises(opencode_driver.ResumeError, match="no panel-start.json"):
+        opencode_driver.run_panel([11], model="m", run_dir=tmp_path / "run", resume=True)
+
+
+def test_run_panel_refuses_to_start_over_a_started_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    run_dir = tmp_path / "run"
+    _fake_panel(monkeypatch, stop_at=12)
+    with pytest.raises(KeyboardInterrupt):
+        opencode_driver.run_panel([11, 12], model="m", run_dir=run_dir)
+    start = (run_dir / "panel-start.json").read_text()
+    with pytest.raises(opencode_driver.ResumeError, match="already holds a run"):
+        opencode_driver.run_panel([11, 12], model="other", run_dir=run_dir)
+    assert (run_dir / "panel-start.json").read_text() == start
+
+
+def test_run_panel_resume_refuses_another_driver(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    run_dir = tmp_path / "run"
+    _fake_panel(monkeypatch, stop_at=12)
+    with pytest.raises(KeyboardInterrupt):
+        opencode_driver.run_panel([11, 12], model="m", run_dir=run_dir)
+    _fake_panel(monkeypatch)
+    record = dict(opencode_driver.driver_provenance(), driver_digest="0" * 16)
+    monkeypatch.setattr(opencode_driver, "driver_provenance", lambda: record)
+    with pytest.raises(opencode_driver.ResumeError, match="driver_digest differ"):
+        opencode_driver.run_panel([11, 12], model="m", run_dir=run_dir, resume=True)
