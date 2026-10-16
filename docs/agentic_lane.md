@@ -791,6 +791,30 @@ provisioned unless you pass `--opencode-auth-file`. Do not mount
 directory's `AGENTS.md`, skills and commands would change what the harness
 plays with. The harness's only configuration is the staged `opencode.json`.
 
+OpenRouter models (`openrouter/<maker>/<model>`) take an OpenRouter API key
+through the same flag, stored for the `openrouter` provider only:
+
+```bash
+python -m gm_bench agentic --isolation container --model openrouter/z-ai/glm-5.3-flash \
+  --opencode-auth-file ~/.config/gm-bench/openrouter-key \
+  --seeds 11 --seasons 1 --output /tmp/agentic-openrouter
+```
+
+OpenRouter serves one model id from many hosts, at different prices,
+quantizations and cache support, and by default falls back between them.
+The driver therefore refuses an OpenRouter model unless
+`OPENROUTER_ROUTES` in `gm_bench/agentic/opencode.py` pins it to one host,
+and writes that pin into the staged `opencode.json`
+(`provider.openrouter.models.<id>.options.provider = {"order": [host],
+"allow_fallbacks": false}`), so every request of a panel reaches the same
+weights. The run record names the pin (`provider_routing`). Pins as of
+2026-10-16: the model's maker where OpenRouter lists one (`z-ai` for
+GLM-5.3-flash, `xiaomi` for MiMo-v2.6-flash and -pro); DeepSeek V4 Pro has
+no DeepSeek endpoint, so it is pinned to `baidu` (fp8). Their prices are in
+`gm_bench/pricing.json` under `openrouter/<model>`. Use a key with a credit
+limit set on OpenRouter: almost every input token in a game is a cache
+read, so a host that stopped caching would cost 10-20x the estimate.
+
 OpenCode Go subscription models (`opencode-go/*`) take one OpenCode API key:
 
 ```bash
