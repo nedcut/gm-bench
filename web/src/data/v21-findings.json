@@ -1,0 +1,245 @@
+{
+ "format": "gm-bench-v21-findings-v1",
+ "source": "results/diagnostics/v21_behavior/behavior.json",
+ "script": "scripts/diagnose_v21_behavior.py",
+ "contract": "gm-bench-2.1",
+ "family_gap": {
+  "openai": [
+   "gpt-6-astra",
+   "gpt-6.1-sol",
+   "gpt-6-luna"
+  ],
+  "claude": [
+   "claude-opus-5-5",
+   "claude-sonnet-5-5"
+  ],
+  "seeds": 32,
+  "final_score": {
+   "mean": 57.623,
+   "se": 3.676,
+   "ci95": [
+    50.417,
+    64.828
+   ],
+   "ahead": 32
+  },
+  "terms": [
+   {
+    "key": "end_roster",
+    "label": "End-of-run roster",
+    "detail": "total assets, young assets and roster depth",
+    "mean": 45.531,
+    "ci95": [
+     40.234,
+     50.828
+    ],
+    "share": 0.79
+   },
+   {
+    "key": "winning",
+    "label": "Winning",
+    "detail": "season wins, expected playoff rounds and expected titles",
+    "mean": 15.746,
+    "ci95": [
+     10.865,
+     20.627
+    ],
+    "share": 0.273
+   },
+   {
+    "key": "current_strength",
+    "label": "Lineup strength",
+    "detail": "current strength at the end",
+    "mean": 1.035,
+    "ci95": [
+     0.261,
+     1.809
+    ],
+    "share": 0.018
+   },
+   {
+    "key": "future_picks",
+    "label": "Future picks",
+    "detail": "draft picks held at the end",
+    "mean": -0.325,
+    "ci95": [
+     -0.511,
+     -0.139
+    ],
+    "share": -0.006
+   },
+   {
+    "key": "penalty",
+    "label": "Illegal moves",
+    "detail": "minus the protocol penalty",
+    "mean": 0.221,
+    "ci95": [
+     -0.744,
+     1.187
+    ],
+    "share": 0.004
+   },
+   {
+    "key": "cap_room",
+    "label": "Cap room",
+    "detail": "cap room at the end, clamped",
+    "mean": -4.586,
+    "ci95": [
+     -5.242,
+     -3.93
+    ],
+    "share": -0.08
+   }
+  ],
+  "extra_empty_vs_gap_correlation": [
+   -0.246,
+   0.306
+  ]
+ },
+ "drafts_closed_holding_unused_pick": 1,
+ "drafts": 960,
+ "models": [
+  {
+   "model": "gpt-6-astra",
+   "artifact": "results/agentic_v21/codex-0.162.1-gpt-6-astra-panel-32x5.json",
+   "harness": "codex",
+   "episodes": 32,
+   "phases": 640,
+   "empty_phases": 25,
+   "empty_rate": 0.0391,
+   "empty_drafts_with_no_pick": 15,
+   "share_empty_drafts_with_no_pick": 0.6,
+   "empty_without_status_read": 0,
+   "drafts": 160,
+   "drafts_closed_holding_unused_pick": 0,
+   "phases_ended_without_status_read": 0,
+   "rate_ended_without_status_read": 0.0,
+   "roster_before_final_rollover": 18.28,
+   "roster_at_end": 16.5,
+   "episodes_ending_with_5_or_fewer": 0,
+   "season_5_extensions_per_episode": 11.06,
+   "season_5_signings": 48,
+   "season_5_signings_one_year": 17,
+   "episodes_final_below_after_season_4": 0
+  },
+  {
+   "model": "gpt-6.1-sol",
+   "artifact": "results/agentic_v21/codex-0.162.1-gpt-6.1-sol-panel-32x5.json",
+   "harness": "codex",
+   "episodes": 32,
+   "phases": 640,
+   "empty_phases": 4,
+   "empty_rate": 0.0063,
+   "empty_drafts_with_no_pick": 4,
+   "share_empty_drafts_with_no_pick": 1.0,
+   "empty_without_status_read": 0,
+   "drafts": 160,
+   "drafts_closed_holding_unused_pick": 0,
+   "phases_ended_without_status_read": 0,
+   "rate_ended_without_status_read": 0.0,
+   "roster_before_final_rollover": 18.56,
+   "roster_at_end": 16.16,
+   "episodes_ending_with_5_or_fewer": 0,
+   "season_5_extensions_per_episode": 11.94,
+   "season_5_signings": 60,
+   "season_5_signings_one_year": 18,
+   "episodes_final_below_after_season_4": 2
+  },
+  {
+   "model": "gpt-6-luna",
+   "artifact": "results/agentic_v21/codex-0.162.1-gpt-6-luna-panel-32x5.json",
+   "harness": "codex",
+   "episodes": 32,
+   "phases": 640,
+   "empty_phases": 3,
+   "empty_rate": 0.0047,
+   "empty_drafts_with_no_pick": 2,
+   "share_empty_drafts_with_no_pick": 0.6667,
+   "empty_without_status_read": 0,
+   "drafts": 160,
+   "drafts_closed_holding_unused_pick": 0,
+   "phases_ended_without_status_read": 0,
+   "rate_ended_without_status_read": 0.0,
+   "roster_before_final_rollover": 22.53,
+   "roster_at_end": 15.94,
+   "episodes_ending_with_5_or_fewer": 0,
+   "season_5_extensions_per_episode": 4.97,
+   "season_5_signings": 74,
+   "season_5_signings_one_year": 46,
+   "episodes_final_below_after_season_4": 3
+  },
+  {
+   "model": "claude-opus-5-5",
+   "artifact": "results/agentic_v21/claude-2.1.281-claude-opus-5-5-panel-32x5.json",
+   "harness": "claude",
+   "episodes": 32,
+   "phases": 640,
+   "empty_phases": 88,
+   "empty_rate": 0.1375,
+   "empty_drafts_with_no_pick": 82,
+   "share_empty_drafts_with_no_pick": 0.9318,
+   "empty_without_status_read": 82,
+   "drafts": 160,
+   "drafts_closed_holding_unused_pick": 0,
+   "phases_ended_without_status_read": 393,
+   "rate_ended_without_status_read": 0.6141,
+   "roster_before_final_rollover": 20.06,
+   "roster_at_end": 4.56,
+   "episodes_ending_with_5_or_fewer": 21,
+   "season_5_extensions_per_episode": 2.91,
+   "season_5_signings": 140,
+   "season_5_signings_one_year": 140,
+   "episodes_final_below_after_season_4": 25
+  },
+  {
+   "model": "claude-sonnet-5-5",
+   "artifact": "results/agentic_v21/claude-2.1.281-claude-sonnet-5-5-panel-32x5.json",
+   "harness": "claude",
+   "episodes": 32,
+   "phases": 640,
+   "empty_phases": 97,
+   "empty_rate": 0.1516,
+   "empty_drafts_with_no_pick": 26,
+   "share_empty_drafts_with_no_pick": 0.268,
+   "empty_without_status_read": 81,
+   "drafts": 160,
+   "drafts_closed_holding_unused_pick": 1,
+   "phases_ended_without_status_read": 457,
+   "rate_ended_without_status_read": 0.7141,
+   "roster_before_final_rollover": 21.41,
+   "roster_at_end": 4.69,
+   "episodes_ending_with_5_or_fewer": 23,
+   "season_5_extensions_per_episode": 1.12,
+   "season_5_signings": 149,
+   "season_5_signings_one_year": 149,
+   "episodes_final_below_after_season_4": 28
+  },
+  {
+   "model": "deepseek-v4.1-flash",
+   "artifact": "results/agentic_v21/opencode-2.0.27-deepseek-v4.1-flash-panel-32x5.json",
+   "harness": "opencode",
+   "episodes": 32,
+   "phases": 640,
+   "empty_phases": 34,
+   "empty_rate": 0.0531,
+   "empty_drafts_with_no_pick": 17,
+   "share_empty_drafts_with_no_pick": 0.5,
+   "empty_without_status_read": 10,
+   "drafts": 160,
+   "drafts_closed_holding_unused_pick": 0,
+   "phases_ended_without_status_read": 68,
+   "rate_ended_without_status_read": 0.1062,
+   "roster_before_final_rollover": 21.53,
+   "roster_at_end": 12.16,
+   "episodes_ending_with_5_or_fewer": 4,
+   "season_5_extensions_per_episode": 5.22,
+   "season_5_signings": 46,
+   "season_5_signings_one_year": 40,
+   "episodes_final_below_after_season_4": 8
+  }
+ ],
+ "not_covered": [
+  "haiku-5-5",
+  "mimo-v2.6-flash"
+ ]
+}
