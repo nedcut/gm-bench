@@ -265,7 +265,8 @@ def opencode_config(target: str | Path, *, python: str = "python3", model: str |
     permission denies it and the tool is not offered at all.
 
     An ``openrouter/*`` ``model`` also gets its pinned host
-    (:data:`OPENROUTER_ROUTES`), with fallbacks off.
+    (:data:`OPENROUTER_ROUTES`), with fallbacks off, and its pinned token
+    limits (:data:`OPENROUTER_LIMITS`).
     """
     config: dict[str, Any] = {
         "$schema": "https://opencode.ai/config.json",
@@ -283,7 +284,11 @@ def opencode_config(target: str | Path, *, python: str = "python3", model: str |
     routing = openrouter_routing(model) if model is not None else None
     if routing is not None:
         model_id = model_name(model).split("/", 1)[1]
-        config["provider"] = {"openrouter": {"models": {model_id: {"options": {"provider": routing}}}}}
+        config["provider"] = {
+            "openrouter": {
+                "models": {model_id: {"options": {"provider": routing}, "limit": OPENROUTER_LIMITS[model_id]}}
+            }
+        }
     return config
 
 
@@ -2171,6 +2176,20 @@ OPENROUTER_ROUTES = {
     "xiaomi/mimo-v2.6-flash": "xiaomi",
     "xiaomi/mimo-v2.6-pro": "xiaomi",
     "deepseek/deepseek-v4-pro": "baidu",
+}
+# The token limits OpenCode plans each request with, pinned beside the host.
+# OpenCode otherwise reads them from models.dev at run time, which lists one
+# limit per model across all hosts and can change mid-lane: on 2026-10-16 it
+# raised glm-5.3-flash's output limit to 943718, OpenCode asked for that as
+# max_tokens, and OpenRouter dropped the pinned Z.AI host (output cap 131072),
+# leaving no endpoint. Each output limit is at most its host's cap
+# (OpenRouter's endpoint ``max_completion_tokens``) and equals what the
+# lane's runs were already sent.
+OPENROUTER_LIMITS = {
+    "z-ai/glm-5.3-flash": {"context": 1048576, "output": 131072},
+    "xiaomi/mimo-v2.6-flash": {"context": 1050000, "output": 131072},
+    "xiaomi/mimo-v2.6-pro": {"context": 1050000, "output": 131072},
+    "deepseek/deepseek-v4-pro": {"context": 1048576, "output": 384000},
 }
 
 

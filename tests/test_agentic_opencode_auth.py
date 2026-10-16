@@ -443,8 +443,15 @@ def test_opencode_json_pins_each_openrouter_model_to_one_host_without_fallbacks(
     config = opencode.opencode_config("/tmp/s", model=f"openrouter/{model}")
     options = config["provider"]["openrouter"]["models"][model]["options"]
     assert options == {"provider": {"order": [opencode.OPENROUTER_ROUTES[model]], "allow_fallbacks": False}}
+    # Token limits come from the pin, not from models.dev at run time.
+    limit = config["provider"]["openrouter"]["models"][model]["limit"]
+    assert limit == opencode.OPENROUTER_LIMITS[model] and limit["output"] < limit["context"]
     # A Go or Zen model's config is unchanged.
     assert "provider" not in opencode.opencode_config("/tmp/s", model="opencode-go/deepseek-v4.1-flash")
+
+
+def test_every_pinned_openrouter_model_has_pinned_limits() -> None:
+    assert opencode.OPENROUTER_LIMITS.keys() == opencode.OPENROUTER_ROUTES.keys()
 
 
 def test_the_run_record_names_the_pinned_host(tmp_path: Path) -> None:
