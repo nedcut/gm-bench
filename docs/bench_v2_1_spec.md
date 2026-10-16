@@ -134,6 +134,41 @@ had finished 74 seconds earlier, unread.
 - **Not claimed.** These are not publishable rows (no 2.1 lane), and three
   models cannot validate a ranking of twelve.
 
+### Result (2026-10-16): passed
+
+All three panels finished 32/32 with no failed decision, and
+`agentic-validate` passes each under 2.1. Lift against `pick-trader` played
+under 2.1 on the same seeds
+(`results/diagnostics/v21_round/round.json`):
+
+| Model | 2.0, score-v1 | 2.0, score-v2 E (replayed) | **2.1** | 2.1 95% interval | Seeds ahead | Paired SD, v1 → E → 2.1 | 2.1 MDE |
+|---|---|---|---|---|---|---|---|
+| `gpt-6.1-sol` | +24.0 | +26.8 | **+19.1** | +10.3 to +28.0 | 24/32 | 65.0 → 31.2 → 25.6 | 12.7 |
+| `deepseek-v4.1-flash` | -4.6 | -11.4 | **+1.2** | -8.2 to +10.5 | 21/32 | 61.0 → 40.9 → 27.0 | 13.4 |
+| `claude-sonnet-5-5` | -32.1 | -36.3 | **-46.8** | -56.9 to -36.7 | 3/32 | 68.6 → 38.8 → 29.1 | 14.4 |
+
+- **Success criterion met.** Kendall tau = 1 against both 2.0 columns, and
+  no sign conflict.
+- **Precision.** The paired SD falls to 26-29 for every model, so 32 seeds
+  detect a lift of about 13 points (score-v1: about 32; score-v2 replayed
+  on 2.0 games: about 15-20).
+- **Each model's lift moved by less than its noise.** Against the score-v1
+  2.0 lift: -4.9 (-27.9 to +18.1), +5.8 (-16.7 to +28.2), -14.7 (-36.7 to
+  +7.4). Two models moved down and one up against the replayed E column;
+  DeepSeek's two published 2.0 runs already differ by 8 points.
+- **Play unchanged.** Failed decisions 0 in both contracts; illegal moves
+  and tool calls per episode within a few percent of each model's 2.0 row.
+
+**Exploratory, not pre-registered.** `gpt-6-luna` (Codex 0.162.1; its 2.0 row
+used 0.156.1) was added at the operator's request after the round started
+(`results/diagnostics/v21_round/gpt-6-luna_exploratory.json`): 2.1 lift
+-7.6 (-16.6 to +1.4), 14/32 seeds ahead, paired SD 26.0. Same sign and
+place as 2.0 (-21.8 score-v1, -15.9 replayed E), whose interval excluded
+zero under E and does not here.
+
+**Decision (operator, 2026-10-16):** release 2.1 as a lane on the same
+32-seed private panel; these four runs become its first rows.
+
 ## Not yet done
 
 - **No 2.1 lane.** `agentic-redact` refuses 2.1 rows: there is no frozen

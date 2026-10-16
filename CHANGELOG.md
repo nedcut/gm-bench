@@ -18,6 +18,13 @@ its own contract; CI runs `validate-contract --contract 2.1`. Spec:
 published model episode; it inflated the `pick-trader` reference by about
 2 points per episode under score-v1 (not significant).
 
+First paid round (2026-10-16, pre-registered): `gpt-6.1-sol`,
+`deepseek-v4.1-flash` and `claude-sonnet-5-5` on the 32-seed private panel
+keep their 2.0 order and signs against `pick-trader` (+19.1, +1.2, -46.8;
+Kendall tau = 1, no sign conflict); the paired SD falls to 26-29, so 32
+seeds detect about 13 points. `gpt-6-luna` (exploratory) -7.6. Aggregates
+in `results/diagnostics/v21_round/`; spec section "First paid round".
+
 ## Unreleased — GM-Bench 2.0
 
 **Site score changed to score-v2, 2026-10-15.** The 2.0 section now shows every
