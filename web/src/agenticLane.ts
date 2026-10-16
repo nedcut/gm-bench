@@ -368,6 +368,7 @@ export function agenticV21LaneIssues(data: Leaderboard, lanePanel: AgenticLanePa
     }
     if ("score_v1" in row) issues.push(`${label} carries a score_v1 block; 2.1 was never scored with score-v1`);
     issues.push(...referenceIssues(row, lanePanel, label, lanePanel.reference_scores, "config/bench_v21_lane.json reference_scores"));
+    issues.push(...telemetryIssues(row, label));
     const means = JSON.stringify([row.reference?.mean_score, row.reference?.floor?.mean_score]);
     if (firstMeans === null) firstMeans = { id: row.id, means };
     else if (firstMeans.means !== means) {

@@ -406,6 +406,14 @@ const v21MustReject: Array<[string, (data: Leaderboard, row: AgenticLaneRow) => 
   ["a 2.1 row off the frozen panel", (_, row) => (row.panel.sha256 = "0".repeat(64))],
   ["a 2.1 row with a paired p-value", (_, row) => Object.assign(row, { paired_p_value: 0.01 })],
   ["a duplicate 2.1 row", (data, row) => data.agentic_v21_lane?.push(structuredClone(row))],
+  [
+    "a 2.1 row with mixed token shapes",
+    (_, row) => Object.assign(row, { telemetry: { cost_usd: null, token_shape: "mixed" } }),
+  ],
+  [
+    "a 2.1 row with a negative API-equivalent estimate",
+    (_, row) => Object.assign(row, { telemetry: { cost_usd: null, api_equivalent_cost_usd: -1 } }),
+  ],
 ];
 for (const [label, edit] of v21MustReject) {
   if (withV21(edit).length === 0) {
