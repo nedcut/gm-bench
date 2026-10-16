@@ -1691,6 +1691,8 @@ def _write_private_json(path: Path, payload: dict[str, Any]) -> None:
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w", encoding="utf-8") as handle:
         handle.write(json.dumps(payload, indent=2, sort_keys=True))
+        handle.flush()
+        os.fsync(handle.fileno())
     os.replace(tmp, path)
 
 
