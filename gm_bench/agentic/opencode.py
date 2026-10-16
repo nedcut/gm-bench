@@ -2169,13 +2169,16 @@ KEY_REQUIRED_PROVIDERS = ("opencode-go", "openrouter")
 # fallbacks off, so every request of a panel reaches the same weights and the
 # row is reproducible; a model without a pin here is refused. Pins: the
 # model's maker where OpenRouter lists it (Z.AI, Xiaomi). DeepSeek V4 Pro has
-# no DeepSeek endpoint on OpenRouter, so it is pinned to Baidu (fp8), its
-# cheapest host with prompt caching (2026-10-16).
+# no DeepSeek endpoint on OpenRouter, so it is pinned to StreamLake (fp8),
+# its cheapest host with prompt caching. It was pinned to Baidu (fp8) first,
+# but Baidu's stream mangled tool calls on 2026-10-16 (118 of about 180 calls
+# failed: empty arguments, malformed JSON, tool names missing letters); a
+# StreamLake smoke on the same seed then ran 33 of 33 calls clean.
 OPENROUTER_ROUTES = {
     "z-ai/glm-5.3-flash": "z-ai",
     "xiaomi/mimo-v2.6-flash": "xiaomi",
     "xiaomi/mimo-v2.6-pro": "xiaomi",
-    "deepseek/deepseek-v4-pro": "baidu",
+    "deepseek/deepseek-v4-pro": "streamlake",
 }
 # The token limits OpenCode plans each request with, pinned beside the host.
 # OpenCode otherwise reads them from models.dev at run time, which lists one
@@ -2189,7 +2192,7 @@ OPENROUTER_LIMITS = {
     "z-ai/glm-5.3-flash": {"context": 1048576, "output": 131072},
     "xiaomi/mimo-v2.6-flash": {"context": 1050000, "output": 131072},
     "xiaomi/mimo-v2.6-pro": {"context": 1050000, "output": 131072},
-    "deepseek/deepseek-v4-pro": {"context": 1048576, "output": 384000},
+    "deepseek/deepseek-v4-pro": {"context": 1024000, "output": 384000},
 }
 
 

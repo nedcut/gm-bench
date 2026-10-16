@@ -463,7 +463,7 @@ def test_the_run_record_names_the_pinned_host(tmp_path: Path) -> None:
 
     record = driver.run_record(_Launch())  # type: ignore[arg-type]
     assert record["auth_providers"] == ["openrouter"]
-    assert record["provider_routing"] == {"order": ["baidu"], "allow_fallbacks": False}
+    assert record["provider_routing"] == {"order": ["streamlake"], "allow_fallbacks": False}
 
 
 def test_a_key_is_never_staged_before_the_run_names_its_model(tmp_path: Path) -> None:
