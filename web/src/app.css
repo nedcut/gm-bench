@@ -278,7 +278,8 @@ main:focus {
 
 .footer nav {
   display: flex;
-  gap: 18px;
+  flex-wrap: wrap;
+  gap: 6px 18px;
 }
 
 .footer a {
