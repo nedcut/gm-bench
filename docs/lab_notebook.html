@@ -102,6 +102,7 @@ svg{display:block}
 <p class="lede">Internal log of how scoring and contract decisions get made: what we tried, what it showed, what we decided. Newest first. Every number cites a committed diagnostic or a published row; nothing here is a published result.</p>
 
 <nav class="toc"><b>Entries</b><ol>
+ <li><a href="#e-2026-10-16-behavior">2026-10-16 · Why the Claude rows trail: the roster left at the end, not empty phases</a></li>
  <li><a href="#e-2026-10-16-site">2026-10-16 · 2.1 becomes the site; 2.0 moves to an archive page</a></li>
  <li><a href="#e-2026-10-16-opus-astra">2026-10-16 · Opus 5.5 and Astra under 2.1; 2.1 goes on the site</a></li>
  <li><a href="#e-2026-10-16-round">2026-10-16 · First 2.1 paid round: passed; release 2.1</a></li>
@@ -112,6 +113,71 @@ svg{display:block}
  <li><a href="#e-2026-10-15-v2">2026-10-15 · score-v1 vs the proposed score-v2</a></li>
  <li><a href="#e-2026-10-14-ceiling">2026-10-14 · How much headroom is above <code>pick-trader</code>?</a></li>
 </ol></nav>
+
+<!-- ======================================================================= -->
+<article class="entry" id="e-2026-10-16-behavior">
+<header><div class="date">2026-10-16</div><h2>Why the Claude rows trail: the roster left at the end, not empty phases</h2>
+<div class="tags"><span class="tag">results/diagnostics/v21_behavior/behavior.json</span><span class="tag">scripts/diagnose_v21_behavior.py</span><span class="tag">docs/bench_v2_1_queue.md</span><span class="tag decision">decision</span></div></header>
+
+<div class="key"><b>Tried:</b> the site shows Claude rows with many more empty phases than OpenAI rows, and lower scores. We replayed all 192 episodes of the six committed 2.1 rows with the frozen engine (no model calls). Each replayed final score and empty-phase count matches its committed row. From the replays we measured what each model did at each phase, what the empty phases contained, and where the paired OpenAI vs Claude gap comes from, term by term. <b>Showed:</b> empty phases explain almost none of the gap. The OpenAI rows (<code>gpt-6-astra</code>, <code>gpt-6.1-sol</code>, <code>gpt-6-luna</code>) lead <code>claude-opus-5-5</code> and <code>claude-sonnet-5-5</code> by 57.6 points paired by seed (se 3.7, ahead on 32/32 seeds). 45.5 of those points are the end-of-run roster terms. The Claude models let contracts lapse in season 5 and are scored on about 4.6 players, against about 16. All numbers below are in <code>behavior.json</code>; Haiku 5.5 and MiMo have no committed 2.1 row yet and are not covered.</div>
+
+<div class="stats">
+ <div class="stat"><div class="k">OpenAI minus Claude, per seed</div><div class="v">+57.6</div></div>
+ <div class="stat"><div class="k">from end-of-run roster terms</div><div class="v">+45.5</div></div>
+ <div class="stat"><div class="k">Opus empty phases that were drafts with no pick</div><div class="v">82 / 88</div></div>
+ <div class="stat"><div class="k">Drafts closed holding an unused pick (6 rows)</div><div class="v">1 / 960</div></div>
+</div>
+
+<div>
+ <h3>Where the paired gap comes from <span class="sub">· OpenAI mean minus Claude mean per seed, by score-v2 term; line = 95% interval (<code>family_gap.terms</code>)</span></h3>
+ <svg id="c-behavior-gap" width="100%" height="230"></svg>
+ <div class="sub">Winning = season wins, expected playoff rounds and expected titles. End-of-run roster = total assets, young assets and roster depth. The terms sum to the final score. The Claude rows' unused cap room pays back 4.6 points.</div>
+</div>
+
+<table>
+<thead><tr><th>Model</th><th class="num">Empty phases</th><th class="num">of which no-pick drafts</th><th class="num">Phases with no status read</th><th class="num">Roster at final scoring</th><th class="num">Season-5 extensions / episode</th><th class="num">Final score below the score after season 4</th><th class="num">Draft-close lineup vs engine default</th></tr></thead>
+<tbody>
+<tr><td><code>gpt-6-astra</code></td><td class="num">25</td><td class="num">15</td><td class="num">0%</td><td class="num">16.5</td><td class="num">11.1</td><td class="num">0/32</td><td class="num">-0.02</td></tr>
+<tr><td><code>gpt-6.1-sol</code></td><td class="num">4</td><td class="num">4</td><td class="num">0%</td><td class="num">16.2</td><td class="num">11.9</td><td class="num">2/32</td><td class="num">-0.11</td></tr>
+<tr><td><code>gpt-6-luna</code></td><td class="num">3</td><td class="num">2</td><td class="num">0%</td><td class="num">15.9</td><td class="num">5.0</td><td class="num">3/32</td><td class="num">-1.11</td></tr>
+<tr><td><code>deepseek-v4.1-flash</code></td><td class="num">34</td><td class="num">17</td><td class="num">11%</td><td class="num">12.2</td><td class="num">5.2</td><td class="num">8/32</td><td class="num">-0.26</td></tr>
+<tr><td><code>claude-opus-5-5</code></td><td class="num">88</td><td class="num">82</td><td class="num">61%</td><td class="num">4.6</td><td class="num">2.9</td><td class="num">25/32</td><td class="num">-0.89</td></tr>
+<tr><td><code>claude-sonnet-5-5</code></td><td class="num">97</td><td class="num">26</td><td class="num">71%</td><td class="num">4.7</td><td class="num">1.1</td><td class="num">28/32</td><td class="num">-1.61</td></tr>
+</tbody></table>
+<div class="sub">Out of 640 phases per row. The lineup column is team strength with the stored lineup minus the engine's default lineup, as the draft closes. That is when the remaining two thirds of the regular season and the playoffs are played.</div>
+
+<div class="grid2">
+ <div class="card"><h4>Empty phases mostly measure a habit</h4><ul>
+  <li>The Codex models call <code>get_status</code> in every phase (20 per episode) and <code>set_lineup</code> in almost every phase (astra 18.7, sol 20.0). A phase with nothing to do is therefore not "empty" for them.</li>
+  <li>Opus and Sonnet skip <code>get_status</code> in 61% and 71% of phases. 82 of Opus's 88 empty phases and 81 of Sonnet's 97 have no status read at all.</li>
+  <li>82 of Opus's 88 empty phases are drafts in which it held no pick (it had traded the pick away). Astra and sol give away more picks (115 and 124 of 160 drafts with no pick), but they log those drafts as non-empty.</li>
+  <li>Across the six rows, one draft was closed with a pick unused (Sonnet, in a non-empty phase).</li>
+  <li>Paired by seed, a Claude model's extra empty phases do not track its deficit: the correlation is -0.25 to +0.31 across the six OpenAI-Claude pairs.</li>
+ </ul></div>
+ <div class="card"><h4>The season-5 run-down is deliberate</h4><ul>
+  <li>In the season-5 preseason, astra and sol make 11.1 and 11.9 extensions per episode, Opus 2.9 and Sonnet 1.1.</li>
+  <li>All 140 of Opus's and all 149 of Sonnet's season-5 signings are one-year deals. 506 and 536 final-year players are left unextended when that preseason closes, against 55 for astra.</li>
+  <li>21 Opus and 23 Sonnet episodes end with 5 or fewer players under contract.</li>
+  <li>The models say why: "the capped credit for future roster and picks will be low. I accepted that to maximise the five seasons that were scored" (Opus); "I did not extend those players because it was the last season" (Sonnet).</li>
+  <li>The brief calls this term "a capped credit". In score-v2 only cap room is clamped (-12 to +10). The asset, young-asset, pick, strength and depth terms are linear.</li>
+ </ul></div>
+</div>
+
+<div class="key"><b>Also found</b> (counts in <code>behavior.json</code>, filed in <code>docs/bench_v2_1_queue.md</code>):
+<ul>
+ <li>The pick-trading window causes 128 of the 285 penalized rejections (45%). 115 of those 128 offered the current season's pick.</li>
+ <li>Draftees were left on the bench at draft close while outranking a dressed player at their position: Sonnet 116 of 135, deepseek 103 of 141, luna 87 of 149, Opus 27 of 77, against 3 of 39 for sol and 0 of 48 for astra. Sonnet set a lineup in none of its 160 drafts.</li>
+ <li>Models attempted 4 trades in the draft phase and 271 at the deadline, and signed no free agents in the draft phase.</li>
+</ul></div>
+
+<div class="decide"><b>Decided:</b>
+<ul>
+ <li>The empty-phase count mostly measures whether a model runs the <code>get_status</code> and <code>set_lineup</code> routine. It does not show whether a model neglected a decision. The site will relabel it and add two counts beside it: drafts closed while holding an unused pick, and phases ended without reading the status.</li>
+ <li>The brief's "capped" wording is a candidate cause of the season-5 run-down. It is filed with queue item 13.</li>
+ <li>The brief and tool fixes go to the next contract. 2.1's contract files stay frozen, and there is no paid rerun now.</li>
+</ul>
+<b>Not reproduced:</b> the lineup counterfactual, filling empty phases with cheap actions, and the fixed-effects regressions from the exploratory analysis. Their numbers are not used here.</div>
+</article>
 
 <!-- ======================================================================= -->
 <article class="entry" id="e-2026-10-16-site">
@@ -537,7 +603,18 @@ function drawSite(){const s=svg('c-site');
   [[a,sa,'--chart-4','score-v1'],[b,sb,'--chart-1','score-v2']].forEach(([v,sig,c,lab])=>{const cc=css(c);const p=mk(s,'circle',{cx:x(v),cy:y,r:5,fill:sig?cc:css('--background'),stroke:cc,'stroke-width':2});hover(p,`${n} · ${lab}: ${sgn(v)}`)})});
  s.setAttribute('height',H+22)}
 
-function drawAll(){drawRound();drawRoundSd();drawSite();drawDraft();drawResidual();drawCanary21();drawDecomposition();drawContinuation();drawStrip();drawSeeds();drawIntervals();drawCeiling()}
+// --- 2026-10-16 behavior: paired OpenAI minus Claude gap by term (v21_behavior/behavior.json family_gap.terms) ---
+function drawBehaviorGap(){const s=svg('c-behavior-gap');
+ const rows=[["final score",57.623,3.676,'--foreground'],["end-of-run roster",45.531,2.703,'--chart-4'],["winning",15.746,2.49,'--chart-1'],["current strength",1.035,0.395,'--chart-3'],["penalty",0.221,0.493,'--muted-foreground'],["future picks",-0.325,0.095,'--chart-3'],["cap room",-4.586,0.335,'--chart-3']];
+ const W=s.clientWidth,L=Math.min(130,W*.3),R=44,T=4,rh=30,lo=-10,hi=70,x=v=>L+(v-lo)/(hi-lo)*(W-L-R),H=T+rows.length*rh;
+ for(let t=-10;t<=70;t+=10){mk(s,'line',{x1:x(t),x2:x(t),y1:T,y2:H,stroke:css('--border'),'stroke-width':t==0?1.5:.6});mk(s,'text',{x:x(t),y:H+15,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},sgn(t))}
+ rows.forEach(([n,v,se,c],i)=>{const y=T+i*rh+rh/2;mk(s,'text',{x:0,y:y+4,'font-size':12,fill:css('--foreground'),'font-weight':i?400:600},n);
+  const b=mk(s,'rect',{x:Math.min(x(0),x(v)),y:y-7,width:Math.max(1,Math.abs(x(v)-x(0))),height:14,rx:3,fill:css(c)});hover(b,`${n}: ${sgn(v.toFixed(1))} (se ${se.toFixed(1)})`);
+  mk(s,'line',{x1:x(v-1.96*se),x2:x(v+1.96*se),y1:y,y2:y,stroke:css('--foreground'),'stroke-width':1.5});
+  mk(s,'text',{x:x(Math.max(v+1.96*se,0))+6,y:y+4,'font-size':11,fill:css('--muted-foreground')},sgn(+v.toFixed(1)))});
+ s.setAttribute('height',H+22)}
+
+function drawAll(){drawBehaviorGap();drawRound();drawRoundSd();drawSite();drawDraft();drawResidual();drawCanary21();drawDecomposition();drawContinuation();drawStrip();drawSeeds();drawIntervals();drawCeiling()}
 drawAll();addEventListener('resize',drawAll);
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',drawAll);
 </script>
