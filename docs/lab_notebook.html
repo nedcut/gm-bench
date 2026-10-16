@@ -102,6 +102,7 @@ svg{display:block}
 <p class="lede">Internal log of how scoring and contract decisions get made: what we tried, what it showed, what we decided. Newest first. Every number cites a committed diagnostic or a published row; nothing here is a published result.</p>
 
 <nav class="toc"><b>Entries</b><ol>
+ <li><a href="#e-2026-10-16-round">2026-10-16 · First 2.1 paid round: passed; release 2.1</a></li>
  <li><a href="#e-2026-10-15-site">2026-10-15 · The site moves to score-v2</a></li>
  <li><a href="#e-2026-10-15-v21">2026-10-15 · Building 2.1, and the draft bug behind the missing 35 points</a></li>
  <li><a href="#e-2026-10-15-stress">2026-10-15 · Stress-testing score-v2: recommend E, build 2.1</a></li>
@@ -109,6 +110,36 @@ svg{display:block}
  <li><a href="#e-2026-10-15-v2">2026-10-15 · score-v1 vs the proposed score-v2</a></li>
  <li><a href="#e-2026-10-14-ceiling">2026-10-14 · How much headroom is above <code>pick-trader</code>?</a></li>
 </ol></nav>
+
+<!-- ======================================================================= -->
+<article class="entry" id="e-2026-10-16-round">
+<header><div class="date">2026-10-16</div><h2>First 2.1 paid round: passed; release 2.1</h2>
+<div class="tags"><span class="tag">docs/bench_v2_1_spec.md</span><span class="tag">results/diagnostics/v21_round/</span><span class="tag">scripts/compare_v21_round.py</span><span class="tag decision">decision</span></div></header>
+
+<div class="key"><b>Tried:</b> the pre-registered round. <code>gpt-6.1-sol</code>, <code>deepseek-v4.1-flash</code> and <code>claude-sonnet-5-5</code> each played the 32-seed private panel under 2.1, paired seed by seed with their own published 2.0 games. <code>gpt-6-luna</code> was added afterwards as an exploratory fourth. <b>Showed:</b> the order and signs hold (Kendall tau = 1, no sign conflict), and the paired noise falls to about 26-29 for every model, so 32 seeds now detect about 13 points.</div>
+
+<div class="stats">
+ <div class="stat"><div class="k">Pre-registered test</div><div class="v">passed</div></div>
+ <div class="stat"><div class="k">Smallest detectable gap (32 seeds)</div><div class="v"><span class="old" style="color:var(--muted-foreground);font-weight:500;font-size:16px;text-decoration:line-through;margin-right:6px">~32</span>~13</div></div>
+ <div class="stat"><div class="k">Failed decisions</div><div class="v">0 / 2,560</div></div>
+ <div class="stat"><div class="k">Sign conflicts</div><div class="v">0</div></div>
+</div>
+
+<div>
+ <h3>Lift vs <code>pick-trader</code>, same 32 seeds <span class="sub">· line = 2.1 95% interval; a filled 2.1 marker = its interval excludes 0</span></h3>
+ <div class="legend"><span><i class="dotk" style="background:var(--chart-4)"></i>2.0 games, score-v1</span><span><i class="dotk" style="background:var(--chart-3)"></i>2.0 games replayed, score-v2</span><span><i class="dotk" style="background:var(--chart-1)"></i>2.1 games</span></div>
+ <svg id="c-round" width="100%" height="200"></svg>
+ <div class="sub"><code>gpt-6-luna</code> is exploratory (added after pre-registration; its 2.0 row used Codex 0.156.1, the 2.1 run 0.162.1).</div>
+</div>
+
+<div>
+ <h3>Paired SD of the lift, per model <span class="sub">· lower = fewer seeds needed</span></h3>
+ <svg id="c-round-sd" width="100%" height="160"></svg>
+ <div class="sub">Most of the drop comes from scoring expected playoff value instead of realized games (score-v2); the 2.1 runs (records reset, draft fix, fresh games) are a further 10-35% lower.</div>
+</div>
+
+<div class="decide"><b>Decided (by the user):</b> release 2.1 as a lane on the same 32-seed private panel, with these four runs as its first rows, and start <code>claude-opus-5-5</code> and <code>gpt-6-astra</code> under it. No further rule changes go into 2.1: model rows exist, so any change is a new version. Queue items 1-14 (tool, brief and audit clarity) and 17 (end-state value) wait for a later one; none justifies rerunning every row. <b>Open:</b> <code>deepseek</code> and <code>gpt-6-luna</code> sit within 8 points of <code>pick-trader</code>, under what 32 seeds can resolve.</div>
+</article>
 
 <!-- ======================================================================= -->
 <article class="entry" id="e-2026-10-15-site">
@@ -439,6 +470,24 @@ function drawCanary21(){const s=svg('c-canary21');
  s.setAttribute('height',H+22)}
 
 // --- 2026-10-15 site: v1 -> v2 lift per published row (results/agentic_score_v2, leaderboard.json) ---
+function drawRound(){const s=svg('c-round');
+ const rows=[["gpt-6.1-sol",24.0,26.8,19.1,10.3,28.0],["deepseek-v4.1-flash",-4.6,-11.4,1.2,-8.2,10.5],["gpt-6-luna *",-21.8,-15.9,-7.6,-16.6,1.4],["claude-sonnet-5-5",-32.1,-36.3,-46.8,-56.9,-36.7]];
+ const W=s.clientWidth,L=Math.min(150,W*.32),R=10,T=6,rh=40,lo=-60,hi=40,x=v=>L+(v-lo)/(hi-lo)*(W-L-R),H=T+rows.length*rh;
+ for(let t=-60;t<=40;t+=20){mk(s,'line',{x1:x(t),x2:x(t),y1:T,y2:H,stroke:css('--border'),'stroke-width':t==0?1.5:.6});mk(s,'text',{x:x(t),y:H+15,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},sgn(t))}
+ rows.forEach(([n,a,e,b,l,h],i)=>{const y=T+i*rh+rh/2;mk(s,'text',{x:0,y:y+4,'font-size':12,fill:css('--foreground')},n);
+  mk(s,'line',{x1:x(l),x2:x(h),y1:y+9,y2:y+9,stroke:css('--chart-1'),'stroke-width':2});
+  const sig=l>0||h<0;
+  [[a,'--chart-4','2.0 score-v1',y-9,1],[e,'--chart-3','2.0 replayed score-v2',y,1],[b,'--chart-1','2.1',y+9,sig]].forEach(([v,c,lab,yy,f])=>{const cc=css(c);const p=mk(s,'circle',{cx:x(v),cy:yy,r:5,fill:f?cc:css('--background'),stroke:cc,'stroke-width':2});hover(p,`${n} · ${lab}: ${sgn(v)}`)})});
+ s.setAttribute('height',H+22)}
+
+function drawRoundSd(){const s=svg('c-round-sd');
+ const rows=[["gpt-6.1-sol",65.0,31.2,25.6],["deepseek-v4.1-flash",61.0,40.9,27.0],["gpt-6-luna *",63.5,28.9,26.0],["claude-sonnet-5-5",68.6,38.8,29.1]];
+ const W=s.clientWidth,L=Math.min(150,W*.32),R=10,T=6,rh=34,hi=70,x=v=>L+v/hi*(W-L-R),H=T+rows.length*rh;
+ for(let t=0;t<=70;t+=10){mk(s,'line',{x1:x(t),x2:x(t),y1:T,y2:H,stroke:css('--border'),'stroke-width':.6});mk(s,'text',{x:x(t),y:H+15,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},t)}
+ rows.forEach(([n,a,e,b],i)=>{const y=T+i*rh+rh/2;mk(s,'text',{x:0,y:y+4,'font-size':12,fill:css('--foreground')},n);
+  [[a,'--chart-4','2.0 score-v1',-8],[e,'--chart-3','2.0 replayed score-v2',0],[b,'--chart-1','2.1',8]].forEach(([v,c,lab,dy])=>{const r=mk(s,'rect',{x:L,y:y+dy-3.5,width:x(v)-L,height:7,rx:2,fill:css(c)});hover(r,`${n} · ${lab}: SD ${v}`)})});
+ s.setAttribute('height',H+22)}
+
 function drawSite(){const s=svg('c-site');
  const rows=[["gpt-6-astra",39.2,43.5,1,1],["gpt-6.1-sol",24.0,26.8,1,1],["muse-spark-1.3",1.2,-1.3,0,0],["deepseek (OC 1.18)",-2.0,-3.3,0,0],["deepseek (OC 2.0)",-4.6,-11.4,0,0],["claude-sonnet-5",-21.8,-14.7,0,0],["gpt-6-luna",-21.8,-15.9,0,1],["composer-2.5",-18.6,-17.8,1,1],["claude-opus-5-5",-46.7,-35.6,1,1],["claude-sonnet-5-5",-32.1,-36.3,1,1],["claude-haiku-5-5",-46.5,-59.8,1,1],["claude-haiku-4-5",-119.1,-121.8,1,1]];
  const W=s.clientWidth,L=Math.min(130,W*.3),R=10,T=6,rh=32,lo=-130,hi=55,x=v=>L+(v-lo)/(hi-lo)*(W-L-R),H=T+rows.length*rh;
@@ -448,7 +497,7 @@ function drawSite(){const s=svg('c-site');
   [[a,sa,'--chart-4','score-v1'],[b,sb,'--chart-1','score-v2']].forEach(([v,sig,c,lab])=>{const cc=css(c);const p=mk(s,'circle',{cx:x(v),cy:y,r:5,fill:sig?cc:css('--background'),stroke:cc,'stroke-width':2});hover(p,`${n} · ${lab}: ${sgn(v)}`)})});
  s.setAttribute('height',H+22)}
 
-function drawAll(){drawSite();drawDraft();drawResidual();drawCanary21();drawDecomposition();drawContinuation();drawStrip();drawSeeds();drawIntervals();drawCeiling()}
+function drawAll(){drawRound();drawRoundSd();drawSite();drawDraft();drawResidual();drawCanary21();drawDecomposition();drawContinuation();drawStrip();drawSeeds();drawIntervals();drawCeiling()}
 drawAll();addEventListener('resize',drawAll);
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',drawAll);
 </script>

@@ -1,9 +1,8 @@
-# GM-Bench 2.1: specification (draft)
+# GM-Bench 2.1: specification
 
-Draft, 2026-10-15. Built and tested; not released. Nothing has been played
-under it by a model except a free one-season pipeline smoke. Once the rules
-below are accepted, they are pre-registered: no weight or rule changes after
-any model row is played under 2.1.
+Built 2026-10-15. Its rules and weights were fixed before any model row was
+played under it; a first paid round (below) has since been played and
+passed, so they are now frozen: any change is a new version.
 
 2.1 is the 2.0 agentic lane (`docs/bench_v2_spec.md`) with three simulator
 fixes and a new scoring version. The tools, the task brief, the phase
@@ -97,35 +96,80 @@ ordering and mechanic-coverage check passes with 2.0's margins unchanged.
 Tightest gate: `value` over accept-everything on strategy score, 30.4
 against 25.
 
-## First paid round (proposed, pre-registered)
+## First paid round (pre-registered)
 
-Not run. Awaiting the operator's go-ahead.
+Approved by the operator 2026-10-15 for three models, which replaced the
+four proposed earlier (`gpt-6-luna` and `claude-haiku-5-5` dropped,
+`claude-sonnet-5-5` added). Committed at 15:36 on 2026-10-15
+(`2a9c397`), before any 2.1 panel result was read; one Sonnet 5.5 episode
+had finished 74 seconds earlier, unread.
 
 - **Question.** Do the 2.1 rules keep the published picture: the same
   order of models and the same sign of each lift against `pick-trader`?
-- **Models**, chosen to span the published range cheaply (score-v2 lifts
-  from the 2.0 replays: `docs/score_deep_dive.md`):
+- **Models**, each paired with its own published 2.0 row:
 
-  | Model (harness) | 2.0 lift, score-v2 E | 2.0 cost per 32 episodes | 2.0 wall-clock |
+  | Model (harness, pinned container version) | 2.0 row | 2.0 lift, score-v1 | 2.0 lift, score-v2 E (replayed) |
   |---|---|---|---|
-  | `gpt-6.1-sol` (Codex) | +26.8 | $17.4 API-equivalent, plan quota | ~4.7 h |
-  | `deepseek-v4.1-flash` (OpenCode Go) | -11.4 | $4.91 billed | ~7.9 h |
-  | `gpt-6-luna` (Codex) | -15.9 | $4.5 API-equivalent, plan quota | ~5.5 h |
-  | `claude-haiku-5-5` (Claude Code) | -59.8 | $4.9 API-equivalent, plan quota | ~3.5 h |
+  | `gpt-6.1-sol` (Codex 0.162.1) | `codex-0.162.1-gpt-6.1-sol-panel-32x5` | +24.0 | +26.8 |
+  | `deepseek-v4.1-flash` (OpenCode 2.0.27, OpenCode Go) | `opencode-2.0.27-deepseek-v4.1-flash-panel-32x5` | -4.6 | -11.4 |
+  | `claude-sonnet-5-5` (Claude Code 2.1.281) | `claude-2.1.281-claude-sonnet-5-5-panel-32x5` | -32.1 | -36.3 |
 
-- **Seeds.** The 2.0 private panel (32 seeds, 5 seasons), so each model's
-  2.1 run pairs seed by seed with its own 2.0 row. Container isolation,
-  through the private-panel launcher with `--contract 2.1`.
-- **Order.** Serial, one harness at a time; one short smoke episode per
-  harness first; prices in `gm_bench/pricing.json` re-checked before each.
-- **Analysis, fixed now.** For each model, the paired lift against
-  `pick-trader` played under 2.1 on the same seeds (`gm_bench.v21.runner`),
-  with sign-flip p and MDE. Success: the four lifts keep their 2.0 order
-  (Kendall tau = 1 against the score-v2 E column above) and no lift beyond
-  its MDE changes sign. Also reported: each model's 2.1 minus 2.0 score per
-  seed, and its draft and record mechanics (picks used, standings).
-- **Not claimed.** These are not publishable rows (no 2.1 lane), and four
+- **Seeds.** The 2.0 private panel (32 seeds, 5 seasons, same order), so
+  each 2.1 episode pairs with the same seed's 2.0 episode. Container
+  isolation through the private-panel launcher with `--contract 2.1`, from
+  the clean merge commit `f8befed`.
+- **How it ran.** One public-seed, one-season smoke per harness first (all
+  three validated). The three panels then ran **concurrently**, one per
+  provider, at the operator's request; each panel is still serial inside.
+  That departs from the serial default, which exists to protect a single
+  provider's rate limit; no two panels share a provider.
+- **Analysis, fixed now** (`scripts/compare_v21_round.py`). For each model,
+  the paired lift against `pick-trader` played under 2.1 on the same seeds,
+  with sign-flip p and MDE. **Success:** the three 2.1 lifts keep the order
+  sol > deepseek > sonnet-5-5 (Kendall tau = 1 against both 2.0 columns),
+  and no lift whose 2.1 interval excludes zero has the opposite sign in
+  2.0. Also reported: the change in each model's lift, its decisions failed,
+  illegal moves and tool calls against its 2.0 row.
+- **Not claimed.** These are not publishable rows (no 2.1 lane), and three
   models cannot validate a ranking of twelve.
+
+### Result (2026-10-16): passed
+
+All three panels finished 32/32 with no failed decision, and
+`agentic-validate` passes each under 2.1. Lift against `pick-trader` played
+under 2.1 on the same seeds
+(`results/diagnostics/v21_round/round.json`):
+
+| Model | 2.0, score-v1 | 2.0, score-v2 E (replayed) | **2.1** | 2.1 95% interval | Seeds ahead | Paired SD, v1 → E → 2.1 | 2.1 MDE |
+|---|---|---|---|---|---|---|---|
+| `gpt-6.1-sol` | +24.0 | +26.8 | **+19.1** | +10.3 to +28.0 | 24/32 | 65.0 → 31.2 → 25.6 | 12.7 |
+| `deepseek-v4.1-flash` | -4.6 | -11.4 | **+1.2** | -8.2 to +10.5 | 21/32 | 61.0 → 40.9 → 27.0 | 13.4 |
+| `claude-sonnet-5-5` | -32.1 | -36.3 | **-46.8** | -56.9 to -36.7 | 3/32 | 68.6 → 38.8 → 29.1 | 14.4 |
+
+- **Success criterion met.** Kendall tau = 1 against both 2.0 columns, and
+  no sign conflict against either. `round.json` names the raw run
+  directories behind the published 2.0 rows in the table above (the
+  DeepSeek row's is `...-panel-32x5-mcpwait`, Sonnet 5.5's
+  `claude-sonnet-5-5-panel`).
+- **Precision.** The paired SD falls to 26-29 for every model, so 32 seeds
+  detect a lift of about 13 points (score-v1: about 32; score-v2 replayed
+  on 2.0 games: about 15-20).
+- **Each model's lift moved by less than its noise.** Against the score-v1
+  2.0 lift: -4.9 (-27.9 to +18.1), +5.8 (-16.7 to +28.2), -14.7 (-36.7 to
+  +7.4). Two models moved down and one up against the replayed E column;
+  DeepSeek's two published 2.0 runs already differ by 8 points.
+- **Play unchanged.** Failed decisions 0 in both contracts; illegal moves
+  and tool calls per episode within a few percent of each model's 2.0 row.
+
+**Exploratory, not pre-registered.** `gpt-6-luna` (Codex 0.162.1; its 2.0 row
+used 0.156.1) was added at the operator's request after the round started
+(`results/diagnostics/v21_round/gpt-6-luna_exploratory.json`): 2.1 lift
+-7.6 (-16.6 to +1.4), 14/32 seeds ahead, paired SD 26.0. Same sign and
+place as 2.0 (-21.8 score-v1, -15.9 replayed E), whose interval excluded
+zero under E and does not here.
+
+**Decision (operator, 2026-10-16):** release 2.1 as a lane on the same
+32-seed private panel; these four runs become its first rows.
 
 ## Not yet done
 
