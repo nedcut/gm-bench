@@ -27,6 +27,7 @@ from gm_bench.agentic.publication import (  # noqa: E402
 from gm_bench.benchmark_config import PRESETS  # noqa: E402
 from gm_bench.official import POLICIES, REDACTED_SEEDS_SENTINEL  # noqa: E402
 from gm_bench.protocol import PHASES  # noqa: E402
+from gm_bench.v21 import scoring as score_v2  # noqa: E402
 from web.scripts.build_leaderboard import (  # noqa: E402
     model_row,
     publication_gate,
@@ -54,6 +55,14 @@ DECISION_LANE = "decision-api"
 AGENTIC_ARTIFACTS_DIR = ROOT / "results" / "agentic"
 AGENTIC_LANE = "agentic"
 AGENTIC_LANE_CONFIG = Path("config") / "bench_v2_lane.json"
+# The site's primary 2.0 score is score-v2. Every published 2.0 row was played
+# and redacted under score-v1, so its score-v2 numbers come from
+# ``scripts/rescore_agentic_v2.py``, which replays the row's raw run: one file
+# per artifact, bound to it by ``raw_artifact_sha256``, plus ``lane.json`` with
+# the scripted policies' score-v2 means. score-v1 stays on each row only as a
+# labelled comparison (``score_v1``).
+AGENTIC_SCORE_V2_DIR = ROOT / "results" / "agentic_score_v2"
+AGENTIC_SCORE_V2_FORMAT = "gm-bench-agentic-score-v2-rescore-v1"
 
 
 def _read(path: Path) -> dict[str, Any]:
@@ -142,6 +151,8 @@ def _agentic_lane_rows(
     *,
     lane: dict[str, Any],
     v1_rows: list[dict[str, Any]],
+    score_v2_dir: Path,
+    score_v2_lane: dict[str, Any],
 ) -> list[dict[str, Any]]:
     """Panel-grade GM-Bench 2.0 rows, one per committed artifact.
 
@@ -151,10 +162,12 @@ def _agentic_lane_rows(
     checkout's contract and ``lane``, which pins it to the frozen 32-seed
     private panel. The artifacts carry no seeds, so a row publishes its own
     mean and spread over per-seed means, plus the one inference the spec
-    supports: the artifact's ``reference`` block, the predeclared pick-trader
-    contrast computed at redaction on the row's own seeds and seasons
-    (pick-trader and random means, paired lift with its CI, sign-flip p,
-    seed win rate; never per-seed values). Nothing is paired across rows,
+    supports: the predeclared pick-trader contrast on the row's own seeds and
+    seasons (pick-trader and random means, paired lift with its CI, sign-flip
+    p, seed win rate; never per-seed values). The row's score, spread and
+    ``reference`` are score-v2, from the row's rescore file; the artifact's own
+    score-v1 mean and ``reference`` block ride along under ``score_v1`` as a
+    comparison only. Nothing is paired across rows,
     harnesses, or models, and no 1.0 row's score is attached; a 1.0 row on
     the same model is linked by id only.
 
@@ -177,7 +190,8 @@ def _agentic_lane_rows(
         report = validate_agentic_artifact(payload, lane=lane)
         if not report["ok"]:
             raise ValueError(f"{path.name} does not validate as a panel-grade 2.0 row: {report['errors']}")
-        row = _agentic_row(payload, path, pinned_models=pinned_models, v1_rows=v1_rows)
+        rescore = _score_v2_rescore(score_v2_dir, path, payload, score_v2_lane)
+        row = _agentic_row(payload, path, pinned_models=pinned_models, v1_rows=v1_rows, rescore=rescore)
         if row["id"] in seen:
             raise ValueError(f"{path.name} repeats agentic row {row['id']!r} already published from {seen[row['id']]}")
         seen[row["id"]] = path.name
@@ -214,12 +228,13 @@ def _require_one_reference_per_season_count(rows: list[dict[str, Any]]) -> None:
             )
 
 
-def _agentic_bots(lane: dict[str, Any]) -> list[dict[str, Any]]:
+def _agentic_bots(lane: dict[str, Any], score_v2_lane: dict[str, Any]) -> list[dict[str, Any]]:
     """Scripted baselines on the frozen 2.0 panel, for display beside the panel rows.
 
-    Context only: rows are tested against pick-trader and nothing else. The
-    pick-trader and random means must equal ``reference_scores``, the values
-    every row's contrast is pinned to, so the table cannot show a bar that
+    Context only: rows are tested against pick-trader and nothing else. Each
+    bot shows its score-v2 mean (``lane.json``) with its score-v1 mean beside
+    it for comparison. pick-trader and random must equal the pins every row's
+    contrast uses under each score, so the table cannot show a bar that
     differs from the one rows were measured against.
     """
     block = lane.get("scripted_bot_scores")
@@ -234,8 +249,78 @@ def _agentic_bots(lane: dict[str, Any]) -> list[dict[str, Any]]:
             raise ValueError(
                 f"scripted_bot_scores.{agent} is {means.get(agent)!r} but reference_scores pins {pinned!r}"
             )
-    bots = [{"agent": agent, "mean_score": float(score)} for agent, score in means.items()]
+    v2_means = score_v2_lane["scripted_bot_scores"]
+    if set(v2_means) != set(means):
+        raise ValueError("the score-v2 lane file and the lane config list different scripted bots")
+    for agent, pinned in score_v2_lane["reference_scores"].items():
+        if v2_means.get(agent) != pinned:
+            raise ValueError(
+                f"score-v2 scripted_bot_scores.{agent} is {v2_means.get(agent)!r} but its pin is {pinned!r}"
+            )
+    bots = [
+        {"agent": agent, "mean_score": float(v2_means[agent]), "score_v1_mean_score": float(score)}
+        for agent, score in means.items()
+    ]
     return sorted(bots, key=lambda bot: -bot["mean_score"])
+
+
+def _score_v2_lane(source: Path) -> dict[str, Any]:
+    """The score-v2 lane file: format, the scale this checkout scores with, and the pins."""
+    lane = _read(source / "lane.json")
+    if lane.get("format") != AGENTIC_SCORE_V2_FORMAT:
+        raise ValueError(f"{source / 'lane.json'} is not a {AGENTIC_SCORE_V2_FORMAT} file")
+    if lane.get("scoring_version") != score_v2.SCORING_VERSION or (
+        lane.get("scoring_scale_fingerprint") != score_v2.scale_fingerprint()
+    ):
+        raise ValueError(f"{source / 'lane.json'} was not scored with this checkout's score-v2 scale")
+    return lane
+
+
+def _score_v2_rescore(
+    source: Path, artifact_path: Path, payload: dict[str, Any], score_v2_lane: dict[str, Any]
+) -> dict[str, Any]:
+    """The row's score-v2 rescore, bound to its artifact by raw run hash and episode layout."""
+    path = source / artifact_path.name
+    if not path.exists():
+        raise ValueError(f"{artifact_path.name} has no score-v2 rescore at {path}; run scripts/rescore_agentic_v2.py")
+    rescore = _read(path)
+    publication = payload.get("publication") or {}
+    problems = []
+    if rescore.get("format") != AGENTIC_SCORE_V2_FORMAT or rescore.get("artifact") != artifact_path.name:
+        problems.append("names another format or artifact")
+    if rescore.get("raw_artifact_sha256") != publication.get("raw_artifact_sha256"):
+        problems.append("was computed from a different raw run")
+    if rescore.get("scoring_version") != score_v2.SCORING_VERSION or (
+        rescore.get("scoring_scale_fingerprint") != score_v2.scale_fingerprint()
+    ):
+        problems.append("was not scored with this checkout's score-v2 scale")
+    layout = [(e.get("index"), e.get("seed_group")) for e in payload.get("episodes") or []]
+    if [(e.get("index"), e.get("seed_group")) for e in rescore.get("episodes") or []] != layout:
+        problems.append("does not have the artifact's episodes in its order")
+    reference = rescore.get("reference") or {}
+    pins = score_v2_lane["reference_scores"]
+    if reference.get("mean_score") != pins.get("pick-trader") or (
+        (reference.get("floor") or {}).get("mean_score") != pins.get("random")
+    ):
+        problems.append("has pick-trader/random means off the score-v2 lane pins")
+    if problems:
+        raise ValueError(f"{path.name} score-v2 rescore " + "; ".join(problems))
+    return rescore
+
+
+def _score_stats(episodes: list[dict[str, Any]]) -> dict[str, float]:
+    """Mean and spread over per-seed-group means of ``final_score``."""
+    by_group: dict[int, list[float]] = {}
+    for episode in episodes:
+        by_group.setdefault(int(episode["seed_group"]), []).append(float(episode["final_score"]))
+    seed_means = [sum(scores) / len(scores) for scores in by_group.values()]
+    return {
+        "mean_score": round(sum(seed_means) / len(seed_means), 3),
+        # Population SD (divides by n) of the per-seed means, as reference.paired_lift_stddev is.
+        "score_stddev": round(pstdev(seed_means), 3) if len(seed_means) > 1 else 0.0,
+        "seed_mean_min": round(min(seed_means), 3),
+        "seed_mean_max": round(max(seed_means), 3),
+    }
 
 
 def _agentic_pinned_models(lane: dict[str, Any]) -> dict[str, str]:
@@ -255,16 +340,16 @@ def _agentic_row(
     *,
     pinned_models: dict[str, str],
     v1_rows: list[dict[str, Any]],
+    rescore: dict[str, Any],
 ) -> dict[str, Any]:
     harness = payload.get("harness") or {}
     contract = payload.get("contract") or {}
     panel = payload.get("panel") or {}
     publication = payload.get("publication") or {}
     episodes = payload.get("episodes") or []
-    by_group: dict[int, list[float]] = {}
-    for episode in episodes:
-        by_group.setdefault(int(episode["seed_group"]), []).append(float(episode["final_score"]))
-    seed_means = [sum(scores) / len(scores) for scores in by_group.values()]
+    distinct = len({int(episode["seed_group"]) for episode in episodes})
+    primary = _score_stats(rescore["episodes"])
+    v1 = _score_stats(episodes)
     name, version, model = str(harness["name"]), str(harness["version"]), str(harness["model"])
     variant = harness.get("variant")
     # Row identity is model + harness + harness version (+ variant): two
@@ -284,21 +369,25 @@ def _agentic_row(
         "pin": pinned_models.get(model),
         "isolation": payload.get("isolation"),
         "panel": {
-            "distinct_seeds": len(by_group),
+            "distinct_seeds": distinct,
             "episodes": len(episodes),
             "sha256": panel.get("sha256"),
         },
         "seasons": payload.get("seasons"),
         "phase_guard_seconds": payload.get("phase_guard_seconds"),
         "max_nudges": payload.get("max_nudges"),
-        "mean_score": round(sum(seed_means) / len(seed_means), 3),
-        # Population SD (divides by n) of the per-seed means, as reference.paired_lift_stddev is.
-        "score_stddev": round(pstdev(seed_means), 3) if len(seed_means) > 1 else 0.0,
-        "seed_mean_min": round(min(seed_means), 3),
-        "seed_mean_max": round(max(seed_means), 3),
+        "scoring_version": score_v2.SCORING_VERSION,
+        **primary,
         "illegal_actions": summary.get("illegal_actions"),
         "failed_decisions": summary.get("failed_decisions"),
-        "reference": _agentic_reference(payload.get("reference") or {}),
+        "reference": _agentic_reference(rescore.get("reference") or {}),
+        # The row as published under score-v1, for comparison only.
+        "score_v1": {
+            "scoring_version": "score-v1",
+            "mean_score": v1["mean_score"],
+            "score_stddev": v1["score_stddev"],
+            "reference": _agentic_reference(payload.get("reference") or {}),
+        },
         "contract": {
             key: contract.get(key)
             for key in (
@@ -536,6 +625,7 @@ def build_study(
     artifacts_dir: Path | None = None,
     decision_lane_dir: Path | None = None,
     agentic_dir: Path | None = None,
+    agentic_score_v2_dir: Path | None = None,
 ) -> dict[str, Any]:
     """Build v5 only after publication authorization and complete analysis."""
 
@@ -613,10 +703,16 @@ def build_study(
     if not agentic_source.is_absolute():
         agentic_source = root / agentic_source
     agentic_lane_config = _read(root / AGENTIC_LANE_CONFIG)
+    score_v2_source = agentic_score_v2_dir or root / AGENTIC_SCORE_V2_DIR.relative_to(ROOT)
+    if not score_v2_source.is_absolute():
+        score_v2_source = root / score_v2_source
+    score_v2_lane = _score_v2_lane(score_v2_source)
     agentic_lane = _agentic_lane_rows(
         agentic_source,
         lane=agentic_lane_config,
         v1_rows=[*models, *(row for row in current_rows if row.get("lane") == "cli-harness"), *decision_lane_models],
+        score_v2_dir=score_v2_source,
+        score_v2_lane=score_v2_lane,
     )
     v1_ids = headline_ids | {row["id"] for row in decision_lane_models}
     if any(row["id"] in v1_ids for row in agentic_lane):
@@ -641,7 +737,14 @@ def build_study(
         "cli_harness_models": [row for row in current_rows if row.get("lane") == "cli-harness"],
         "decision_lane_models": decision_lane_models,
         "agentic_lane": agentic_lane,
-        "agentic_bots": _agentic_bots(agentic_lane_config),
+        "agentic_bots": _agentic_bots(agentic_lane_config, score_v2_lane),
+        "agentic_scoring": {
+            "primary": score_v2.SCORING_VERSION,
+            "scoring_scale_fingerprint": score_v2.scale_fingerprint(),
+            "comparison": "score-v1",
+            "method": score_v2_lane["method"],
+            "reference_scores": score_v2_lane["reference_scores"],
+        },
         "excluded_models": [],
         "publication": publication,
         "headroom": headroom,
@@ -660,12 +763,14 @@ if __name__ == "__main__":
     parser.add_argument("--artifacts-dir", type=Path)
     parser.add_argument("--decision-lane-dir", type=Path)
     parser.add_argument("--agentic-dir", type=Path)
+    parser.add_argument("--agentic-score-v2-dir", type=Path)
     args = parser.parse_args()
     result = build_study(
         output_path=args.output,
         artifacts_dir=args.artifacts_dir,
         decision_lane_dir=args.decision_lane_dir,
         agentic_dir=args.agentic_dir,
+        agentic_score_v2_dir=args.agentic_score_v2_dir,
     )
     print(
         f"wrote {args.output or V5_OUTPUT_PATH} "

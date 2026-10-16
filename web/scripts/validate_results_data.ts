@@ -1,5 +1,6 @@
 import leaderboardData from "../src/data/leaderboard.json";
 import benchV2Lane from "../../config/bench_v2_lane.json";
+import scoreV2Lane from "../../results/agentic_score_v2/lane.json";
 import { AGENTIC_REFERENCE_AGENT, agenticLaneIssues, type AgenticLanePanel } from "../src/agenticLane";
 import { buildBenchmarkView, scoreCi95, seedCount } from "../src/benchmarkData";
 import type { AgenticLaneRow, Leaderboard, LeaderboardModel } from "../src/types";
@@ -49,28 +50,47 @@ if (benchV2Lane.panel_design.reference_agent !== AGENTIC_REFERENCE_AGENT) {
       `the site checks ${AGENTIC_REFERENCE_AGENT}`,
   );
 }
+// Rows are published under score-v2 (results/agentic_score_v2/lane.json pins its
+// pick-trader and random means); score-v1 survives only as each row's
+// comparison block, pinned to config/bench_v2_lane.json as before.
+if ((leaderboard.agentic_lane ?? []).length > 0 && leaderboard.agentic_scoring?.primary !== "score-v2") {
+  throw new Error("The 2.0 section is not declared as scored with score-v2 (agentic_scoring.primary)");
+}
 const lanePanel: AgenticLanePanel = {
   artifact_panel_sha256: benchV2Lane.seed_panel.artifact_panel_sha256,
   count: benchV2Lane.seed_panel.count,
-  reference_scores: benchV2Lane.reference_scores as AgenticLanePanel["reference_scores"],
+  reference_scores: { seasons: scoreV2Lane.seasons, mean_scores: scoreV2Lane.reference_scores },
+  reference_scores_v1: benchV2Lane.reference_scores as AgenticLanePanel["reference_scores"],
 };
 const agenticIssues = agenticLaneIssues(leaderboard, lanePanel);
 if (agenticIssues.length > 0) {
   throw new Error(`Agentic lane data is not publishable:\n  ${agenticIssues.join("\n  ")}`);
 }
 
-// Bots shown beside the 2.0 rows must be exactly the lane's recorded means, and
-// pick-trader and random must equal the pins every row's contrast uses.
+// Bots shown beside the 2.0 rows must be exactly the lane's recorded means
+// (score-v2, with score-v1 beside each for comparison), and pick-trader and
+// random must equal the pins every row's contrast uses under each score.
 const botBlock = (benchV2Lane as { scripted_bot_scores?: { mean_scores: Record<string, number> } }).scripted_bot_scores;
 const shownBots = leaderboard.agentic_bots ?? [];
 if (botBlock) {
-  const expected = Object.entries(botBlock.mean_scores).sort(([, a], [, b]) => b - a);
+  const v2Means: Record<string, number> = scoreV2Lane.scripted_bot_scores;
+  const expected = Object.entries(v2Means).sort(([, a], [, b]) => b - a);
   if (JSON.stringify(shownBots.map((bot) => [bot.agent, bot.mean_score])) !== JSON.stringify(expected)) {
-    throw new Error("agentic_bots does not match config/bench_v2_lane.json scripted_bot_scores");
+    throw new Error("agentic_bots does not match results/agentic_score_v2/lane.json scripted_bot_scores");
+  }
+  for (const bot of shownBots) {
+    if (bot.score_v1_mean_score !== botBlock.mean_scores[bot.agent]) {
+      throw new Error(`agentic_bots ${bot.agent} score-v1 mean differs from config/bench_v2_lane.json`);
+    }
   }
   for (const [agent, pinned] of Object.entries(benchV2Lane.reference_scores.mean_scores)) {
     if (pinned !== null && botBlock.mean_scores[agent] !== pinned) {
       throw new Error(`scripted_bot_scores.${agent} differs from the reference_scores pin ${pinned}`);
+    }
+  }
+  for (const [agent, pinned] of Object.entries(scoreV2Lane.reference_scores as Record<string, number>)) {
+    if (v2Means[agent] !== pinned) {
+      throw new Error(`score-v2 scripted_bot_scores.${agent} differs from its reference_scores pin ${pinned}`);
     }
   }
 } else if (shownBots.length > 0) {
@@ -79,6 +99,9 @@ if (botBlock) {
 
 // The same rules must reject each way a 2.0 row could go wrong. The fixture is
 // synthetic and lives only in memory.
+const V2_PICK_TRADER = scoreV2Lane.reference_scores["pick-trader"];
+const V2_RANDOM = scoreV2Lane.reference_scores.random;
+const round3 = (value: number): number => Math.round(value * 1000) / 1000;
 const agenticFixture = {
   id: "agentic:opencode-0.0.0:fixture/model",
   lane: "agentic",
@@ -95,19 +118,38 @@ const agenticFixture = {
     sha256: lanePanel.artifact_panel_sha256,
   },
   seasons: 5,
+  scoring_version: "score-v2",
   mean_score: 200,
   reference: {
     agent: "pick-trader",
-    mean_score: 249.18,
-    floor: { agent: "random", mean_score: 90.367 },
+    mean_score: V2_PICK_TRADER,
+    floor: { agent: "random", mean_score: V2_RANDOM },
     seasons: 5,
     num_seeds: lanePanel.count,
-    paired_lift_mean: -49.18,
+    paired_lift_mean: round3(200 - V2_PICK_TRADER),
     paired_lift_stddev: 30,
-    paired_lift_ci95: [-59.18, -39.18],
+    paired_lift_ci95: [round3(190 - V2_PICK_TRADER), round3(210 - V2_PICK_TRADER)],
     sign_flip_p_value: 0.0001,
     significant_at_95: true,
     candidate_seed_win_rate: 0.1,
+  },
+  score_v1: {
+    scoring_version: "score-v1",
+    mean_score: 200,
+    score_stddev: 20,
+    reference: {
+      agent: "pick-trader",
+      mean_score: 249.18,
+      floor: { agent: "random", mean_score: 90.367 },
+      seasons: 5,
+      num_seeds: lanePanel.count,
+      paired_lift_mean: -49.18,
+      paired_lift_stddev: 30,
+      paired_lift_ci95: [-59.18, -39.18],
+      sign_flip_p_value: 0.0001,
+      significant_at_95: true,
+      candidate_seed_win_rate: 0.1,
+    },
   },
   artifact_path: "results/agentic/fixture.json",
 } as unknown as AgenticLaneRow;
@@ -125,14 +167,14 @@ const pinnedPanel = (pickTrader: number, random: number): AgenticLanePanel => ({
   ...lanePanel,
   reference_scores: { seasons: 5, mean_scores: { "pick-trader": pickTrader, random } },
 });
-const pinnedMatchIssues = withAgentic(() => {}, pinnedPanel(249.18, 90.367));
+const pinnedMatchIssues = withAgentic(() => {}, pinnedPanel(V2_PICK_TRADER, V2_RANDOM));
 if (pinnedMatchIssues.length !== 0) {
   throw new Error(`A row matching the pinned reference means was rejected: ${pinnedMatchIssues.join("; ")}`);
 }
-if (withAgentic(() => {}, pinnedPanel(40, 90.367)).length === 0) {
+if (withAgentic(() => {}, pinnedPanel(40, V2_RANDOM)).length === 0) {
   throw new Error("The agentic-lane check accepted a pick-trader mean off the pinned value");
 }
-if (withAgentic(() => {}, pinnedPanel(249.18, 91)).length === 0) {
+if (withAgentic(() => {}, pinnedPanel(V2_PICK_TRADER, 91)).length === 0) {
   throw new Error("The agentic-lane check accepted a random mean off the pinned value");
 }
 const emptyPerSeedIssues = withAgentic((_, row) => Object.assign(row.reference, { per_seed: [] }));
@@ -188,6 +230,12 @@ const agenticMustReject: Array<[string, (data: Leaderboard, row: AgenticLaneRow)
   ["a p-value inside the floor", (_, row) => Object.assign(row.reference.floor, { p_value: 0.01 })],
   ["a comparison inside the floor", (_, row) => Object.assign(row.reference.floor, { vs_model: "x" })],
   ["a lift that is not the row mean minus pick-trader's", (_, row) => (row.mean_score = 300)],
+  ["a row not published under score-v2", (_, row) => Object.assign(row, { scoring_version: "score-v1" })],
+  ["a row with no score-v1 comparison", (_, row) => delete (row as { score_v1?: unknown }).score_v1],
+  ["a score-v1 comparison with a stray p-value", (_, row) => Object.assign(row.score_v1, { p_value: 0.01 })],
+  ["a score-v1 comparison off the score-v1 pin", (_, row) => (row.score_v1.reference.mean_score = 260)],
+  ["a score-v1 lift that is not its mean minus pick-trader's", (_, row) => (row.score_v1.mean_score = 300)],
+  ["a score-v1 comparison with per-seed lifts", (_, row) => Object.assign(row.score_v1.reference, { per_seed: [{ lift: 1 }] })],
   [
     "an internally impossible reference",
     (_, row) => {
@@ -205,7 +253,7 @@ const agenticMustReject: Array<[string, (data: Leaderboard, row: AgenticLaneRow)
   [
     "a win rate of 0 with a positive lift",
     (_, row) => {
-      row.mean_score = 289.18;
+      row.mean_score = round3(V2_PICK_TRADER + 40);
       row.reference.paired_lift_mean = 40;
       row.reference.paired_lift_ci95 = [30, 50];
       row.reference.candidate_seed_win_rate = 0;

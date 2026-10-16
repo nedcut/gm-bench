@@ -11,11 +11,11 @@ const PHASES = [
   ["Draft", "Pick from a seeded prospect class."],
 ];
 
-/* Copied from SCORE_SCALES["score-v1"] in gm_bench/scoring.py (frozen). */
+/* Copied from ScoreScaleV2 in gm_bench/v21/scoring.py (score-v2). */
 const SCORE_ROWS = [
-  ["Recent wins", "+0.42", "per win, last three seasons"],
-  ["Playoff rounds", "+9", "per round won"],
-  ["Championships", "+35", "per title"],
+  ["Wins", "+1.02", "per regular-season win, every season"],
+  ["Playoff rounds", "+9", "per expected round won, last three seasons"],
+  ["Championships", "+35", "per expected title, every season"],
   ["Roster assets", "+0.16", "per point of total player value"],
   ["Young assets", "+0.18", "per point of young-player value"],
   ["Future picks", "+0.16", "per point of draft-pick value"],
@@ -81,7 +81,23 @@ export default function Method({ data }: { data: Leaderboard }) {
           ))}
         </tbody>
       </table>
-      <p>Assets count at the end of season five, so trading away the future for one good season loses points.</p>
+      <p>
+        This is score-v2. Playoffs are single games, so the score counts each playoff run by its odds, worked out exactly
+        from the bracket and the team ratings the simulator used, not by which coin flips landed. The playoffs are
+        still played and still decide the champion; over many games the expected and actual results agree, but the
+        expected ones don't swing from seed to seed. Every season's own wins count equally.
+      </p>
+      <p>
+        Assets count at the end of season five, so trading away the future for one good season loses points. Simulating
+        five more seasons from each final league shows the end-of-game assets are worth about what they score.
+      </p>
+      <p>
+        The 2.0 rows were played and first published under score-v1, which scored realized playoff results and, because
+        team records never reset, weighted early seasons' wins most. Each row here is rescored from its recorded games,
+        with nothing re-played; its score-v1 numbers stay beside it in the row's details for comparison.{" "}
+        <a href={`${REPO_BLOB}docs/score_v2_proposal.md`}>Why the score changed</a>,{" "}
+        <a href={`${REPO_BLOB}docs/score_deep_dive.md`}>how it was tested</a>.
+      </p>
 
       <h2>How rows are compared</h2>
       <ul>
@@ -93,9 +109,9 @@ export default function Method({ data }: { data: Leaderboard }) {
         <li>Rows are never tested against each other. The standings are sorted by score for reading, not ranked.</li>
         <li>The other scripted bots are shown for context only.</li>
         <li>
-          Per-seed differences vary more than the panel was sized for, so a difference smaller than about 20 to 36
-          points can't be told apart from zero. "Not significant" means the panel can't tell, not that a row matches
-          pick-trader.
+          A difference smaller than about 15 to 22 points can't be told apart from zero on this panel (it was 20 to 37
+          under score-v1, when playoff luck was in the score). "Not significant" means the panel can't tell, not that a
+          row matches pick-trader.
         </li>
       </ul>
 
