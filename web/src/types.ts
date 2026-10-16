@@ -391,8 +391,9 @@ export interface Leaderboard {
   /** Optional so the archived sota-v2 dataset, which predates the lane, still types. */
   decision_lane_models?: DecisionLaneModel[];
   /**
-   * GM-Bench 2.0 rows, panel grade only. A different contract from every
-   * array above; optional so the archived sota-v2 dataset still types.
+   * GM-Bench 2.0 rows, panel grade only, shown on the 2.0 archive page. A
+   * different contract from every array above; optional so the archived
+   * sota-v2 dataset still types.
    */
   agentic_lane?: AgenticLaneRow[];
   /** Scripted baselines on the frozen 2.0 panel (config/bench_v2_lane.json scripted_bot_scores). Context only. */
@@ -406,7 +407,7 @@ export interface Leaderboard {
     method: string;
     reference_scores: Record<string, number>;
   };
-  /** GM-Bench 2.1 rows (results/agentic_v21/), panel grade only: their own contract and table. */
+  /** GM-Bench 2.1 rows (results/agentic_v21/), panel grade only: the site's standings, their own contract. */
   agentic_v21_lane?: AgenticLaneRow[];
   /** Scripted baselines on the 2.1 panel (config/bench_v21_lane.json scripted_bot_scores). Context only. */
   agentic_v21_bots?: Array<{ agent: string; mean_score: number }>;

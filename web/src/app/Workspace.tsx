@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Leaderboard } from "../types";
-import { botRows, modelRows, useFilters, v21BotRows, v21ModelRows, visible, type BotRow, type Filters, type ModelRow } from "../v2";
+import { laneOf, useFilters, visible, type BotRow, type Contract, type Filters, type Lane, type ModelRow } from "../v2";
 import Panel from "./Panel";
 
 export interface WorkspaceView {
+  /** The contract this page shows: its pick-trader, seeds and fingerprint. */
+  lane: Lane;
   models: ModelRow[];
   bots: BotRow[];
   /** Models left after the reader's filters. */
   shown: ModelRow[];
-  /** The GM-Bench 2.1 table's rows: its own contract and pick-trader, under the same filters. */
-  v21: { models: ModelRow[]; bots: BotRow[]; shown: ModelRow[] };
   filters: Filters;
   setFilters: (next: Filters) => void;
   selected: string | null;
@@ -21,12 +21,21 @@ export interface WorkspaceView {
   filterButton: ReactNode;
 }
 
-/* All stats sections share filters and selection beside one detail panel. */
-export default function Workspace({ data, hint, children }: { data: Leaderboard; hint: string; children: (view: WorkspaceView) => ReactNode }) {
-  const models = useMemo(() => modelRows(data), [data]);
-  const bots = useMemo(() => botRows(data), [data]);
-  const v21Models = useMemo(() => v21ModelRows(data), [data]);
-  const v21Bots = useMemo(() => v21BotRows(data), [data]);
+/* All stats sections share filters and selection beside one detail panel.
+   A page shows one contract: 2.1 on the site, 2.0 on its archive page. */
+export default function Workspace({
+  data,
+  contract = "2.1",
+  hint,
+  children,
+}: {
+  data: Leaderboard;
+  contract?: Contract;
+  hint: string;
+  children: (view: WorkspaceView) => ReactNode;
+}) {
+  const lane = useMemo(() => laneOf(data, contract), [data, contract]);
+  const { models, bots } = lane;
   const [filters, setFilters] = useFilters();
   const [selected, setSelected] = useState<string | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
@@ -60,15 +69,15 @@ export default function Workspace({ data, hint, children }: { data: Leaderboard;
       Filter
     </button>
   );
-  const row = [...models, ...bots, ...v21Models, ...v21Bots].find((item) => item.id === selected) ?? null;
+  const row = [...models, ...bots].find((item) => item.id === selected) ?? null;
 
   return (
     <div className="workspace">
       {children({
+        lane,
         models,
         bots,
         shown: models.filter((model) => visible(model, filters)),
-        v21: { models: v21Models, bots: v21Bots, shown: v21Models.filter((model) => visible(model, filters)) },
         filters,
         setFilters,
         selected,

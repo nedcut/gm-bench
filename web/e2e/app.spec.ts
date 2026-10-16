@@ -4,12 +4,17 @@ import { readFileSync } from "node:fs";
 
 const data = JSON.parse(readFileSync(new URL("../src/data/leaderboard.json", import.meta.url), "utf8"));
 type Row = {
+  id: string;
   model: string;
+  harness: { name: string; version: string };
+  contract: { agentic_fingerprint: string };
   mean_score: number;
   reference: { mean_score: number; paired_lift_ci95: number[] };
   telemetry: { cost_per_episode_usd: number | null; api_equivalent_cost_per_episode_usd?: number | null };
 };
-const rows: Row[] = data.agentic_lane;
+// The site shows GM-Bench 2.1; the 2.0 board is on its archive page.
+const rows: Row[] = data.agentic_v21_lane;
+const v20: Row[] = data.agentic_lane;
 const bar = rows[0].reference.mean_score;
 const clears = (row: Row) => row.reference.paired_lift_ci95[0] > 0;
 const priced = rows.filter(
@@ -20,7 +25,7 @@ function verdict(set: Row[], clear: string, above: string, none: string): string
   const a = set.filter((row) => row.mean_score > bar).length;
   return c > 0 ? clear.replace("N", String(c)) : a > 0 ? above.replace("N", String(a)) : none;
 }
-const PAGES = ["/", "/how-it-works/", "/cost/", "/tools/", "/replays/", "/play/", "/method/", "/v1/"];
+const PAGES = ["/", "/how-it-works/", "/cost/", "/tools/", "/replays/", "/play/", "/method/", "/v2/", "/v1/"];
 
 async function noErrors(page: Page) {
   const errors: string[] = [];
@@ -28,7 +33,7 @@ async function noErrors(page: Page) {
   return errors;
 }
 
-test("standings lists every 2.0 row by score with pick-trader, and nothing from 1.0", async ({ page }) => {
+test("the headline and standings count the 2.1 rows against 2.1's pick-trader, and nothing from 2.0 or 1.0", async ({ page }) => {
   const errors = await noErrors(page);
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Can an LLM run a hockey team?");
@@ -49,6 +54,11 @@ test("standings lists every 2.0 row by score with pick-trader, and nothing from 
   }
   expect(names).toContain("pick-trader");
   expect(names).not.toContain("gemini-3.7-flash");
+  for (const row of v20) {
+    if (!rows.some((current) => current.model === row.model)) expect(names).not.toContain(row.model.split("/").at(-1)!);
+  }
+  expect(names.length).toBe(rows.length + data.agentic_v21_bots.length);
+  await expect(page.locator("#standings tr.is-bar .score")).toHaveText(bar.toFixed(1));
   const scores = (await page.locator("#standings .standings tbody .score").allTextContents()).map(Number);
   expect([...scores].sort((a, b) => b - a)).toEqual(scores);
   await expect(page.locator(".tabs a[aria-current=page]")).toHaveText("Standings");
@@ -77,7 +87,7 @@ test("filters hide rows on every tab and a row opens its details", async ({ page
 
 test("score vs cost plots measured rows and names the unmeasured ones", async ({ page }) => {
   await page.goto("/cost/");
-  const unmeasured = data.agentic_lane.filter((r: { telemetry: { cost_per_episode_usd: number | null; api_equivalent_cost_per_episode_usd?: number | null } }) =>
+  const unmeasured = rows.filter((r: { telemetry: { cost_per_episode_usd: number | null; api_equivalent_cost_per_episode_usd?: number | null } }) =>
     r.telemetry.cost_per_episode_usd === null && (r.telemetry.api_equivalent_cost_per_episode_usd ?? null) === null);
   await expect(page.locator(".chart circle")).toHaveCount(rows.length - unmeasured.length);
   for (const r of unmeasured) await expect(page.getByText(new RegExp(`cost unmeasured: .*${r.model}`))).toBeVisible();
@@ -124,8 +134,8 @@ test("cost points and tool bars open details in the side panel and highlight the
   await expect(page.getByText(/linear scale/)).toBeVisible();
   await page.goto("/tools/");
   await expect(page.locator(".metric")).toHaveCount(6);
-  await page.locator(".hbar", { hasText: "claude-haiku-4-5" }).first().click();
-  await expect(page.locator(".side-panel h2")).toHaveText("claude-haiku-4-5");
+  await page.locator(".hbar", { hasText: "claude-opus-5-5" }).first().click();
+  await expect(page.locator(".side-panel h2")).toHaveText("claude-opus-5-5");
   await expect(page.locator(".hbar[aria-pressed=true]")).toHaveCount(6);
   expect(errors).toEqual([]);
 });
@@ -179,8 +189,8 @@ for (const costs of [[0, 0.2, null], [0, 0, null], [0.2, 2, null], [null, null, 
     const { renderToStaticMarkup } = await import("react-dom/server");
     const { default: CostView } = await import("../src/app/CostView");
     const fixture = structuredClone(data);
-    fixture.agentic_lane = fixture.agentic_lane.slice(0, costs.length);
-    fixture.agentic_lane.forEach((row: typeof data.agentic_lane[number], index: number) => {
+    fixture.agentic_v21_lane = fixture.agentic_v21_lane.slice(0, costs.length);
+    fixture.agentic_v21_lane.forEach((row: typeof data.agentic_v21_lane[number], index: number) => {
       row.telemetry.cost_per_episode_usd = costs[index];
       row.telemetry.api_equivalent_cost_per_episode_usd = null;
     });
@@ -255,18 +265,37 @@ test("mobile sheets contain focus, restore triggers, and survive navigation and 
   await expect(filter).toBeFocused();
 });
 
-test("GM-Bench 2.1 has its own table, its own pick-trader, and opens the same details", async ({ page }) => {
-  const v21 = data.agentic_v21_lane as Array<{ model: string; reference: { mean_score: number } }>;
+test("the footer names 2.1 and links the 2.0 archive, which shows the 2.0 board against its own pick-trader", async ({ page }) => {
+  const errors = await noErrors(page);
   await page.goto("/");
-  const section = page.locator("#v21");
-  await expect(section.locator(".view-head h2")).toHaveText("GM-Bench 2.1");
+  const footer = page.locator(".footer");
+  await expect(footer).toContainText(`GM-Bench 2.1 · contract ${rows[0].contract.agentic_fingerprint}`);
+  await expect(footer.getByRole("link", { name: "1.0 archive" })).toHaveAttribute("href", /\/v1\/$/);
+  await footer.getByRole("link", { name: "2.0 archive" }).click();
+  await expect(page).toHaveURL(/\/v2\/$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("GM-Bench 2.0 archive");
+  await expect(page.locator(".lede")).toContainText("Superseded by GM-Bench 2.1 on 2026-10-16");
+  await expect(page.locator(".footer a[aria-current=page]")).toHaveText("2.0 archive");
+  const section = page.locator("#standings");
+  await expect(section.locator(".view-head h2")).toHaveText("GM-Bench 2.0 standings");
   const names = await section.locator("tbody .name").allTextContents();
-  for (const row of v21) expect(names).toContain(row.model.split("/").at(-1)!);
-  const bar = section.locator("tr.is-bar .score");
-  await expect(bar).toHaveText(v21[0].reference.mean_score.toFixed(1));
+  expect(names.length).toBe(v20.length + data.agentic_bots.length);
+  expect(names).toContain("claude-haiku-4-5");
+  await expect(section.locator("tr.is-bar .score")).toHaveText(v20[0].reference.mean_score.toFixed(1));
   const scores = (await section.locator("tbody .score").allTextContents()).map(Number);
   expect([...scores].sort((a, b) => b - a)).toEqual(scores);
-  await section.locator(".row-name", { hasText: "gpt-6-astra" }).click();
-  await expect(page.locator(".side-panel h2")).toHaveText("gpt-6-astra");
+  await section.locator(".row-name", { hasText: "claude-haiku-4-5" }).click();
+  await expect(page.locator(".side-panel h2")).toHaveText("claude-haiku-4-5");
+  await expect(page.locator(".side-panel")).toContainText("Played under GM-Bench 2.0");
+  await expect(page.locator(".side-panel")).toContainText("Under score-v1");
+  expect(errors).toEqual([]);
+});
+
+test("a 2.1 row's details say it was played under 2.1 and carry no 2.0 caveat", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("#standings .row-name", { hasText: "claude-opus-5-5" }).click();
+  await expect(page.locator(".side-panel h2")).toHaveText("claude-opus-5-5");
   await expect(page.locator(".side-panel")).toContainText("Played under GM-Bench 2.1");
+  await expect(page.locator(".side-panel")).not.toContainText("Paused once for quota");
+  await expect(page.locator(".side-panel")).not.toContainText("Under score-v1");
 });

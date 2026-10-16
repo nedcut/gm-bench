@@ -11,6 +11,7 @@ import {
 } from "../src/agenticLane";
 import { buildBenchmarkView, scoreCi95, seedCount } from "../src/benchmarkData";
 import type { AgenticLaneRow, Leaderboard, LeaderboardModel } from "../src/types";
+import { laneOf } from "../src/v2";
 
 const leaderboard = leaderboardData as Leaderboard;
 const benchmark = buildBenchmarkView(leaderboard);
@@ -129,6 +130,16 @@ if (
   JSON.stringify(v21Bots)
 ) {
   throw new Error("agentic_v21_bots does not match config/bench_v21_lane.json scripted_bot_scores");
+}
+// The site's standings, headline and charts show the 2.1 table; the 2.0 board
+// is on its archive page. So the data must carry 2.1 rows, and the pick-trader
+// drawn as the bar must be the one every 2.1 row is tested against.
+const siteLane = laneOf(leaderboard, "2.1");
+if (siteLane.models.length === 0) {
+  throw new Error("The site's standings are the 2.1 table, but agentic_v21_lane is empty");
+}
+if (siteLane.bots.find((bot) => bot.isBar)?.score !== siteLane.bar) {
+  throw new Error("The 2.1 table's pick-trader bot is not the reference its rows are tested against");
 }
 
 // The same rules must reject each way a 2.0 row could go wrong. The fixture is

@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { Leaderboard } from "../types";
-import { clearsBar, num, pickTraderScore, type ModelRow } from "../v2";
+import { clearsBar, num, type ModelRow } from "../v2";
 import Workspace, { type WorkspaceView } from "./Workspace";
 import { CHART_AXES, chartRows, logTicks, type ChartAxis, type ChartRow } from "./chartAxes";
 
@@ -264,10 +264,10 @@ function Chart({ priced, bar, scale, view, axis }: { priced: ChartRow[]; bar: nu
   );
 }
 
-export function CostSection({ data, view }: { data: Leaderboard; view: WorkspaceView }) {
+export function CostSection({ view }: { view: WorkspaceView }) {
   const [axis, setAxis] = useState(CHART_AXES[0]);
   const [scale, setScale] = useState<Scale>("log");
-  const bar = pickTraderScore(data) ?? 0;
+  const bar = view.lane.bar ?? 0;
   const priced = chartRows(view.shown, axis);
   const unmeasured = view.shown.filter(row => !priced.some(point => point.id === row.id));
   return (
@@ -313,5 +313,5 @@ export function CostSection({ data, view }: { data: Leaderboard; view: Workspace
 }
 
 export default function CostView({ data }: { data: Leaderboard }) {
-  return <Workspace data={data} hint="Click a point for its details.">{view => <CostSection data={data} view={view} />}</Workspace>;
+  return <Workspace data={data} hint="Click a point for its details.">{view => <CostSection view={view} />}</Workspace>;
 }

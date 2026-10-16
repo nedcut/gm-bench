@@ -2,17 +2,13 @@ import type { Leaderboard } from "../types";
 import {
   clearsBar,
   costText,
-  modelRows,
+  laneOf,
   num,
-  pickTraderScore,
-  seedCount,
   signed,
-  v21PickTraderScore,
   type BotRow,
   type ModelRow,
   type StandingsRow,
 } from "../v2";
-import { REPO_BLOB } from "../site";
 import Rink from "./Rink";
 import SeasonStrip from "./SeasonStrip";
 import { type WorkspaceView } from "./Workspace";
@@ -64,9 +60,10 @@ function vsBar(row: ModelRow) {
   );
 }
 
+/* The headline counts the current contract's rows (2.1) against its own pick-trader. */
 export function StandingsIntro({ data }: { data: Leaderboard }) {
-  const bar = pickTraderScore(data) ?? 0;
-  const models = modelRows(data);
+  const { models, bar: pickTrader } = laneOf(data, "2.1");
+  const bar = pickTrader ?? 0;
   const clear = models.filter(clearsBar).length;
   const above = models.filter((row) => row.score > bar).length;
 
@@ -202,50 +199,24 @@ function sorted(models: ModelRow[], bots: BotRow[], showBots: boolean): Standing
   return [...models, ...bots.filter((row) => showBots || row.isBar)].sort((a, b) => b.score - a.score);
 }
 
-/* GM-Bench 2.1 beside, not inside, the 2.0 board: the models rerun so far under
-   the 2.1 rules, each against 2.1's own pick-trader. The 2.0 board stays the
-   full one until 2.1 covers most of its models. */
-export function V21Section({ data, view }: { data: Leaderboard; view: WorkspaceView }) {
-  const { v21, filters, selected, select } = view;
-  if (v21.models.length === 0) return null;
-  const bar = v21PickTraderScore(data) ?? 0;
-  return (
-    <section className="view stats-section" id="v21" tabIndex={-1} aria-labelledby="v21-title">
-      <div className="view-head">
-        <h2 id="v21-title">GM-Bench 2.1</h2>
-        <span>
-          {v21.models.length} models rerun so far · same {seedCount(data) ?? "—"} private seeds · red line:
-          pick-trader under 2.1
-        </span>
-      </div>
-      <StandingsTable rows={sorted(v21.shown, v21.bots, filters.showBots)} bar={bar} selected={selected} select={select} />
-      <p className="view-note">
-        2.1 fixes three simulator issues and scores with score-v2. Scores are not comparable with the 2.0 table
-        below; compare each row with pick-trader in its own table.{" "}
-        <a href={`${REPO_BLOB}docs/bench_v2_1_spec.md`}>What changed</a>
-      </p>
-    </section>
-  );
-}
-
-export function StandingsSection({ data, view }: { data: Leaderboard; view: WorkspaceView }) {
-  const bar = pickTraderScore(data) ?? 0;
-  const { shown, bots, filters, selected, select } = view;
+export function StandingsSection({ view }: { view: WorkspaceView }) {
+  const { lane, shown, bots, filters, selected, select } = view;
+  const archived = lane.contract !== "2.1";
   return (
     <section className="view stats-section" id="standings" tabIndex={-1} aria-labelledby="standings-title">
       <div className="view-head">
-        <h2 id="standings-title">{view.v21.models.length > 0 ? "GM-Bench 2.0 standings" : "Standings"}</h2>
+        <h2 id="standings-title">{archived ? `GM-Bench ${lane.contract} standings` : "Standings"}</h2>
         <span>
-          {seedCount(data) ?? "—"} private seeds · bars show 95%
+          {lane.seeds ?? "—"} private seeds · bars show 95%
           intervals · red line: pick-trader
         </span>
       </div>
-      <StandingsTable rows={sorted(shown, bots, filters.showBots)} bar={bar} selected={selected} select={select} />
+      <StandingsTable rows={sorted(shown, bots, filters.showBots)} bar={lane.bar ?? 0} selected={selected} select={select} />
       <p className="view-note">
         Sorted by score for reading. Each row is compared only with
         pick-trader on the same seeds, never with another row.
       </p>
-      <SeasonStrip />
+      {!archived && <SeasonStrip />}
     </section>
   );
 }

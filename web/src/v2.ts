@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import type { AgenticLaneRow, Leaderboard } from "./types";
 
-/* Everything the 2.0 pages show, derived from the published leaderboard
-   record. Rows are compared with pick-trader and nothing else; the table is
+/* Everything the standings pages show (GM-Bench 2.1, and 2.0 on its archive
+   page), derived from the published leaderboard record. Rows are compared with pick-trader and nothing else; the table is
    sorted by score for reading only. */
 
 export const HARNESSES: Record<string, string> = {
@@ -113,8 +113,10 @@ export interface BotRow {
 
 export type StandingsRow = ModelRow | BotRow;
 
-/* Caveats a row's numbers cannot carry, keyed by row id. Source:
-   docs/bench_v2_spec.md, "Changes after the freeze". */
+/* Caveats a row's numbers cannot carry, keyed by row id. These are 2.0 rows
+   (the archive); each fact is about that run. Source: docs/bench_v2_spec.md,
+   "Changes after the freeze". A 2.1 row gets a caveat only for a fact about
+   its own run. */
 const ROW_CAVEATS: Record<string, string> = {
   "agentic:claude-2.1.281:claude-haiku-4-5":
     "Admitted under a post-hoc audit rule adopted on 2026-09-27, after this panel ran: in 4 episodes the " +
@@ -262,9 +264,8 @@ export function botRows(data: Leaderboard): BotRow[] {
   }));
 }
 
-export function modelRows(data: Leaderboard): ModelRow[] {
-  const rows = (data.agentic_lane ?? []).map(modelRow);
-  // The same model in two versions of one harness: name the version so the two read apart.
+/* The same model in two versions of one harness: name the version so the two read apart. */
+function labelled(rows: ModelRow[]): ModelRow[] {
   const key = (row: ModelRow) => `${row.harnessKey} ${row.model}`;
   return rows.map((row) => {
     if (rows.filter((other) => key(other) === key(row)).length < 2) return row;
@@ -273,10 +274,15 @@ export function modelRows(data: Leaderboard): ModelRow[] {
   });
 }
 
-/* GM-Bench 2.1: the same lane under the 2.1 rules, its own table and its own
-   pick-trader (config/bench_v21_lane.json). Rows are never compared with a 2.0 row. */
+/** GM-Bench 2.0 rows (the archive), rescored under score-v2. */
+export function modelRows(data: Leaderboard): ModelRow[] {
+  return labelled((data.agentic_lane ?? []).map(modelRow));
+}
+
+/* GM-Bench 2.1: the current lane, its own pick-trader (config/bench_v21_lane.json).
+   Rows are never compared with a 2.0 row. */
 export function v21ModelRows(data: Leaderboard): ModelRow[] {
-  return (data.agentic_v21_lane ?? []).map(modelRow);
+  return labelled((data.agentic_v21_lane ?? []).map(modelRow));
 }
 
 export function v21BotRows(data: Leaderboard): BotRow[] {
@@ -290,12 +296,29 @@ export function v21BotRows(data: Leaderboard): BotRow[] {
   }));
 }
 
-export function v21PickTraderScore(data: Leaderboard): number | null {
-  return data.agentic_v21_lane?.[0]?.reference.mean_score ?? null;
+/* One contract's table: the site shows 2.1; the 2.0 archive page shows 2.0. */
+export type Contract = "2.1" | "2.0";
+
+export interface Lane {
+  contract: Contract;
+  models: ModelRow[];
+  bots: BotRow[];
+  /** pick-trader's mean under this contract: the bar every row is tested against. */
+  bar: number | null;
+  seeds: number | null;
+  fingerprint: string | null;
 }
 
-export function pickTraderScore(data: Leaderboard): number | null {
-  return data.agentic_lane?.[0]?.reference.mean_score ?? null;
+export function laneOf(data: Leaderboard, contract: Contract): Lane {
+  const rows = (contract === "2.1" ? data.agentic_v21_lane : data.agentic_lane) ?? [];
+  return {
+    contract,
+    models: contract === "2.1" ? v21ModelRows(data) : modelRows(data),
+    bots: contract === "2.1" ? v21BotRows(data) : botRows(data),
+    bar: rows[0]?.reference.mean_score ?? null,
+    seeds: rows[0]?.reference.num_seeds ?? null,
+    fingerprint: rows[0]?.contract.agentic_fingerprint ?? null,
+  };
 }
 
 /** pick-trader's mean under score-v1, for pages that still show score-v1 games (the walkthrough). */
@@ -308,9 +331,6 @@ export function clearsBar(row: ModelRow): boolean {
   return row.liftCi !== null && row.liftCi[0] > 0;
 }
 
-export function seedCount(data: Leaderboard): number | null {
-  return data.agentic_lane?.[0]?.reference.num_seeds ?? null;
-}
 
 /* ---------- filters, shared by every tab through the URL and localStorage ---------- */
 
