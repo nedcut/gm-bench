@@ -55,3 +55,25 @@ def test_a_2_0_run_is_refused_as_the_2_1_side(tmp_path: Path) -> None:
 def test_kendall_tau() -> None:
     assert compare.kendall_tau([3, 2, 1], [30, 20, 10]) == 1.0
     assert compare.kendall_tau([1, 2], [2, 1]) == -1.0
+    # A tie in either column is not a reversal.
+    assert compare.kendall_tau([1, 1, 3], [1, 2, 3]) == pytest.approx(2 / 3)
+
+
+def test_a_different_agent_is_refused(tmp_path: Path) -> None:
+    old, new = _runs(tmp_path, [11, 12])
+    result = new / "episode-01" / "result.json"
+    result.write_text(json.dumps(dict(json.loads(result.read_text()), agent="other:model")))
+    with pytest.raises(SystemExit, match="same single agent"):
+        compare.compare_pair(old, new, {})
+
+
+def _row(ci95: list[float], v1: float, e: float | None) -> dict:
+    return {"lift_2_1": {"ci95": ci95}, "lift_2_0_score_v1": {"mean": v1}, "lift_2_0_score_v2_e_full_panel": e}
+
+
+def test_a_sign_conflict_counts_against_either_2_0_column() -> None:
+    assert not compare.sign_conflict(_row([5, 20], 3, 4))
+    assert compare.sign_conflict(_row([5, 20], 3, -4))
+    assert compare.sign_conflict(_row([-20, -5], 3, None))
+    # An interval that includes zero conflicts with nothing.
+    assert not compare.sign_conflict(_row([-5, 10], -3, -11))

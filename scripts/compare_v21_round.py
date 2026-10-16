@@ -65,6 +65,8 @@ def compare_pair(old_dir: Path, new_dir: Path, e_lifts: dict[str, float]) -> dic
     old = old[: len(new)]
     if [e["seed"] for e in old] != [e["seed"] for e in new]:
         raise SystemExit(f"{new_dir}: seeds do not match {old_dir} position by position")
+    if {e["agent"] for e in old} != {e["agent"] for e in new} or len({e["agent"] for e in new}) != 1:
+        raise SystemExit(f"{new_dir}: not the same single agent as {old_dir}")
     contract = json.loads((new_dir / "episode-00" / "ledger.jsonl").read_text(encoding="utf-8").splitlines()[0])
     if contract.get("benchmark_version") != "gm-bench-2.1":
         raise SystemExit(f"{new_dir}: not a 2.1 run")
@@ -88,10 +90,18 @@ def compare_pair(old_dir: Path, new_dir: Path, e_lifts: dict[str, float]) -> dic
 
 
 def kendall_tau(a: list[float], b: list[float]) -> float | None:
+    """Kendall's tau-a: a pair tied in either column counts as neither agreeing nor reversed."""
     pairs = list(combinations(range(len(a)), 2))
     if not pairs:
         return None
-    return sum(1 if (a[i] - a[j]) * (b[i] - b[j]) > 0 else -1 for i, j in pairs) / len(pairs)
+    return sum(((a[i] - a[j]) * (b[i] - b[j]) > 0) - ((a[i] - a[j]) * (b[i] - b[j]) < 0) for i, j in pairs) / len(pairs)
+
+
+def sign_conflict(row: dict[str, Any]) -> bool:
+    """A 2.1 lift whose interval excludes zero, opposite in sign to either 2.0 column."""
+    low, high = row["lift_2_1"]["ci95"]
+    earlier = [row["lift_2_0_score_v1"]["mean"], row["lift_2_0_score_v2_e_full_panel"]]
+    return any(v is not None and ((low > 0 and v < 0) or (high < 0 and v > 0)) for v in earlier)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -110,12 +120,7 @@ def main(argv: list[str] | None = None) -> int:
             if all(row["lift_2_0_score_v2_e_full_panel"] is not None for row in rows)
             else None
         ),
-        "sign_conflicts": [
-            row["model"]
-            for row in rows
-            if (row["lift_2_1"]["ci95"][0] > 0 and row["lift_2_0_score_v1"]["mean"] < 0)
-            or (row["lift_2_1"]["ci95"][1] < 0 and row["lift_2_0_score_v1"]["mean"] > 0)
-        ],
+        "sign_conflicts": [row["model"] for row in rows if sign_conflict(row)],
     }
     for row in rows:
         new, old = row["lift_2_1"], row["lift_2_0_score_v1"]

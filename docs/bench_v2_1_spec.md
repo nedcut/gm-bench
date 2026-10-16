@@ -1,9 +1,8 @@
-# GM-Bench 2.1: specification (draft)
+# GM-Bench 2.1: specification
 
-Draft, 2026-10-15. Built and tested; not released. Nothing has been played
-under it by a model except a free one-season pipeline smoke. Once the rules
-below are accepted, they are pre-registered: no weight or rule changes after
-any model row is played under 2.1.
+Built 2026-10-15. Its rules and weights were fixed before any model row was
+played under it; a first paid round (below) has since been played and
+passed, so they are now frozen: any change is a new version.
 
 2.1 is the 2.0 agentic lane (`docs/bench_v2_spec.md`) with three simulator
 fixes and a new scoring version. The tools, the task brief, the phase
@@ -148,7 +147,10 @@ under 2.1 on the same seeds
 | `claude-sonnet-5-5` | -32.1 | -36.3 | **-46.8** | -56.9 to -36.7 | 3/32 | 68.6 → 38.8 → 29.1 | 14.4 |
 
 - **Success criterion met.** Kendall tau = 1 against both 2.0 columns, and
-  no sign conflict.
+  no sign conflict against either. `round.json` names the raw run
+  directories behind the published 2.0 rows in the table above (the
+  DeepSeek row's is `...-panel-32x5-mcpwait`, Sonnet 5.5's
+  `claude-sonnet-5-5-panel`).
 - **Precision.** The paired SD falls to 26-29 for every model, so 32 seeds
   detect a lift of about 13 points (score-v1: about 32; score-v2 replayed
   on 2.0 games: about 15-20).
