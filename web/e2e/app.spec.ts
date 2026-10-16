@@ -40,7 +40,7 @@ test("standings lists every 2.0 row by score with pick-trader, and nothing from 
       "Not yet. No model beats pick-trader.",
     ),
   );
-  const names = await page.locator(".standings tbody .name").allTextContents();
+  const names = await page.locator("#standings .standings tbody .name").allTextContents();
   // A model on two versions of one harness is named with the version, once per row.
   for (const row of rows) {
     const model = row.model.split("/").at(-1)!;
@@ -49,7 +49,7 @@ test("standings lists every 2.0 row by score with pick-trader, and nothing from 
   }
   expect(names).toContain("pick-trader");
   expect(names).not.toContain("gemini-3.7-flash");
-  const scores = (await page.locator(".standings tbody .score").allTextContents()).map(Number);
+  const scores = (await page.locator("#standings .standings tbody .score").allTextContents()).map(Number);
   expect([...scores].sort((a, b) => b - a)).toEqual(scores);
   await expect(page.locator(".tabs a[aria-current=page]")).toHaveText("Standings");
   expect(errors).toEqual([]);
@@ -58,17 +58,17 @@ test("standings lists every 2.0 row by score with pick-trader, and nothing from 
 test("filters hide rows on every tab and a row opens its details", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("checkbox", { name: /Claude Code/ }).uncheck();
-  await expect(page.locator(".standings tbody .name", { hasText: "claude-sonnet-5" })).toHaveCount(0);
+  await expect(page.locator("#standings .standings tbody .name", { hasText: "claude-sonnet-5" })).toHaveCount(0);
   await page.getByRole("checkbox", { name: "Show bots" }).uncheck();
-  await expect(page.locator(".standings tbody .name", { hasText: "random" })).toHaveCount(0);
-  await expect(page.locator(".standings tbody .name", { hasText: "pick-trader" })).toHaveCount(1);
+  await expect(page.locator("#standings .standings tbody .name", { hasText: "random" })).toHaveCount(0);
+  await expect(page.locator("#standings .standings tbody .name", { hasText: "pick-trader" })).toHaveCount(1);
   await page.goto("/tools/");
   await expect(page.locator(".hbar", { hasText: "claude-sonnet-5" })).toHaveCount(0);
   await expect(page.getByRole("checkbox", { name: /Claude Code/ })).not.toBeChecked();
   await page.getByRole("button", { name: "Reset" }).click();
   await expect(page.locator(".hbar", { hasText: "claude-sonnet-5" }).first()).toBeVisible();
   await page.goto("/");
-  await page.locator(".row-name", { hasText: "gpt-6-luna" }).click();
+  await page.locator("#standings .row-name", { hasText: "gpt-6-luna" }).click();
   await expect(page.locator(".side-panel h2")).toHaveText("gpt-6-luna");
   await expect(page.locator(".side-panel")).toContainText("vs pick-trader");
   await page.getByRole("button", { name: "← Filters" }).click();
@@ -223,7 +223,7 @@ test("mobile sheets contain focus, restore triggers, and survive navigation and 
     await expect(filter).toBeFocused();
     await expect(page.locator("[inert]")).toHaveCount(0);
   }
-  const row = page.locator(".row-name", { hasText: "gpt-6-luna" });
+  const row = page.locator("#standings .row-name", { hasText: "gpt-6-luna" });
   await row.click();
   await expect(close).toBeFocused();
   await dialog.getByRole("button", { name: "← Filters" }).click();
@@ -253,4 +253,20 @@ test("mobile sheets contain focus, restore triggers, and survive navigation and 
   expect(result.violations).toEqual([]);
   await page.keyboard.press("Escape");
   await expect(filter).toBeFocused();
+});
+
+test("GM-Bench 2.1 has its own table, its own pick-trader, and opens the same details", async ({ page }) => {
+  const v21 = data.agentic_v21_lane as Array<{ model: string; reference: { mean_score: number } }>;
+  await page.goto("/");
+  const section = page.locator("#v21");
+  await expect(section.locator(".view-head h2")).toHaveText("GM-Bench 2.1");
+  const names = await section.locator("tbody .name").allTextContents();
+  for (const row of v21) expect(names).toContain(row.model.split("/").at(-1)!);
+  const bar = section.locator("tr.is-bar .score");
+  await expect(bar).toHaveText(v21[0].reference.mean_score.toFixed(1));
+  const scores = (await section.locator("tbody .score").allTextContents()).map(Number);
+  expect([...scores].sort((a, b) => b - a)).toEqual(scores);
+  await section.locator(".row-name", { hasText: "gpt-6-astra" }).click();
+  await expect(page.locator(".side-panel h2")).toHaveText("gpt-6-astra");
+  await expect(page.locator(".side-panel")).toContainText("Played under GM-Bench 2.1");
 });

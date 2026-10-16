@@ -17,7 +17,7 @@ for (const width of [1440, 390, 320]) {
       for (const id of ["output-total", "time", "calls", "input-total", "output-game", "cost"]) {
         await picker.selectOption(id);
         await expect(page.locator(".pt[aria-pressed=true]")).toHaveCount(1);
-        await expect(page.locator(".standings tr[aria-selected=true]")).toHaveCount(1);
+        await expect(page.locator("#standings .standings tr[aria-selected=true]")).toHaveCount(1);
         await expect(page.locator("#tools .hbar[aria-pressed=true]")).toHaveCount(6);
         expect(await page.locator("#cost").innerHTML()).not.toMatch(/NaN|Infinity/);
         await page.getByRole("button", { name: "Log", exact: true }).click();
