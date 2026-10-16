@@ -413,3 +413,40 @@ def test_a_spent_go_window_on_opencode_2_stops_the_panel_with_the_reset_unknown(
         "reset_at_utc": None,
     }
     assert panel["stopped_for_quota"]["episodes_not_run"] == 1
+
+
+def test_an_openrouter_model_needs_a_key_and_a_pinned_host(tmp_path: Path) -> None:
+    key = _key_file(tmp_path)
+    driver = OpenCodeDriver(auth_file=key)
+    driver.check_model("openrouter/z-ai/glm-5.3-flash")
+    # The key is staged for the run's own provider only.
+    credentials = json.loads(opencode.opencode_credentials_json(DUMMY_KEY, driver._key_provider()))
+    assert [entry["integrationID"] for entry in credentials] == ["openrouter"]
+    with pytest.raises(ValueError, match="needs an OpenCode API key"):
+        OpenCodeDriver().check_model("openrouter/xiaomi/mimo-v2.6-pro")
+    # OpenRouter would route an unpinned model to any host serving it.
+    with pytest.raises(ValueError, match="no pinned OpenRouter host"):
+        OpenCodeDriver(auth_file=key).check_model("openrouter/moonshotai/kimi-k3")
+    with pytest.raises(ValueError, match="no OpenCode credential"):
+        opencode.opencode_credentials_json(DUMMY_KEY, "opencode")
+
+
+@pytest.mark.parametrize("model", sorted(opencode.OPENROUTER_ROUTES))
+def test_opencode_json_pins_each_openrouter_model_to_one_host_without_fallbacks(model: str) -> None:
+    config = opencode.opencode_config("/tmp/s", model=f"openrouter/{model}")
+    options = config["provider"]["openrouter"]["models"][model]["options"]
+    assert options == {"provider": {"order": [opencode.OPENROUTER_ROUTES[model]], "allow_fallbacks": False}}
+    # A Go or Zen model's config is unchanged.
+    assert "provider" not in opencode.opencode_config("/tmp/s", model="opencode-go/deepseek-v4.1-flash")
+
+
+def test_the_run_record_names_the_pinned_host(tmp_path: Path) -> None:
+    driver = OpenCodeDriver(auth_file=_key_file(tmp_path))
+    driver.check_model("openrouter/deepseek/deepseek-v4-pro")
+
+    class _Launch:
+        container = object()
+
+    record = driver.run_record(_Launch())  # type: ignore[arg-type]
+    assert record["auth_providers"] == ["openrouter"]
+    assert record["provider_routing"] == {"order": ["baidu"], "allow_fallbacks": False}
