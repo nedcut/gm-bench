@@ -21,6 +21,7 @@ export default defineConfig({
         play: resolve(__dirname, 'play/index.html'),
         replays: resolve(__dirname, 'replays/index.html'),
         method: resolve(__dirname, 'method/index.html'),
+        findings: resolve(__dirname, 'findings/index.html'),
         v2: resolve(__dirname, 'v2/index.html'),
         v1: resolve(__dirname, 'v1/index.html'),
       },

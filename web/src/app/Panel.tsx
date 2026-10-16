@@ -1,5 +1,6 @@
-import { useLayoutEffect, useRef, useState } from "react";
-import { REPO_BLOB } from "../site";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { REPO_BLOB, routes } from "../site";
+import { findingsByArtifact } from "../findings";
 import {
   HARNESSES,
   compact,
@@ -75,7 +76,7 @@ function FilterView({ models, filters, onFilters, hint }: { models: ModelRow[]; 
   );
 }
 
-function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
+function Stat({ label, value, note }: { label: string; value: string; note?: ReactNode }) {
   return (
     <div className="stat">
       <dt>{label}</dt>
@@ -88,6 +89,7 @@ function Stat({ label, value, note }: { label: string; value: string; note?: str
 }
 
 function ModelDetails({ row }: { row: ModelRow }) {
+  const findings = findingsByArtifact.get(row.artifact);
   return (
     <>
       <div className="detail-title">
@@ -121,7 +123,14 @@ function ModelDetails({ row }: { row: ModelRow }) {
           }
         />
         <Stat label="Minutes / game" value={num(row.minutes)} />
-        <Stat label="Empty phases" value={row.emptyPhases === null ? "—" : `${row.emptyPhases} / ${row.phases}`} note="status check, then end" />
+        <Stat
+          label="Empty phases"
+          value={row.emptyPhases === null ? "—" : `${row.emptyPhases} / ${row.phases}`}
+          note={<>mostly drafts with no pick, or no status read; <a href={routes.findings}>what it measures</a></>}
+        />
+        {findings && (
+          <Stat label="Unused draft picks" value={`${findings.drafts_closed_holding_unused_pick} / ${findings.drafts}`} note="drafts closed holding one" />
+        )}
         <Stat label="Illegal moves" value={row.illegal === null ? "—" : String(row.illegal)} note={`over ${row.source.panel.episodes} games`} />
       </dl>
       <ul className="detail-notes">

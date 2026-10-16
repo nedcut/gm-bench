@@ -59,6 +59,7 @@ export default function Shell({ page, data, children }: { page: PageKey; data: L
         </span>
         <nav aria-label="More">
           <a href={routes.method} aria-current={page === "method" ? "page" : undefined}>Method</a>
+          <a href={routes.findings} aria-current={page === "findings" ? "page" : undefined}>Findings</a>
           <a href={routes.v2} aria-current={page === "v2" ? "page" : undefined}>2.0 archive</a>
           <a href={routes.v1} aria-current={page === "v1" ? "page" : undefined}>1.0 archive</a>
           <a href={`${REPO_BLOB}docs/bench_v2_1_spec.md#running-and-checking`}>Reproduce</a>

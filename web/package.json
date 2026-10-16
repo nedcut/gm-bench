@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "prepare:replay": "python3 ../scripts/build_web_replay_bundle.py",
-    "validate:data": "bun scripts/validate_results_data.ts && python3 scripts/validate_best_run.py",
+    "validate:data": "bun scripts/validate_results_data.ts && python3 scripts/validate_best_run.py && python3 ../scripts/build_v21_findings.py --check",
     "validate:replay:node": "bun scripts/validate_replay_node.mjs",
     "validate:replay": "bun run prepare:replay && bun run validate:replay:node",
     "generate:replay": "python3 ../scripts/build_web_replay_bundle.py --write-fixture",
