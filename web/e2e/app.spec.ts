@@ -57,7 +57,8 @@ test("the headline and standings count the 2.1 rows against 2.1's pick-trader, a
   for (const row of v20) {
     if (!rows.some((current) => current.model === row.model)) expect(names).not.toContain(row.model.split("/").at(-1)!);
   }
-  expect(names.length).toBe(rows.length + data.agentic_v21_bots.length);
+  // Bots are hidden by default; pick-trader, the bar, always shows.
+  expect(names.length).toBe(rows.length + 1);
   await expect(page.locator("#standings tr.is-bar .score")).toHaveText(bar.toFixed(1));
   const scores = (await page.locator("#standings .standings tbody .score").allTextContents()).map(Number);
   expect([...scores].sort((a, b) => b - a)).toEqual(scores);
@@ -69,9 +70,10 @@ test("filters hide rows on every tab and a row opens its details", async ({ page
   await page.goto("/");
   await page.getByRole("checkbox", { name: /Claude Code/ }).uncheck();
   await expect(page.locator("#standings .standings tbody .name", { hasText: "claude-sonnet-5" })).toHaveCount(0);
-  await page.getByRole("checkbox", { name: "Show bots" }).uncheck();
   await expect(page.locator("#standings .standings tbody .name", { hasText: "random" })).toHaveCount(0);
   await expect(page.locator("#standings .standings tbody .name", { hasText: "pick-trader" })).toHaveCount(1);
+  await page.getByRole("checkbox", { name: "Show bots" }).check();
+  await expect(page.locator("#standings .standings tbody .name", { hasText: "random" })).toHaveCount(1);
   await page.goto("/tools/");
   await expect(page.locator(".hbar", { hasText: "claude-sonnet-5" })).toHaveCount(0);
   await expect(page.getByRole("checkbox", { name: /Claude Code/ })).not.toBeChecked();
@@ -161,6 +163,18 @@ test("phone layout: filter opens as a sheet and no page scrolls sideways", async
     }
   }
   expect(errors).toEqual([]);
+});
+
+test("pages open light even on a dark device, and a dark choice is remembered", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await page.getByRole("button", { name: /^Appearance: light appearance/ }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.goto("/tools/");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.getByRole("button", { name: /^Appearance: dark appearance/ }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 });
 
 test("every page passes axe in both themes", async ({ page }) => {
@@ -279,7 +293,7 @@ test("the footer names 2.1 and links the 2.0 archive, which shows the 2.0 board 
   const section = page.locator("#standings");
   await expect(section.locator(".view-head h2")).toHaveText("GM-Bench 2.0 standings");
   const names = await section.locator("tbody .name").allTextContents();
-  expect(names.length).toBe(v20.length + data.agentic_bots.length);
+  expect(names.length).toBe(v20.length + 1);
   expect(names).toContain("claude-haiku-4-5");
   await expect(section.locator("tr.is-bar .score")).toHaveText(v20[0].reference.mean_score.toFixed(1));
   const scores = (await section.locator("tbody .score").allTextContents()).map(Number);

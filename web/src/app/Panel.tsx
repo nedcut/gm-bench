@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { REPO_BLOB, routes } from "../site";
 import { findingsByArtifact } from "../findings";
 import {
+  DEFAULT_FILTERS,
   HARNESSES,
   compact,
   costText,
@@ -33,13 +34,13 @@ function FilterView({ models, filters, onFilters, hint }: { models: ModelRow[]; 
   const harnesses = [...new Set(models.map((m) => m.harnessKey))].sort();
   const vendors = [...new Map(models.map((m) => [m.vendor.key, m.vendor])).values()].sort((a, b) => a.name.localeCompare(b.name));
   const count = (pred: (m: ModelRow) => boolean) => models.filter(pred).length;
-  const dirty = filters.hiddenHarnesses.length + filters.hiddenVendors.length > 0 || !filters.showBots;
+  const dirty = filters.hiddenHarnesses.length + filters.hiddenVendors.length > 0 || filters.showBots;
   return (
     <>
       <div className="panel-head">
         <h2>Filter</h2>
         {dirty && (
-          <button type="button" className="text-button" onClick={() => onFilters({ hiddenHarnesses: [], hiddenVendors: [], showBots: true })}>
+          <button type="button" className="text-button" onClick={() => onFilters(DEFAULT_FILTERS)}>
             Reset
           </button>
         )}

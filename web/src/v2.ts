@@ -372,19 +372,20 @@ export interface Filters {
   showBots: boolean;
 }
 
-const FILTER_KEY = "gm-bench-filters";
-const EMPTY: Filters = { hiddenHarnesses: [], hiddenVendors: [], showBots: true };
+/* v2: bots became hidden by default, and the old key saved showBots: true on every visit. */
+const FILTER_KEY = "gm-bench-filters-v2";
+export const DEFAULT_FILTERS: Filters = { hiddenHarnesses: [], hiddenVendors: [], showBots: false };
 
 function readFilters(): Filters {
   try {
     const saved = JSON.parse(localStorage.getItem(FILTER_KEY) ?? "null");
     if (saved && Array.isArray(saved.hiddenHarnesses) && Array.isArray(saved.hiddenVendors)) {
-      return { hiddenHarnesses: saved.hiddenHarnesses, hiddenVendors: saved.hiddenVendors, showBots: saved.showBots !== false };
+      return { hiddenHarnesses: saved.hiddenHarnesses, hiddenVendors: saved.hiddenVendors, showBots: saved.showBots === true };
     }
   } catch {
-    // Unreadable or blocked storage: start unfiltered.
+    // Unreadable or blocked storage: start from the defaults.
   }
-  return EMPTY;
+  return DEFAULT_FILTERS;
 }
 
 export function useFilters(): [Filters, (next: Filters) => void] {
