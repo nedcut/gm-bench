@@ -110,7 +110,7 @@ export default function Method({ data }: { data: Leaderboard }) {
           sign-flip p-value.
         </li>
         <li>Rows are never tested against each other. The standings are sorted by score for reading, not ranked.</li>
-        <li>The other scripted bots are shown for context only.</li>
+        <li>The other scripted bots are context only, hidden unless you turn on Show bots in the filter.</li>
         <li>
           This panel reliably detects a difference of about 13 points under 2.1; smaller ones can't always be told
           apart from zero (it took 20 to 37 under score-v1, when playoff luck was in the score). "Not significant" means
