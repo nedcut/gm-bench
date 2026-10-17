@@ -813,7 +813,9 @@ GLM-5.3-flash, `xiaomi` for MiMo-v2.6-flash and -pro); DeepSeek V4 Pro has
 no DeepSeek endpoint, so it is pinned to `streamlake` (fp8), after `baidu`
 (fp8) mangled tool calls in a smoke (empty arguments, malformed JSON, tool
 names missing letters). DeepSeek V4.1 Flash 1017 (added 2026-10-17) is
-pinned to `deepseek`, DeepSeek's own endpoint. Their prices are in
+pinned to `deepinfra/fp8`: DeepSeek's own endpoint may train on prompts, so
+an OpenRouter account set to refuse that, as one running the private panel
+should be, is never routed to it. Their prices are in
 `gm_bench/pricing.json` under `openrouter/<model>`. Use a key with a credit
 limit set on OpenRouter: almost every input token in a game is a cache
 read, so a host that stopped caching would cost 10-20x the estimate.

@@ -2174,13 +2174,16 @@ KEY_REQUIRED_PROVIDERS = ("opencode-go", "openrouter")
 # but Baidu's stream mangled tool calls on 2026-10-16 (118 of about 180 calls
 # failed: empty arguments, malformed JSON, tool names missing letters); a
 # StreamLake smoke on the same seed then ran 33 of 33 calls clean.
-# DeepSeek V4.1 Flash 1017 (2026-10-17) is pinned to DeepSeek's own endpoint.
+# DeepSeek V4.1 Flash 1017 (2026-10-17) is pinned to DeepInfra (fp8, its
+# standard tier). DeepSeek's own endpoint may train on prompts, and an
+# account that refuses training (which a private panel's games need) is not
+# routed to it at all.
 OPENROUTER_ROUTES = {
     "z-ai/glm-5.3-flash": "z-ai",
     "xiaomi/mimo-v2.6-flash": "xiaomi",
     "xiaomi/mimo-v2.6-pro": "xiaomi",
     "deepseek/deepseek-v4-pro": "streamlake",
-    "deepseek/deepseek-v4.1-flash-1017": "deepseek",
+    "deepseek/deepseek-v4.1-flash-1017": "deepinfra/fp8",
 }
 # The token limits OpenCode plans each request with, pinned beside the host.
 # OpenCode otherwise reads them from models.dev at run time, which lists one
@@ -2195,8 +2198,7 @@ OPENROUTER_LIMITS = {
     "xiaomi/mimo-v2.6-flash": {"context": 1050000, "output": 131072},
     "xiaomi/mimo-v2.6-pro": {"context": 1050000, "output": 131072},
     "deepseek/deepseek-v4-pro": {"context": 1024000, "output": 384000},
-    # The output limit the V4.1 Flash row was sent through OpenCode Go, under DeepSeek's 393216 cap.
-    "deepseek/deepseek-v4.1-flash-1017": {"context": 1048576, "output": 384000},
+    "deepseek/deepseek-v4.1-flash-1017": {"context": 1048576, "output": 131072},
 }
 
 
