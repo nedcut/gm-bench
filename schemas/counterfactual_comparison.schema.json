@@ -1,0 +1,471 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Experimental counterfactual comparison",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "gm-counterfactual-comparison-v1"
+    },
+    "track": {
+      "const": "experimental-public-dev"
+    },
+    "checkpoint": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": "gm-counterfactual-checkpoint-v1"
+        },
+        "track": {
+          "const": "experimental-public-dev"
+        },
+        "family": {
+          "const": "draft"
+        },
+        "seed": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "season": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3
+        },
+        "phase": {
+          "const": "draft"
+        },
+        "provenance": {
+          "type": "object",
+          "properties": {
+            "benchmark_contract": {
+              "type": "object"
+            },
+            "implementation_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "python": {
+              "type": "string"
+            },
+            "continuation_policy": {
+              "const": "value-one-batch-per-window-v1"
+            }
+          },
+          "required": [
+            "benchmark_contract",
+            "implementation_sha256",
+            "python",
+            "continuation_policy"
+          ],
+          "additionalProperties": false
+        },
+        "prefix": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "season": {
+                "type": "integer"
+              },
+              "phase": {
+                "enum": [
+                  "preseason",
+                  "midseason",
+                  "trade_deadline",
+                  "draft"
+                ]
+              },
+              "actions": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              },
+              "results": {
+                "type": "array",
+                "items": {
+                  "type": "object"
+                }
+              }
+            },
+            "required": [
+              "season",
+              "phase",
+              "actions",
+              "results"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 11
+        },
+        "observation": {
+          "type": "object",
+          "required": [
+            "team",
+            "draft_class",
+            "phase",
+            "season",
+            "seed"
+          ]
+        },
+        "state_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "checkpoint_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "schema_version",
+        "track",
+        "family",
+        "seed",
+        "season",
+        "phase",
+        "provenance",
+        "prefix",
+        "observation",
+        "state_sha256",
+        "checkpoint_id"
+      ],
+      "additionalProperties": false
+    },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "const": "draft"
+          },
+          "prospect_id": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "type",
+          "prospect_id"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 2,
+      "maxItems": 12,
+      "uniqueItems": true
+    },
+    "horizons": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 3
+      },
+      "minItems": 1,
+      "maxItems": 3,
+      "uniqueItems": true
+    },
+    "rollout_seeds": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 1001,
+        "maximum": 1032
+      },
+      "minItems": 1,
+      "maxItems": 32,
+      "uniqueItems": true
+    },
+    "continuation_policy": {
+      "const": "value-one-batch-per-window-v1"
+    },
+    "uncertainty_unit": {
+      "const": "independent downstream rollout, conditional on checkpoint"
+    },
+    "randomness": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "const": "paired-stream-seeds"
+        },
+        "event_level_crn_guaranteed": {
+          "const": false
+        },
+        "primitive_consumption_equal": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "mode",
+        "event_level_crn_guaranteed",
+        "primitive_consumption_equal"
+      ],
+      "additionalProperties": false
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "candidate_index": {
+            "type": "integer"
+          },
+          "rollout_seed": {
+            "type": "integer"
+          },
+          "horizon": {
+            "type": "integer"
+          },
+          "score": {
+            "type": "number"
+          },
+          "downstream_wins": {
+            "type": "integer"
+          },
+          "state_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "rng_streams": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "candidate_index",
+          "rollout_seed",
+          "horizon",
+          "score",
+          "downstream_wins",
+          "state_sha256",
+          "rng_streams"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 2,
+      "maxItems": 1152
+    },
+    "summaries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "candidate_index": {
+            "type": "integer"
+          },
+          "horizon": {
+            "type": "integer"
+          },
+          "score": {
+            "type": "object",
+            "properties": {
+              "n": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 32
+              },
+              "mean": {
+                "type": "number"
+              },
+              "standard_error": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "normal_95_interval": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              }
+            },
+            "required": [
+              "n",
+              "mean",
+              "standard_error",
+              "normal_95_interval"
+            ],
+            "additionalProperties": false
+          },
+          "paired_score_delta_vs_candidate_0": {
+            "type": "object",
+            "properties": {
+              "n": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 32
+              },
+              "mean": {
+                "type": "number"
+              },
+              "standard_error": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "normal_95_interval": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              }
+            },
+            "required": [
+              "n",
+              "mean",
+              "standard_error",
+              "normal_95_interval"
+            ],
+            "additionalProperties": false
+          },
+          "downstream_wins": {
+            "type": "object",
+            "properties": {
+              "n": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 32
+              },
+              "mean": {
+                "type": "number"
+              },
+              "standard_error": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "normal_95_interval": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              }
+            },
+            "required": [
+              "n",
+              "mean",
+              "standard_error",
+              "normal_95_interval"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "candidate_index",
+          "horizon",
+          "score",
+          "paired_score_delta_vs_candidate_0",
+          "downstream_wins"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 2,
+      "maxItems": 36
+    },
+    "rng_audits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "candidate_index": {
+            "type": "integer"
+          },
+          "rollout_seed": {
+            "type": "integer"
+          },
+          "streams": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "season": {
+                  "type": "integer"
+                },
+                "namespace": {
+                  "type": "string"
+                },
+                "offset": {
+                  "type": "integer"
+                },
+                "random_calls": {
+                  "type": "integer"
+                },
+                "getrandbits_calls": {
+                  "type": "integer"
+                },
+                "requested_bits": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "season",
+                "namespace",
+                "offset",
+                "random_calls",
+                "getrandbits_calls",
+                "requested_bits"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "candidate_index",
+          "rollout_seed",
+          "streams"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 2,
+      "maxItems": 384
+    },
+    "comparison_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "required": [
+    "schema_version",
+    "track",
+    "checkpoint",
+    "candidates",
+    "horizons",
+    "rollout_seeds",
+    "continuation_policy",
+    "uncertainty_unit",
+    "randomness",
+    "limitations",
+    "rows",
+    "summaries",
+    "rng_audits",
+    "comparison_id"
+  ],
+  "additionalProperties": false
+}
