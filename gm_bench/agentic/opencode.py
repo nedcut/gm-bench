@@ -510,9 +510,11 @@ def parse_opencode_events(lines: list[str]) -> dict[str, Any]:
 
     A tool part that ended ``error`` with OpenCode 2's own schema refusal
     (``Invalid arguments for tool "<name>":``, raised when the input does not
-    decode against the tool's schema, before ``execute`` runs) never reached
-    the MCP server; it is counted in ``harness_tool_calls_skipped``, not as a
-    tool event, as Codex's pre-dispatch refusals are.
+    decode against the tool's schema, before ``execute`` runs) or its refusal
+    of arguments that are not JSON at all (:data:`MALFORMED_JSON_REFUSAL`)
+    never reached the MCP server; it is counted in
+    ``harness_tool_calls_skipped``, not as a tool event, as Codex's
+    pre-dispatch refusals are.
 
     OpenCode 2's ``run`` stops printing step events once the session goes
     idle (``finalizing`` in ``packages/cli/src/run/noninteractive.ts``), so
@@ -590,14 +592,19 @@ def parse_opencode_events(lines: list[str]) -> dict[str, Any]:
     }
 
 
+# OpenCode 2.0.27's error for a tool call whose arguments did not parse as JSON; the tool never ran.
+MALFORMED_JSON_REFUSAL = "Tool call arguments were malformed JSON and were not executed."
+
+
 def _refused_before_dispatch(part: dict[str, Any], name: str) -> bool:
-    """A tool part OpenCode 2 failed on its input schema (``ip`` in 2.0.27's tool runtime) before calling the tool."""
+    """A tool part OpenCode 2 refused before calling the tool: on its input schema (``ip`` in 2.0.27's
+    tool runtime), or because its arguments were not JSON."""
     state = part.get("state") if isinstance(part.get("state"), dict) else {}
     error = state.get("error")
     return (
         state.get("status") == "error"
         and isinstance(error, str)
-        and error.startswith(f'Invalid arguments for tool "{name}":')
+        and (error.startswith(f'Invalid arguments for tool "{name}":') or error.startswith(MALFORMED_JSON_REFUSAL))
     )
 
 

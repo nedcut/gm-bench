@@ -276,10 +276,16 @@ def test_a_call_opencode_refused_on_its_schema_is_skipped_not_counted() -> None:
             tool("gm-bench_get_status", "completed"),
             # A refusal naming another tool is not this call's.
             tool("gm-bench_draft", "error", refused),
+            # Arguments that were not JSON: OpenCode refused them before the tool ran.
+            tool(
+                "gm-bench_scout",
+                "error",
+                "Tool call arguments were malformed JSON and were not executed. Retry with valid JSON.",
+            ),
         ]
     )
     assert telemetry["harness_tool_events"] == {"gm-bench_draft": 1, "gm-bench_get_status": 1, "gm-bench_trade": 1}
-    assert telemetry["harness_tool_calls_skipped"] == {"gm-bench_trade": 1}
+    assert telemetry["harness_tool_calls_skipped"] == {"gm-bench_scout": 1, "gm-bench_trade": 1}
     assert opencode.harness_tool_calls(telemetry) == 3
 
 
