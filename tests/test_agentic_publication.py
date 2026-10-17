@@ -314,6 +314,12 @@ def test_an_opencode_row_on_openrouter_carries_the_pinned_hosts_list_price_besid
     report = validate_agentic_artifact(artifact, raw_run=run_dir)
     assert report["ok"], report
 
+    # A model id that only extends a priced one is not priced at that one's rates.
+    raw["harness"]["model"] = "openrouter/deepseek/deepseek-v4-pro-preview"
+    (run_dir / "run.json").write_text(json.dumps(raw, sort_keys=True), encoding="utf-8")
+    artifact = compact_agentic_run(run_dir, isolation="same-user")
+    assert all("api_equivalent_cost_usd" not in episode["usage"]["harness"] for episode in artifact["episodes"])
+
 
 def test_an_opencode_row_at_standard_prices_keeps_only_its_reported_cost(tmp_path: Path) -> None:
     from web.scripts.build_study import _agentic_telemetry

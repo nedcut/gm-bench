@@ -585,7 +585,12 @@ def _list_price_opencode_episode(episode: dict[str, Any], raw_episode: dict[str,
         return
     tier: str | None = None
     if model.lower().startswith("openrouter/"):
-        list_key: str | None = model
+        # Only the model's own entry: a longest-prefix match could price a
+        # different model (``deepseek-v4-pro-x`` at ``deepseek-v4-pro``'s rates).
+        entry = model_price_entry(model)
+        if entry is None or entry[0] != model.lower():
+            return
+        list_key: str | None = entry[0]
     else:
         entry = model_price_entry(model.rsplit("/", 1)[-1])
         if entry is None:
