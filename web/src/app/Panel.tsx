@@ -120,7 +120,10 @@ function ModelDetails({ row }: { row: ModelRow }) {
             row.cost.kind !== "estimate"
               ? undefined
               : `API list price${row.cost.lowerBound ? ", may be low" : ""}` +
-                (row.cost.discounted ? `; OpenCode reports $${num(row.cost.discounted.usd, 2)} at ${row.cost.discounted.tier} rates` : "")
+                (row.cost.reported
+                  ? `; OpenCode reports $${num(row.cost.reported.usd, 2)}` +
+                    (row.cost.reported.tier ? ` at ${row.cost.reported.tier} rates` : " from its own price catalog")
+                  : "")
           }
         />
         <Stat label="Minutes / game" value={num(row.minutes)} />

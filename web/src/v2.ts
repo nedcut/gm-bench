@@ -42,21 +42,24 @@ export interface Cost {
   kind: "billed" | "estimate" | "unmeasured";
   /** The estimate may be low: some turns exceeded the long-context price threshold. */
   lowerBound: boolean;
-  /** The harness-reported cost on a discounted tier, when `usd` is the undiscounted list price. */
-  discounted?: { usd: number; tier: string };
+  /** The harness-reported cost, when `usd` is the list-price estimate redaction added beside it:
+   * at a discounted tier's rates (`tier`), or from the harness's own price catalog (`tier` null). */
+  reported?: { usd: number; tier: string | null };
 }
 
 /* A billed or harness-reported cost wins; without one, the API list-price
-   estimate; with neither, unmeasured (never zero). A cost reported at a
-   discounted data-sharing tier's rates is shown beside the list price
-   instead, so the row is not read as the model's price. */
+   estimate; with neither, unmeasured (never zero). When redaction added a
+   list-price estimate beside a harness-reported cost (a discounted
+   data-sharing tier, or an OpenRouter model OpenCode prices from its own
+   catalog rather than at the pinned host's rates), the estimate is shown and
+   the reported cost beside it, so the row is not read as the model's price. */
 export function costOf(row: AgenticLaneRow): Cost {
   const t = row.telemetry;
   const estimate = t.api_equivalent_cost_per_episode_usd ?? null;
   const tier = t.api_equivalent_discounted_tier ?? null;
   const lowerBound = Boolean(t.api_equivalent_long_context_possible);
-  if (t.cost_per_episode_usd !== null && estimate !== null && tier !== null) {
-    return { usd: estimate, kind: "estimate", lowerBound, discounted: { usd: t.cost_per_episode_usd, tier } };
+  if (t.cost_per_episode_usd !== null && estimate !== null) {
+    return { usd: estimate, kind: "estimate", lowerBound, reported: { usd: t.cost_per_episode_usd, tier } };
   }
   if (t.cost_per_episode_usd !== null) return { usd: t.cost_per_episode_usd, kind: "billed", lowerBound: false };
   if (estimate !== null) return { usd: estimate, kind: "estimate", lowerBound };
@@ -213,6 +216,15 @@ const ROW_CAVEATS: Record<string, string> = {
     "Run on an OpenCode Go subscription. The cost shown is OpenCode's own figure; Go counts usage against " +
     "the plan's limits rather than billing per token, and there is no API-equivalent estimate. Played on " +
     "driver commit f8befed.",
+  "agentic-2.1:opencode-2.0.27:openrouter/deepseek/deepseek-v4-pro":
+    "Exploratory, not pre-registered: added after the first paid round. The first OpenRouter row. Pinned to " +
+    "the StreamLake host (fp8) with fallbacks off, after the Baidu host mangled tool calls in a smoke run " +
+    "(empty arguments, malformed JSON, tool names missing letters). The cost shown is the tokens at " +
+    "StreamLake's undiscounted list rates ($1.74 input, $0.145 cached input, $3.48 output per million " +
+    "tokens), $92.32 for the panel. StreamLake charged 84.67% off during the run, so the actual bill was " +
+    "about $14.15. OpenCode reports $11.60, priced from its own model catalog rather than StreamLake's " +
+    "rates. One episode's tool-call count is a recount: OpenCode refused one call with malformed JSON " +
+    "before running it, so it never reached GM-Bench; counted as 151 of 151. Played on driver commit da87b90.",
 };
 
 function v1Comparison(row: AgenticLaneRow): ModelRow["v1"] {

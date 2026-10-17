@@ -530,7 +530,9 @@ def _agentic_telemetry(
     accounting and count only episodes whose harness reported telemetry; with
     none, they are unmeasured (``None``), never zero. ``api_equivalent_*`` is
     the separate list-price estimate a harness with no billed cost carries
-    (Codex), summed over the episodes that have one; it never feeds ``cost_usd``."""
+    (Codex), or that redaction adds beside OpenCode's cost (a discounted tier,
+    an OpenRouter model), summed over the episodes that have one; it never
+    feeds ``cost_usd``."""
     by_tool: dict[str, int] = {}
     ended_by: dict[str, int] = {}
     tool_calls = nudges = guard_kills = provider_stalls = silent_kills = scout_points = 0
@@ -599,7 +601,8 @@ def _agentic_telemetry(
     ]
     estimate = sum(estimate_values) if estimate_values else None
     # The reported cost is at a discounted tier's rates (Muse Spark 1.3 Contributor), so the
-    # estimate is the model's undiscounted list price for the same tokens.
+    # estimate is the model's undiscounted list price for the same tokens. An OpenRouter row's
+    # estimate (the pinned host's list rates) has no tier.
     tiers = {
         (block.get("pricing_source") or {}).get("discounted_tier_key")
         for block in estimates

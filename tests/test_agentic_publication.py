@@ -275,6 +275,52 @@ def test_an_opencode_row_on_a_discounted_tier_carries_its_list_price_beside_the_
     assert report["ok"], report
 
 
+def test_an_opencode_row_on_openrouter_carries_the_pinned_hosts_list_price_beside_opencodes_cost(
+    tmp_path: Path,
+) -> None:
+    from web.scripts.build_study import _agentic_telemetry
+
+    run_dir = _write_run(tmp_path, [11, 12])
+    raw = json.loads((run_dir / "run.json").read_text())
+    raw["harness"]["model"] = "openrouter/deepseek/deepseek-v4-pro"
+    for episode in raw["episodes"]:
+        episode["usage"].update(
+            input_tokens=1_000_000,
+            uncached_input_tokens=100_000,
+            cached_input_tokens=900_000,
+            cache_write_input_tokens=0,
+            output_tokens=10_000,
+            reasoning_tokens=4_000,
+            token_shape="inclusive-v1",
+            cost_usd=0.05,
+        )
+    (run_dir / "run.json").write_text(json.dumps(raw, sort_keys=True), encoding="utf-8")
+
+    artifact = compact_agentic_run(run_dir, isolation="same-user")
+    for episode in artifact["episodes"]:
+        usage = episode["usage"]
+        # OpenCode's own figure, from its model catalog, stays the reported cost.
+        assert usage["cost_usd"] == 0.05
+        harness = usage["harness"]
+        # 100k uncached at 1.74 + 900k cached at 0.145 + 10k out at 3.48: StreamLake's list rates.
+        assert harness["api_equivalent_cost_usd"] == pytest.approx(0.174 + 0.1305 + 0.0348)
+        assert harness["pricing_source"]["key"] == "openrouter/deepseek/deepseek-v4-pro"
+        assert "discounted_tier_key" not in harness["pricing_source"]
+        assert harness["billed_by_harness"] is False
+    telemetry = _agentic_telemetry(artifact["episodes"])
+    assert telemetry["cost_usd"] == 0.1
+    assert telemetry["api_equivalent_cost_usd"] == pytest.approx(2 * 0.3393)
+    assert telemetry["api_equivalent_discounted_tier"] is None
+    report = validate_agentic_artifact(artifact, raw_run=run_dir)
+    assert report["ok"], report
+
+    # A model id that only extends a priced one is not priced at that one's rates.
+    raw["harness"]["model"] = "openrouter/deepseek/deepseek-v4-pro-preview"
+    (run_dir / "run.json").write_text(json.dumps(raw, sort_keys=True), encoding="utf-8")
+    artifact = compact_agentic_run(run_dir, isolation="same-user")
+    assert all("api_equivalent_cost_usd" not in episode["usage"]["harness"] for episode in artifact["episodes"])
+
+
 def test_an_opencode_row_at_standard_prices_keeps_only_its_reported_cost(tmp_path: Path) -> None:
     from web.scripts.build_study import _agentic_telemetry
 

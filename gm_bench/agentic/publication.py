@@ -40,9 +40,11 @@ artifact per row, produced by :func:`compact_agentic_run`, which
   is stored as its bound, ``1 / (draws + 1)``, flagged
   ``sign_flip_p_value_upper_bound``;
 - prices each OpenCode episode's recorded tokens at the model's list price
-  when its discounted tier has a ``list_price_key`` in ``pricing.json``, beside the cost
-  OpenCode reports (``_list_price_opencode_episode``; a discounted tier such as
-  Muse Spark 1.3 Contributor is priced at its undiscounted rates);
+  when its discounted tier has a ``list_price_key`` in ``pricing.json``, or
+  when it ran on OpenRouter, beside the cost OpenCode reports
+  (``_list_price_opencode_episode``; a discounted tier such as Muse Spark 1.3
+  Contributor is priced at its undiscounted rates, an ``openrouter/*`` model
+  at its pinned host's list rates);
 - re-derives, for a Claude Code or Codex row, each episode's API-equivalent
   cost from the retained ``claude-events.jsonl`` or ``codex-events.jsonl``
   with this checkout's parser and ``pricing.json``. The run recorded its cost
@@ -572,16 +574,30 @@ def _list_price_opencode_episode(episode: dict[str, Any], raw_episode: dict[str,
     driver records no such estimate, so the row keeps the recorded (empty)
     fields under ``api_equivalent_recomputed``. Rows recorded before the shared
     token shape are left alone: their input excludes cached tokens.
+
+    An ``openrouter/*`` model is priced at its own ``pricing.json`` entry, the
+    list rates of the one host the driver pins it to (``OPENROUTER_ROUTES``):
+    OpenCode prices OpenRouter tokens from its own model catalog, not at the
+    pinned host's rates.
     """
     usage = raw_episode.get("usage") or {}
     if usage.get("token_shape") != TOKEN_SHAPE:
         return
-    entry = model_price_entry(model.rsplit("/", 1)[-1])
-    if entry is None:
-        return
-    tier, price = entry
-    # A discounted tier names its model's undiscounted entry (``list_price_key``).
-    list_key = price.get("list_price_key")
+    tier: str | None = None
+    if model.lower().startswith("openrouter/"):
+        # Only the model's own entry: a longest-prefix match could price a
+        # different model (``deepseek-v4-pro-x`` at ``deepseek-v4-pro``'s rates).
+        entry = model_price_entry(model)
+        if entry is None or entry[0] != model.lower():
+            return
+        list_key: str | None = entry[0]
+    else:
+        entry = model_price_entry(model.rsplit("/", 1)[-1])
+        if entry is None:
+            return
+        tier, price = entry
+        # A discounted tier names its model's undiscounted entry (``list_price_key``).
+        list_key = price.get("list_price_key")
     if not list_key:
         return
     estimate = api_equivalent_cost_usd(usage, list_key)
@@ -589,13 +605,15 @@ def _list_price_opencode_episode(episode: dict[str, Any], raw_episode: dict[str,
         return
     harness = episode["usage"]["harness"]
     recorded = {key: harness.get(key) for key in _API_EQUIVALENT_KEYS}
-    source = {key: estimate[key] for key in ("verified", "cached_input_rate", "cache_write_rate")}
+    source: dict[str, Any] = {key: estimate[key] for key in ("verified", "cached_input_rate", "cache_write_rate")}
+    if tier is not None:
+        source["discounted_tier_key"] = tier
     harness.update(
         {
             "api_equivalent_cost_usd": estimate["usd"],
             "cost_basis": codex.COST_BASIS,
             "billed_by_harness": False,
-            "pricing_source": {"key": estimate["pricing_key"], **source, "discounted_tier_key": tier},
+            "pricing_source": {"key": estimate["pricing_key"], **source},
             "long_context_requests_possible": estimate["long_context_requests_possible"],
         }
     )

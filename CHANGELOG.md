@@ -16,7 +16,10 @@ the paid round's runs: `gpt-6.1-sol` +19.1, `deepseek-v4.1-flash` +1.2,
 `gpt-6-astra` +46.9 and `claude-opus-5-5` -29.5; then `claude-haiku-5-5`
 -53.1 (-65.8 to -39.8, exploratory, 2026-10-16; its API-equivalent $5.04
 is a lower bound, about $12 to $17 with Haiku 5.5's over-100K-token tier,
-which 1,044 of 2,963 requests reached). The site shows 2.1: its
+which 1,044 of 2,963 requests reached); then `deepseek-v4-pro` +1.9
+(-9.8 to +14.6, exploratory, 2026-10-17), the first OpenRouter row, pinned
+to the StreamLake host (fp8): $92.32 at StreamLake's list rates, about
+$14.15 at the 84.67%-off promotion it charged during the run. The site shows 2.1: its
 standings, headline, score-vs-cost and tool-use sections use the 2.1 rows,
 each against 2.1's `pick-trader`. The 2.0 board (score-v2) moved to a
 2.0 archive page linked from the footer beside the 1.0 archive; scores are

@@ -102,6 +102,7 @@ svg{display:block}
 <p class="lede">Internal log of how scoring and contract decisions get made: what we tried, what it showed, what we decided. Newest first. Every number cites a committed diagnostic or a published row; nothing here is a published result.</p>
 
 <nav class="toc"><b>Entries</b><ol>
+ <li><a href="#e-2026-10-17-openrouter-cost">2026-10-17 · The first OpenRouter row: cost at the pinned host's list price</a></li>
  <li><a href="#e-2026-10-16-behavior">2026-10-16 · Why the Claude rows trail: the roster left at the end, not empty phases</a></li>
  <li><a href="#e-2026-10-16-site">2026-10-16 · 2.1 becomes the site; 2.0 moves to an archive page</a></li>
  <li><a href="#e-2026-10-16-opus-astra">2026-10-16 · Opus 5.5 and Astra under 2.1; 2.1 goes on the site</a></li>
@@ -113,6 +114,16 @@ svg{display:block}
  <li><a href="#e-2026-10-15-v2">2026-10-15 · score-v1 vs the proposed score-v2</a></li>
  <li><a href="#e-2026-10-14-ceiling">2026-10-14 · How much headroom is above <code>pick-trader</code>?</a></li>
 </ol></nav>
+
+<!-- ======================================================================= -->
+<article class="entry" id="e-2026-10-17-openrouter-cost">
+<header><div class="date">2026-10-17</div><h2>The first OpenRouter row: cost at the pinned host's list price</h2>
+<div class="tags"><span class="tag">results/agentic_v21/opencode-2.0.27-deepseek-v4-pro-panel-32x5.json</span><span class="tag">gm_bench/pricing.json</span><span class="tag decision">decision</span></div></header>
+
+<div class="key"><b>Tried:</b> publishing <code>deepseek-v4-pro</code> (OpenCode 2.0.27 on OpenRouter, pinned to the StreamLake host, fp8, fallbacks off) on the 32-seed private panel under 2.1. <b>Showed:</b> OpenCode's own <code>cost_usd</code> for the panel is $11.60, but OpenCode prices OpenRouter tokens from its own model catalog, not at the pinned host's rates. The same tokens at StreamLake's undiscounted list rates in <code>pricing.json</code> ($1.74 input, $0.145 cached input, $3.48 output per million) come to $92.32; at the 84.67%-off promotion StreamLake charged during the run, about $14.15. Neither matches OpenCode's figure, so it is not the model's price or the bill.</div>
+
+<div class="decide"><b>Decided:</b> an OpenRouter row's cost is its tokens at the pinned host's undiscounted list rates (<code>openrouter/&lt;model&gt;</code> in <code>pricing.json</code>), as the table already does for promotions (GPT-5.6 Sol). <code>agentic-redact</code> adds that estimate beside OpenCode's figure, the way it does for a discounted tier, and the site shows the estimate with OpenCode's figure beside it. A promotional discount goes in the row's note, not in the cost.</div>
+</article>
 
 <!-- ======================================================================= -->
 <article class="entry" id="e-2026-10-16-behavior">
