@@ -14,12 +14,12 @@ decisions through a JSON-compatible API.
 
 The current benchmark is **GM-Bench 2.1** (released 2026-10-16): an agentic
 lane where a model plays one five-season game inside its own agent harness,
-scored under score-v2 on a 32-seed private panel. Eight rows are published, each
+scored under score-v2 on a 32-seed private panel. Nine rows are published, each
 compared only with the scripted `pick-trader` (249.6 under 2.1) on the same
 seeds. `gpt-6-astra` (+46.9, interval +36.5 to +57.4) and `gpt-6.1-sol`
 (+19.1, +10.6 to +27.8) beat it; `deepseek-v4-pro` (+1.9),
-`deepseek-v4.1-flash` (+1.2) and `gpt-6-luna` (-7.6) cannot be told apart
-from it; `claude-opus-5-5` (-29.5),
+`deepseek-v4.1-flash` (+1.2), `gpt-6-luna` (-7.6) and `glm-5.3-flash`
+(-9.2) cannot be told apart from it; `claude-opus-5-5` (-29.5),
 `claude-sonnet-5-5` (-46.8) and `claude-haiku-5-5` (-53.1) trail it. Every row is `unpinned` (its model
 version is not pinned), so rows may not reproduce, and no model-to-model
 ranking is published. See [the 2.1 section of the changelog](CHANGELOG.md) and

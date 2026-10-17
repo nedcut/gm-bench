@@ -225,6 +225,13 @@ const ROW_CAVEATS: Record<string, string> = {
     "about $14.15. OpenCode reports $11.60, priced from its own model catalog rather than StreamLake's " +
     "rates. One episode's tool-call count is a recount: OpenCode refused one call with malformed JSON " +
     "before running it, so it never reached GM-Bench; counted as 151 of 151. Played on driver commit da87b90.",
+  "agentic-2.1:opencode-2.0.27:openrouter/z-ai/glm-5.3-flash":
+    "Exploratory, not pre-registered: added after the first paid round. Played through OpenRouter, pinned to " +
+    "the Z.AI host (fp8) with fallbacks off. The cost shown is the tokens at Z.AI's list rates ($0.15 input, " +
+    "$0.03 cached input, $0.50 output per million tokens), $18.59 for the panel; Z.AI charged no discount, " +
+    "so that is the actual bill. OpenCode reports $12.66, priced from its own model catalog rather than " +
+    "Z.AI's rates. Played on driver commit adf2d69, which pins the token limits OpenCode asks OpenRouter " +
+    "for, after a raised output limit on models.dev left the Z.AI host unable to serve the requests.",
 };
 
 function v1Comparison(row: AgenticLaneRow): ModelRow["v1"] {
