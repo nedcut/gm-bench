@@ -309,8 +309,9 @@ export interface AgenticLaneRow {
     cost_usd: number | null;
     cost_per_episode_usd: number | null;
     /** What the reported tokens would cost at API list price (cached input at the cached
-     * rate), for a harness that reports no billed cost (Codex). An estimate, never billed;
-     * null when no episode carries one. Never folded into cost_usd. */
+     * rate), for a harness that reports no billed cost (Codex), or beside the cost OpenCode
+     * reports on a discounted tier or for an OpenRouter model (priced at the pinned host's list
+     * rates). An estimate, never billed; null when no episode carries one. Never folded into cost_usd. */
     api_equivalent_cost_usd?: number | null;
     api_equivalent_cost_per_episode_usd?: number | null;
     api_equivalent_cost_episodes?: number;

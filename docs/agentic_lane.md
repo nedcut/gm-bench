@@ -694,7 +694,7 @@ still validate:
   `api_equivalent_recorded`. `--raw` accepts it only when the fresh
   redaction reproduces it (the digest may differ).
 - For an OpenCode row on a discounted tier with a `list_price_key` in
-  `pricing.json`, an API-equivalent list-price estimate is added
+  `pricing.json`, or on an `openrouter/*` model, an API-equivalent list-price estimate is added
   beside the cost OpenCode reports (`cost_usd`), from each episode's recorded token counts
   (OpenCode leaves no event stream to re-derive them from). The driver
   records no estimate for OpenCode, so the empty recorded fields are kept
@@ -702,8 +702,11 @@ still validate:
   `api_equivalent_recorded`. An entry with `list_price_key` is a
   discounted tier: this estimate prices its tokens at the named entry's
   undiscounted rates, and `pricing_source.discounted_tier_key` names the
-  tier (`muse-spark-1.3-contributor` is priced at `muse-spark-1.3`). Only
-  this OpenCode estimate reads the field;
+  tier (`muse-spark-1.3-contributor` is priced at `muse-spark-1.3`). An
+  `openrouter/*` model gets the same estimate at its own entry, the pinned
+  host's list rates, with no `discounted_tier_key`: OpenCode prices it from
+  its own catalog. The site shows the estimate and OpenCode's figure beside
+  it. Only this OpenCode estimate reads the field;
   `telemetry.api_equivalent_cost_usd`, which prices runs as they play,
   ignores it. Rows
   recorded before the shared token shape, standard-priced models, and
@@ -816,7 +819,11 @@ names missing letters). DeepSeek V4.1 Flash 1017 (added 2026-10-17) is
 pinned to `deepinfra/fp8`: DeepSeek's own endpoint may train on prompts, so
 an OpenRouter account set to refuse that, as one running the private panel
 should be, is never routed to it. Their prices are in
-`gm_bench/pricing.json` under `openrouter/<model>`. Use a key with a credit
+`gm_bench/pricing.json` under `openrouter/<model>`, at the pinned host's
+undiscounted list rates. OpenCode's own `cost_usd` for an OpenRouter model
+comes from its model catalog, not the pinned host's rates, so redaction
+adds the list-price estimate beside it and the site shows that (see
+"Publishing a row"). Use a key with a credit
 limit set on OpenRouter: almost every input token in a game is a cache
 read, so a host that stopped caching would cost 10-20x the estimate.
 
