@@ -810,7 +810,9 @@ and writes that pin into the staged `opencode.json`
 weights. The run record names the pin (`provider_routing`). Pins as of
 2026-10-16: the model's maker where OpenRouter lists one (`z-ai` for
 GLM-5.3-flash, `xiaomi` for MiMo-v2.6-flash and -pro); DeepSeek V4 Pro has
-no DeepSeek endpoint, so it is pinned to `baidu` (fp8). Their prices are in
+no DeepSeek endpoint, so it is pinned to `streamlake` (fp8), after `baidu`
+(fp8) mangled tool calls in a smoke (empty arguments, malformed JSON, tool
+names missing letters). Their prices are in
 `gm_bench/pricing.json` under `openrouter/<model>`. Use a key with a credit
 limit set on OpenRouter: almost every input token in a game is a cache
 read, so a host that stopped caching would cost 10-20x the estimate.
