@@ -438,6 +438,7 @@ main:focus {
 }
 
 .model-logo.vendor-moonshot { background: #141413; }
+.model-logo.vendor-xiaomi { padding: 0; background: none; }
 
 .vendor-anthropic { --c: var(--vendor-anthropic); }
 .vendor-openai { --c: var(--vendor-openai); }
@@ -510,6 +511,17 @@ main:focus {
 
 .standings tr.is-bar .dot {
   background: var(--bar);
+}
+
+/* Bot rows have no logo; centre the dot in the logo's 24px slot so names line up. */
+.standings .row-name > .dot {
+  margin-inline: 8px;
+}
+
+.standings .row-name .sub {
+  margin-left: 4px;
+  font-weight: 400;
+  opacity: 0.7;
 }
 
 .standings tr.is-bar .tag {
@@ -1816,6 +1828,10 @@ main:focus {
     max-width: 38vw;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .standings .row-name .sub {
+    display: none;
   }
 
   .standings .row-name .tag {
