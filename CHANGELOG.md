@@ -22,7 +22,14 @@ to the StreamLake host (fp8): $92.32 at StreamLake's list rates, about
 $14.15 at the 84.67%-off promotion it charged during the run; then
 `glm-5.3-flash` -9.2 (-25.1 to +6.6, exploratory, 2026-10-17) on
 OpenRouter, pinned to the Z.AI host (fp8): $18.59 at Z.AI's list rates,
-with no discount, so that is the bill. The site shows 2.1: its
+with no discount, so that is the bill; then `mimo-v2.6-flash` +18.7
+(+6.4 to +30.9) and `mimo-v2.6-pro` +20.7 (+8.2 to +32.5), both
+exploratory (2026-10-18), on OpenRouter pinned to the Xiaomi host: $4.84
+and $12.36 at Xiaomi's list rates. The host was slow, so in 7 of 32 games
+of each panel the 1200-second phase guard closed at least one phase
+without the agent; the rows keep the full 32-game mean and disclose the
+lift on the 25 games with no such stop (+21.8 and +21.2). The flash panel
+was stopped once by the operator and resumed (game 11 replayed). The site shows 2.1: its
 standings, headline, score-vs-cost and tool-use sections use the 2.1 rows,
 each against 2.1's `pick-trader`. The 2.0 board (score-v2) moved to a
 2.0 archive page linked from the footer beside the 1.0 archive; scores are

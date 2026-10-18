@@ -102,6 +102,7 @@ svg{display:block}
 <p class="lede">Internal log of how scoring and contract decisions get made: what we tried, what it showed, what we decided. Newest first. Every number cites a committed diagnostic or a published row; nothing here is a published result.</p>
 
 <nav class="toc"><b>Entries</b><ol>
+ <li><a href="#e-2026-10-18-provider-timeouts">2026-10-18 · Provider timeouts: keep the official mean, disclose a no-timeout lift</a></li>
  <li><a href="#e-2026-10-17-openrouter-cost">2026-10-17 · The first OpenRouter row: cost at the pinned host's list price</a></li>
  <li><a href="#e-2026-10-16-behavior">2026-10-16 · Why the Claude rows trail: the roster left at the end, not empty phases</a></li>
  <li><a href="#e-2026-10-16-site">2026-10-16 · 2.1 becomes the site; 2.0 moves to an archive page</a></li>
@@ -114,6 +115,16 @@ svg{display:block}
  <li><a href="#e-2026-10-15-v2">2026-10-15 · score-v1 vs the proposed score-v2</a></li>
  <li><a href="#e-2026-10-14-ceiling">2026-10-14 · How much headroom is above <code>pick-trader</code>?</a></li>
 </ol></nav>
+
+<!-- ======================================================================= -->
+<article class="entry" id="e-2026-10-18-provider-timeouts">
+<header><div class="date">2026-10-18</div><h2>Provider timeouts: keep the official mean, disclose a no-timeout lift</h2>
+<div class="tags"><span class="tag">results/agentic_v21/opencode-2.0.27-mimo-v2.6-flash-panel-32x5.json</span><span class="tag">results/agentic_v21/opencode-2.0.27-mimo-v2.6-pro-panel-32x5.json</span><span class="tag decision">decision</span></div></header>
+
+<div class="key"><b>Tried:</b> publishing <code>mimo-v2.6-flash</code> and <code>mimo-v2.6-pro</code> (OpenCode 2.0.27 on OpenRouter, pinned to the Xiaomi host, fallbacks off, driver commit 1fb4597) on the 32-seed private panel under 2.1. The Xiaomi host was slow and congested during both panels. <b>Showed:</b> in 7 of 32 games of each panel, at least one phase hit the 1200-second phase guard and was closed without the agent (flash: 9 of 640 phases; pro: 7 of 640; <code>telemetry.phases_ended_by</code>). score-v2 has no timeout penalty, but a closed phase loses the decisions the agent would have made in it, so the stop costs the model points for a reason on the provider's side. Lift over <code>pick-trader</code>, paired by seed as the rows compute it: flash +18.7 (95% interval +6.4 to +30.9) on all 32 games, +21.8 (+7.6 to +35.3) on the 25 games with no phase-guard stop; pro +20.7 (+8.2 to +32.5) on all 32, +21.2 (+6.8 to +34.0) on its 25. The all-game figures are the rows' <code>reference</code>; the 25-game figures come from <code>reference_contrast</code> in <code>gm_bench/agentic/publication.py</code> run on the raw runs with the stopped games left out (the pairing needs the private seeds) and are published in the rows' notes in <code>web/src/v2.ts</code>. Leaving those games out raises each lift a little and changes no conclusion: both rows beat <code>pick-trader</code> either way.</div>
+
+<div class="decide"><b>Decided:</b> a provider timeout is not removed from the official score. The row's score stays the mean of all 32 games, with the phase-guard stops counted as they happened, so every row is scored the same way and no game is dropped after its score is known. When a provider stalls the run, the row's note says so and gives the lift on the games with no phase-guard stop, paired by seed against <code>pick-trader</code> on those same games, as a disclosed sensitivity figure, not a second score.</div>
+</article>
 
 <!-- ======================================================================= -->
 <article class="entry" id="e-2026-10-17-openrouter-cost">

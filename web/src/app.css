@@ -30,6 +30,7 @@
   --vendor-deepseek: #7d93ff;
   --vendor-minimax: #ff8fa6;
   --vendor-qwen: #b18cff;
+  --vendor-xiaomi: #9fd356;
   --vendor-other: #9b9b9b;
 
   --font: "Archivo", "Helvetica Neue", Arial, sans-serif;
@@ -90,6 +91,7 @@
   --vendor-deepseek: #3d53d6;
   --vendor-minimax: #d24c6b;
   --vendor-qwen: #7a4bd6;
+  --vendor-xiaomi: #4f8a14;
   --vendor-other: #8d8d89;
   color-scheme: light;
 }
@@ -426,6 +428,7 @@ main:focus {
 .vendor-deepseek { --c: var(--vendor-deepseek); }
 .vendor-minimax { --c: var(--vendor-minimax); }
 .vendor-qwen { --c: var(--vendor-qwen); }
+.vendor-xiaomi { --c: var(--vendor-xiaomi); }
 .vendor-other { --c: var(--vendor-other); }
 
 .col-bar {
