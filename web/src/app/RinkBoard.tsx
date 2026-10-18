@@ -333,7 +333,7 @@ export default function RinkBoard() {
             <g className="rink-player-art"><circle r="14" /><text y="4" textAnchor="middle">{body.label}</text></g>
           </g>
         ))}
-        <g className="rink-puck" data-player={PUCK_INDEX} transform="translate(160 255)" role="button" tabIndex={0} aria-label="Puck">
+        <g className="rink-puck" data-player={PUCK_INDEX} transform="translate(160 235)" role="button" tabIndex={0} aria-label="Puck">
           <circle className="rink-puck-hit" r="13" /><circle className="rink-puck-disc" r="5" />
           <path d="M-2-2h3" />
         </g>
