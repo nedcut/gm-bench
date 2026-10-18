@@ -60,6 +60,8 @@ test("the headline and standings count the 2.1 rows against 2.1's pick-trader, a
   // Bots are hidden by default; pick-trader, the bar, always shows.
   expect(names.length).toBe(rows.length + 1);
   await expect(page.locator("#standings tr.is-bar .score")).toHaveText(bar.toFixed(1));
+  // The tag says what plays the row, as the harness does for a model; the red row says it is the bar.
+  await expect(page.locator("#standings tr.is-bar .tag")).toHaveText("scripted");
   const scores = (await page.locator("#standings .standings tbody .score").allTextContents()).map(Number);
   expect([...scores].sort((a, b) => b - a)).toEqual(scores);
   await expect(page.locator(".tabs a[aria-current=page]")).toHaveText("Standings");
