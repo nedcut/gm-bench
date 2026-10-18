@@ -342,7 +342,7 @@ export default function RinkBoard() {
         </g>
       </svg>
       <button type="button" className="rink-reset" onClick={() => resetRef.current()} aria-label="Reset rink" title="Reset rink">
-        <svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true"><path d="M4 7a6.5 6.5 0 1 1-.5 5M4 2.5V7h4.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M4 7a6.5 6.5 0 1 1-.5 5M4 2.5V7h4.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
       </button>
       </div>
       <div className="rink-controls">

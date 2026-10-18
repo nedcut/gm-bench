@@ -965,8 +965,9 @@ main:focus {
 .rink-center-logo { color: var(--text); opacity: .85; }
 .rink-playground { min-width: 0; margin-bottom: 24px; }
 .rink-surface { position: relative; }
-.rink-reset { position: absolute; right: 18%; bottom: 8.5%; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: var(--surface); color: var(--text-3); cursor: pointer; }
-.rink-reset:hover { color: var(--rink-blue); background: var(--raised); }
+.rink-reset { position: absolute; right: 18%; bottom: 8.5%; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--text); cursor: pointer; }
+:root[data-theme="light"] .rink-reset { color: #1b2f5e; }
+.rink-reset:hover { color: var(--rink-blue); }
 .rink-confetti { pointer-events: none; }
 .rink-confetti rect { opacity: 0; transform-box: fill-box; transform-origin: center; }
 .rink-net { fill: none; stroke: var(--bar); stroke-width: 2; opacity: .7; }
