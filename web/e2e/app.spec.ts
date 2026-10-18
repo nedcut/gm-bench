@@ -68,6 +68,41 @@ test("the headline and standings count the 2.1 rows against 2.1's pick-trader, a
   expect(errors).toEqual([]);
 });
 
+test("standings columns sort both ways, and pick-trader sorts as zero lift, calls and cost", async ({ page }) => {
+  await page.goto("/");
+  const table = page.locator("#standings .standings");
+  const header = (name: string) => table.getByRole("columnheader", { name, exact: true });
+  const numbers = async (cls: string) =>
+    (await table.locator(`tbody .${cls}`).allTextContents()).map((t) => Number(t.trim().split(" ")[0].replace(/[,$+]/g, "").replace("−", "-")));
+  await expect(header("Score")).toHaveAttribute("aria-sort", "descending");
+
+  await header("Tool calls").getByRole("button").click();
+  await expect(header("Tool calls")).toHaveAttribute("aria-sort", "descending");
+  await expect(header("Score")).not.toHaveAttribute("aria-sort");
+  let calls = await numbers("calls");
+  expect([...calls].sort((a, b) => b - a)).toEqual(calls);
+  await expect(table.locator("tbody tr").last()).toHaveClass(/is-bar/);
+  await expect(table.locator("tr.is-bar .calls")).toHaveText("0");
+
+  await header("Tool calls").getByRole("button").click();
+  await expect(header("Tool calls")).toHaveAttribute("aria-sort", "ascending");
+  calls = await numbers("calls");
+  expect([...calls].sort((a, b) => a - b)).toEqual(calls);
+  await expect(table.locator("tbody tr").first()).toHaveClass(/is-bar/);
+
+  // The bar lands between the models above it and the models below it.
+  await header("vs baseline").getByRole("button").click();
+  const lifts = await numbers("lift");
+  expect([...lifts].sort((a, b) => b - a)).toEqual(lifts);
+  await expect(table.locator("tr.is-bar .lift")).toHaveText("0.0");
+
+  await header("Player").getByRole("button").click();
+  await expect(header("Player")).toHaveAttribute("aria-sort", "ascending");
+  // The bar is labelled "baseline pick-trader" but sorts as pick-trader.
+  const names = (await table.locator("tbody .name").allTextContents()).map((t) => t.trim().replace(/^baseline /, "").toLowerCase());
+  expect([...names].sort()).toEqual(names);
+});
+
 test("filters hide rows on every tab and a row opens its details", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("checkbox", { name: /Claude Code/ }).uncheck();

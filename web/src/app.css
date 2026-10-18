@@ -364,6 +364,32 @@ main:focus {
   white-space: nowrap;
 }
 
+.standings .sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.standings .sort:hover,
+.standings .sort.is-sorted {
+  color: var(--text);
+}
+
+.standings .sort-arrow {
+  font-size: 10px;
+  opacity: 0.45;
+}
+
+.standings .sort.is-sorted .sort-arrow {
+  opacity: 1;
+}
+
 .standings tbody th,
 .standings td {
   padding: 0 8px;
@@ -510,6 +536,11 @@ main:focus {
 .standings tr.is-bar .meter i {
   background: var(--bar);
   opacity: 0.85;
+}
+
+/* A scripted bot's lift, tool calls and cost are facts, not measurements: shown quietly. */
+.standings td.nil {
+  color: var(--text-3);
 }
 
 /* A model with no logo keeps a dot; centre it in the 24px logo slot so names line up. */
