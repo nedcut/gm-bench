@@ -19,7 +19,8 @@ full wordmarks where available, so they remain legible in table rows.
 | `xiaomi.svg` | [Lobe Icons Xiaomi MiMo](https://github.com/lobehub/lobe-icons/blob/master/packages/static-svg/icons/xiaomimimo.svg) |
 
 Lobe Icons files are community copies, distributed under the accompanying
-`LICENSE.lobe-icons`. Trademarks remain with their respective owners. See the
+`LICENSE.lobe-icons`. The copy in `web/public/LICENSE.lobe-icons` also ships
+with the deployed site. Trademarks remain with their respective owners. See the
 [OpenAI](https://openai.com/brand/), [Cursor](https://cursor.com/brand), and
 [Grok](https://x.ai/legal/brand-guidelines) guidelines when replacing assets.
 
