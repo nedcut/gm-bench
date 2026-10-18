@@ -503,6 +503,8 @@ main:focus {
 
 .standings tr.is-bar {
   color: var(--bar);
+  /* A faint red wash marks the bar row; as an image it layers over the hover and selected backgrounds. */
+  background-image: linear-gradient(color-mix(in srgb, var(--bar) 6%, transparent), color-mix(in srgb, var(--bar) 6%, transparent));
 }
 
 .standings tr.is-bar .meter i {
