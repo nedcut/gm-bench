@@ -377,11 +377,11 @@ main:focus {
 }
 
 .standings tbody tr:hover {
-  background: var(--raised);
+  background-color: var(--raised);
 }
 
 .standings tbody tr[aria-selected="true"] {
-  background: var(--raised);
+  background-color: var(--raised);
   box-shadow: inset 2px 0 0 var(--accent);
 }
 
@@ -503,6 +503,8 @@ main:focus {
 
 .standings tr.is-bar {
   color: var(--bar);
+  /* A faint red wash marks the bar row; as an image it layers over the hover and selected backgrounds. */
+  background-image: linear-gradient(color-mix(in srgb, var(--bar) 6%, transparent), color-mix(in srgb, var(--bar) 6%, transparent));
 }
 
 .standings tr.is-bar .meter i {
