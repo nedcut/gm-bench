@@ -1,4 +1,4 @@
-import ModelLogo from "./ModelLogo";
+import ModelLogo, { BotLogo } from "./ModelLogo";
 import { buildBenchmarkView, shortModelName } from "../benchmarkData";
 import type { Leaderboard } from "../types";
 import { REPO_BLOB, routes } from "../site";
@@ -38,7 +38,7 @@ export default function V1Archive({ data }: { data: Leaderboard }) {
             <tr key={row.id} className={row.bot ? (row.label === "pick-trader" ? "is-bar" : "is-bot") : undefined}>
               <th scope="row">
                 <span className="row-name">
-                  {row.bot ? <span className="dot" aria-hidden="true" /> : <ModelLogo vendor={row.vendor} />}
+                  {row.bot ? <BotLogo /> : <ModelLogo vendor={row.vendor} />}
                   <span className="name">{row.label}</span>
                 </span>
               </th>

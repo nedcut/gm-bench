@@ -52,7 +52,7 @@ test("the headline and standings count the 2.1 rows against 2.1's pick-trader, a
     const twins = rows.filter((other) => other.model === row.model && other.harness.name === row.harness.name);
     expect(names).toContain(twins.length > 1 ? `${model} (${row.harness.version})` : model);
   }
-  expect(names).toContain("pick-trader");
+  expect(names).toContain("baseline pick-trader");
   expect(names).not.toContain("gemini-3.7-flash");
   for (const row of v20) {
     if (!rows.some((current) => current.model === row.model)) expect(names).not.toContain(row.model.split("/").at(-1)!);

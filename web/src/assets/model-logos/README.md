@@ -16,7 +16,7 @@ full wordmarks where available, so they remain legible in table rows.
 | `deepseek.svg` | [Lobe Icons DeepSeek symbol](https://github.com/lobehub/lobe-icons/blob/master/packages/static-svg/icons/deepseek-color.svg) |
 | `minimax.svg` | [Lobe Icons MiniMax](https://github.com/lobehub/lobe-icons/blob/master/packages/static-svg/icons/minimax-color.svg) |
 | `qwen.svg` | [Lobe Icons Qwen](https://github.com/lobehub/lobe-icons/blob/master/packages/static-svg/icons/qwen-color.svg) |
-| `xiaomi.svg` | [Lobe Icons Xiaomi MiMo](https://github.com/lobehub/lobe-icons/blob/master/packages/static-svg/icons/xiaomimimo.svg) |
+| `xiaomi.svg` | [Xiaomi logo (2021)](https://commons.wikimedia.org/wiki/File:Xiaomi_logo_(2021-).svg), the orange app-icon mark; MiMo has no standalone color symbol |
 
 Lobe Icons files are community copies, distributed under the accompanying
 `LICENSE.lobe-icons`. The copy in `web/public/LICENSE.lobe-icons` also ships

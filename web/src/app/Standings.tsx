@@ -1,4 +1,4 @@
-import ModelLogo from "./ModelLogo";
+import ModelLogo, { BotLogo } from "./ModelLogo";
 import type { Leaderboard } from "../types";
 import {
   clearsBar,
@@ -123,7 +123,7 @@ function StandingsTable({
               Score
             </th>
             <th scope="col" className="r">
-              vs pick-trader
+              vs baseline
             </th>
             <th scope="col" className="r hide-sm">
               Tool calls
@@ -160,8 +160,14 @@ function StandingsTable({
                     select(row.id);
                   }}
                 >
-                  {row.kind === "model" ? <ModelLogo vendor={row.vendor.key} /> : <span className="dot" aria-hidden="true" />}
-                  <span className="name">{row.label}</span>
+                  {row.kind === "model" ? <ModelLogo vendor={row.vendor.key} /> : <BotLogo />}
+                  {row.kind === "bot" && row.isBar ? (
+                    <span className="name">
+                      baseline <span className="sub">{row.label}</span>
+                    </span>
+                  ) : (
+                    <span className="name">{row.label}</span>
+                  )}
                   {row.kind === "model" && (
                     <span className="tag">{row.harness}</span>
                   )}

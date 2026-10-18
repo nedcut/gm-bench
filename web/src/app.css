@@ -438,6 +438,8 @@ main:focus {
 }
 
 .model-logo.vendor-moonshot { background: #141413; }
+.model-logo.bot-logo { color: #141413; --bar: #d42a3b; --rink-blue: #1e4fa3; }
+.model-logo.vendor-xiaomi { padding: 0; background: none; }
 
 .vendor-anthropic { --c: var(--vendor-anthropic); }
 .vendor-openai { --c: var(--vendor-openai); }
@@ -508,8 +510,15 @@ main:focus {
   opacity: 0.85;
 }
 
-.standings tr.is-bar .dot {
-  background: var(--bar);
+/* A model with no logo keeps a dot; centre it in the 24px logo slot so names line up. */
+.standings .row-name > .dot {
+  margin-inline: 8px;
+}
+
+.standings .row-name .sub {
+  margin-left: 4px;
+  color: var(--text-3);
+  font-weight: 400;
 }
 
 .standings tr.is-bar .tag {
@@ -1816,6 +1825,10 @@ main:focus {
     max-width: 38vw;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .standings .row-name .sub {
+    display: none;
   }
 
   .standings .row-name .tag {
