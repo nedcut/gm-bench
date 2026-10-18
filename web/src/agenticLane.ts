@@ -176,7 +176,10 @@ function referenceIssues(
  * before that shape ("legacy") is left as it is. The API-equivalent estimate
  * is a list-price figure for a harness that reports no cost; it is never a
  * billed cost. A row that carries both with the same value has almost
- * certainly copied one into the other. */
+ * certainly copied one into the other. The exception is an OpenRouter row:
+ * redaction prices its tokens from the pinned host's pricing.json entry,
+ * independently of OpenCode's own catalog, and the two agree whenever that
+ * catalog lists the host's rates (MiMo V2.6 on the Xiaomi host). */
 function telemetryIssues(row: AgenticLaneRow, label: string): string[] {
   const t = row.telemetry as AgenticLaneRow["telemetry"] | undefined;
   if (!t) return [];
@@ -206,7 +209,13 @@ function telemetryIssues(row: AgenticLaneRow, label: string): string[] {
     issues.push(`${label} telemetry.empty_phases is not a count between 0 and the row's ${phases} phases`);
   }
   const estimate = t.api_equivalent_cost_usd;
-  if (isFiniteNumber(estimate) && isFiniteNumber(t.cost_usd) && Math.abs(estimate - t.cost_usd) < 1e-9) {
+  const openRouter = typeof row.model === "string" && row.model.toLowerCase().startsWith("openrouter/");
+  if (
+    !openRouter &&
+    isFiniteNumber(estimate) &&
+    isFiniteNumber(t.cost_usd) &&
+    Math.abs(estimate - t.cost_usd) < 1e-9
+  ) {
     issues.push(
       `${label} reports the same value as billed cost_usd and as an API-equivalent estimate; ` +
         "an estimate is for a harness that reports no cost",
