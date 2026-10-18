@@ -1,3 +1,4 @@
+import ModelLogo from "./ModelLogo";
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { REPO_BLOB, routes } from "../site";
 import { findingsByArtifact } from "../findings";
@@ -94,7 +95,7 @@ function ModelDetails({ row }: { row: ModelRow }) {
   return (
     <>
       <div className="detail-title">
-        <span className={`dot vendor-${row.vendor.key}`} aria-hidden="true" />
+        <ModelLogo vendor={row.vendor.key} />
         <div>
           <h2>{row.source.model}</h2>
           <p>

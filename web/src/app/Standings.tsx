@@ -1,3 +1,4 @@
+import ModelLogo from "./ModelLogo";
 import type { Leaderboard } from "../types";
 import {
   clearsBar,
@@ -159,10 +160,7 @@ function StandingsTable({
                     select(row.id);
                   }}
                 >
-                  <span
-                    className={`dot ${row.kind === "model" ? `vendor-${row.vendor.key}` : ""}`}
-                    aria-hidden="true"
-                  />
+                  {row.kind === "model" ? <ModelLogo vendor={row.vendor.key} /> : <span className="dot" aria-hidden="true" />}
                   <span className="name">{row.label}</span>
                   {row.kind === "model" && (
                     <span className="tag">{row.harness}</span>
