@@ -15,7 +15,7 @@ export interface RinkGame {
 export function newRinkGame(): RinkGame {
   return {
     bodies: [...createSkaters(), {
-      x: 160, y: 255, vx: 0, vy: 0, homeX: 160, homeY: 255, label: "Puck", team: "puck", locked: false,
+      x: 160, y: 235, vx: 0, vy: 0, homeX: 160, homeY: 235, label: "Puck", team: "puck", locked: false,
     }],
     score: { home: 0, away: 0 },
     puckInGoal: null,
