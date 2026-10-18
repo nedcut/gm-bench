@@ -226,7 +226,6 @@ function Chart({ priced, bar, scale, view, axis }: { priced: ChartRow[]; bar: nu
               onFocus={() => view.hover(row.id)}
               onBlur={() => view.hover(null)}
             >
-              <title>{`${row.model} · ${row.harness}: score ${num(row.score)}; ${axis.label}: ${num(row.xValue, axis.id === "cost" ? 2 : axis.id === "time" || axis.id === "calls" ? 1 : 0)} ${axis.unit}; ${row.source.panel.episodes} five-season episodes`}</title>
               {row.ci && <line x1={px} x2={px} y1={y(row.ci[0])} y2={y(row.ci[1])} stroke={color} strokeOpacity="0.5" strokeWidth="2" />}
               <circle cx={px} cy={py} r={selected ? 7.5 : 6} fill={color} stroke={selected ? "var(--text)" : color} strokeWidth={selected ? 2.5 : 2} />
               {(!narrow || view.focus === row.id) && <text className="point-label" x={labels[i].x} y={labels[i].y} textAnchor={labels[i].anchorEnd ? "end" : "start"}>
