@@ -1,3 +1,5 @@
+import BrandMark from "./BrandMark";
+
 const logos: Record<string, string> = {
   anthropic: new URL("../assets/model-logos/anthropic.svg", import.meta.url).href,
   openai: new URL("../assets/model-logos/openai.svg", import.meta.url).href,
@@ -18,6 +20,15 @@ export default function ModelLogo({ vendor }: { vendor: string }) {
   return (
     <span className={`model-logo vendor-${vendor}`} aria-hidden="true">
       <img src={src} alt="" />
+    </span>
+  );
+}
+
+/* Scripted bots have no vendor, so they carry the GM-Bench mark in the same tile. */
+export function BotLogo() {
+  return (
+    <span className="model-logo bot-logo" aria-hidden="true">
+      <BrandMark className="" width={18} height={10} />
     </span>
   );
 }

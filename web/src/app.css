@@ -438,6 +438,7 @@ main:focus {
 }
 
 .model-logo.vendor-moonshot { background: #141413; }
+.model-logo.bot-logo { color: #141413; --bar: #d42a3b; --rink-blue: #1e4fa3; }
 .model-logo.vendor-xiaomi { padding: 0; background: none; }
 
 .vendor-anthropic { --c: var(--vendor-anthropic); }
@@ -509,11 +510,7 @@ main:focus {
   opacity: 0.85;
 }
 
-.standings tr.is-bar .dot {
-  background: var(--bar);
-}
-
-/* Bot rows have no logo; centre the dot in the logo's 24px slot so names line up. */
+/* A model with no logo keeps a dot; centre it in the 24px logo slot so names line up. */
 .standings .row-name > .dot {
   margin-inline: 8px;
 }

@@ -1,4 +1,4 @@
-import ModelLogo from "./ModelLogo";
+import ModelLogo, { BotLogo } from "./ModelLogo";
 import type { Leaderboard } from "../types";
 import {
   clearsBar,
@@ -160,7 +160,7 @@ function StandingsTable({
                     select(row.id);
                   }}
                 >
-                  {row.kind === "model" ? <ModelLogo vendor={row.vendor.key} /> : <span className="dot" aria-hidden="true" />}
+                  {row.kind === "model" ? <ModelLogo vendor={row.vendor.key} /> : <BotLogo />}
                   {row.kind === "bot" && row.isBar ? (
                     <span className="name">
                       baseline <span className="sub">{row.label}</span>

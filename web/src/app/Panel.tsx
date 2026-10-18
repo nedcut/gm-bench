@@ -1,4 +1,4 @@
-import ModelLogo from "./ModelLogo";
+import ModelLogo, { BotLogo } from "./ModelLogo";
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { REPO_BLOB, routes } from "../site";
 import { findingsByArtifact } from "../findings";
@@ -168,7 +168,7 @@ function BotDetails({ row }: { row: BotRow }) {
   return (
     <>
       <div className="detail-title">
-        <span className="dot" aria-hidden="true" />
+        <BotLogo />
         <div>
           <h2>{row.label}</h2>
           <p>Scripted bot</p>
