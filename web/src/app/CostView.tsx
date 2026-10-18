@@ -1,3 +1,4 @@
+import ModelLogo from "./ModelLogo";
 import { useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { Leaderboard } from "../types";
 import { clearsBar, num, type ModelRow } from "../v2";
@@ -249,7 +250,7 @@ function Chart({ priced, bar, scale, view, axis }: { priced: ChartRow[]; bar: nu
             .map((row) => (
               <li key={row.id}>
                 <button type="button" aria-pressed={view.selected === row.id} onClick={() => view.select(row.id)} onMouseEnter={() => view.hover(row.id)} onMouseLeave={() => view.hover(null)} onFocus={() => view.hover(row.id)} onBlur={() => view.hover(null)}>
-                <span className={`dot vendor-${row.vendor.key}`} aria-hidden="true" />
+                <ModelLogo vendor={row.vendor.key} />
                 <span>
                   {row.model} <span className="muted">· {row.harness}</span>
                 </span>

@@ -20,17 +20,17 @@
   --focus: #6ea3ff;
   --code-bg: #0a111c;
 
-  --vendor-anthropic: #e8956b;
-  --vendor-openai: #dfe7ef;
-  --vendor-cursor: #9be0ff;
-  --vendor-google: #5b9bff;
-  --vendor-xai: #b8a8ff;
-  --vendor-zai: #79d3c6;
-  --vendor-moonshot: #f0c24f;
-  --vendor-deepseek: #7d93ff;
-  --vendor-minimax: #ff8fa6;
-  --vendor-qwen: #b18cff;
-  --vendor-xiaomi: #9fd356;
+  --vendor-anthropic: #d97757;
+  --vendor-openai: #e2e8f0;
+  --vendor-cursor: #67d4ea;
+  --vendor-google: #7bc8f6;
+  --vendor-xai: #94a3b8;
+  --vendor-zai: #50c6a9;
+  --vendor-moonshot: #3186ff;
+  --vendor-deepseek: #8991ff;
+  --vendor-minimax: #f564aa;
+  --vendor-qwen: #a78bfa;
+  --vendor-xiaomi: #ff8a1f;
   --vendor-other: #9b9b9b;
 
   --font: "Archivo", "Helvetica Neue", Arial, sans-serif;
@@ -81,17 +81,17 @@
   --code-dim: #5d6f82;
   --code-line: rgba(15, 27, 45, 0.08);
 
-  --vendor-anthropic: #c8602f;
-  --vendor-openai: #2b3a4c;
-  --vendor-cursor: #0b7fb0;
-  --vendor-google: #1f6be0;
-  --vendor-xai: #6c55d8;
-  --vendor-zai: #1f9a8a;
-  --vendor-moonshot: #b98a10;
-  --vendor-deepseek: #3d53d6;
-  --vendor-minimax: #d24c6b;
-  --vendor-qwen: #7a4bd6;
-  --vendor-xiaomi: #4f8a14;
+  --vendor-anthropic: #a94f36;
+  --vendor-openai: #334155;
+  --vendor-cursor: #087f96;
+  --vendor-google: #1765c1;
+  --vendor-xai: #5d6570;
+  --vendor-zai: #157b67;
+  --vendor-moonshot: #146bc4;
+  --vendor-deepseek: #4656cc;
+  --vendor-minimax: #b92272;
+  --vendor-qwen: #7044c7;
+  --vendor-xiaomi: #b94a00;
   --vendor-other: #8d8d89;
   color-scheme: light;
 }
@@ -418,6 +418,27 @@ main:focus {
   background: var(--c, var(--bot));
 }
 
+.model-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 3px;
+  border-radius: 5px;
+  background: #faf9f5;
+}
+
+.model-logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.model-logo.vendor-moonshot { background: #141413; }
+
 .vendor-anthropic { --c: var(--vendor-anthropic); }
 .vendor-openai { --c: var(--vendor-openai); }
 .vendor-cursor { --c: var(--vendor-cursor); }
@@ -625,6 +646,10 @@ main:focus {
   display: flex;
   gap: 10px;
   align-items: flex-start;
+}
+
+.detail-title .model-logo {
+  margin-top: 2px;
 }
 
 .detail-title .dot {
@@ -1653,7 +1678,8 @@ main:focus {
   min-width: 0;
 }
 
-.hbar .name .dot {
+.hbar .name .dot,
+.hbar .name .model-logo {
   flex: none;
   align-self: center;
 }
@@ -1781,7 +1807,7 @@ main:focus {
 
   .standings .row-name {
     display: grid;
-    grid-template-columns: 8px minmax(0, 1fr);
+    grid-template-columns: 24px minmax(0, 1fr);
     column-gap: 8px;
     line-height: 1.25;
   }

@@ -1,3 +1,4 @@
+import ModelLogo from "./ModelLogo";
 import type { ReactNode } from "react";
 import { routes } from "../site";
 import { compact, num, type ModelRow } from "../v2";
@@ -59,7 +60,7 @@ function MetricCard({ metric, rows, view }: { metric: Metric; rows: ModelRow[]; 
             onBlur={() => view.hover(null)}
           >
             <span className="name">
-              <span className={`dot vendor-${row.vendor.key}`} aria-hidden="true" />
+              <ModelLogo vendor={row.vendor.key} />
               <span className="name-text">{row.model}</span>
               <span className="muted">{row.harness}</span>
             </span>
