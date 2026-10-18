@@ -377,11 +377,11 @@ main:focus {
 }
 
 .standings tbody tr:hover {
-  background: var(--raised);
+  background-color: var(--raised);
 }
 
 .standings tbody tr[aria-selected="true"] {
-  background: var(--raised);
+  background-color: var(--raised);
   box-shadow: inset 2px 0 0 var(--accent);
 }
 
