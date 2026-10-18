@@ -171,11 +171,7 @@ function StandingsTable({
                   {row.kind === "model" && (
                     <span className="tag">{row.harness}</span>
                   )}
-                  {row.kind === "bot" && (
-                    <span className="tag">
-                      {row.isBar ? "the bar" : "scripted"}
-                    </span>
-                  )}
+                  {row.kind === "bot" && <span className="tag">scripted</span>}
                 </button>
               </th>
               <td className="col-bar">
