@@ -94,13 +94,14 @@ export function StandingsIntro({ data }: { data: Leaderboard }) {
 type SortKey = "player" | "score" | "lift" | "toolCalls" | "cost";
 type Sort = { key: SortKey; desc: boolean };
 
-/* Bots have no lift, tool calls or cost; they sink below every model on those
-   columns whichever way the column is sorted. Ties fall back to score. */
+/* Scripted bots make no tool calls and cost nothing. pick-trader's lift is zero
+   by definition; the other bots have no paired lift, so they sink below every
+   row on that column whichever way it is sorted. Ties fall back to score. */
 function sortValue(row: StandingsRow, key: SortKey): number | string | null {
   if (key === "player") return row.label.toLowerCase();
   if (key === "score") return row.score;
-  if (row.kind === "bot") return null;
-  if (key === "lift") return row.lift;
+  if (key === "lift") return row.kind === "model" ? row.lift : row.isBar ? 0 : null;
+  if (row.kind === "bot") return 0;
   if (key === "toolCalls") return row.toolCalls;
   return row.cost.usd;
 }
@@ -241,15 +242,19 @@ function StandingsTable({
                 <Bar row={row} max={max} bar={bar} />
               </td>
               <td className="r score">{num(row.score)}</td>
-              <td className="r lift">
-                {row.kind === "model" ? vsBar(row) : ""}
-              </td>
-              <td className="r hide-sm calls">
-                {row.kind === "model" ? num(row.toolCalls, 0) : ""}
-              </td>
-              <td className="r hide-sm">
-                {row.kind === "model" ? costText(row.cost) : ""}
-              </td>
+              {row.kind === "model" ? (
+                <>
+                  <td className="r lift">{vsBar(row)}</td>
+                  <td className="r hide-sm calls">{num(row.toolCalls, 0)}</td>
+                  <td className="r hide-sm">{costText(row.cost)}</td>
+                </>
+              ) : (
+                <>
+                  <td className="r lift nil">{row.isBar ? num(0) : ""}</td>
+                  <td className="r hide-sm calls nil">0</td>
+                  <td className="r hide-sm nil">$0</td>
+                </>
+              )}
             </tr>
           ))}
         </tbody>

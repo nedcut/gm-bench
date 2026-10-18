@@ -536,6 +536,11 @@ main:focus {
   opacity: 0.85;
 }
 
+/* A scripted bot's lift, tool calls and cost are facts, not measurements: shown quietly. */
+.standings td.nil {
+  color: var(--text-3);
+}
+
 /* A model with no logo keeps a dot; centre it in the 24px logo slot so names line up. */
 .standings .row-name > .dot {
   margin-inline: 8px;
