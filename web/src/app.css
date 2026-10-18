@@ -520,8 +520,8 @@ main:focus {
 
 .standings .row-name .sub {
   margin-left: 4px;
+  color: var(--text-3);
   font-weight: 400;
-  opacity: 0.7;
 }
 
 .standings tr.is-bar .tag {
