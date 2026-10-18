@@ -24,7 +24,7 @@ for (const width of [1440, 620, 390, 320]) {
     await expect(page.locator("#cost .pt[aria-pressed=true]")).toHaveCount(1);
     await expect(page.locator("#tools .hbar[aria-pressed=true]")).toHaveCount(6);
     if (width <= 900) await page.getByRole("button", { name: "Close", exact: true }).click();
-    else await page.getByRole("button", { name: "← Filters" }).click();
+    else await page.getByRole("button", { name: "Back to filters" }).click();
     for (let repeat = 0; repeat < 2; repeat++) {
       if (width <= 900) await page.getByRole("button", { name: "Filter", exact: true }).click();
       await page.getByRole("checkbox", { name: /OpenAI/ }).uncheck();

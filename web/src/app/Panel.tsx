@@ -265,23 +265,24 @@ export default function Panel({
       {open && <button type="button" className="sheet-scrim" tabIndex={-1} aria-label="Close panel" onClick={onClose} />}
       <aside ref={panelRef} role={open && mobile ? "dialog" : undefined} aria-modal={open && mobile ? true : undefined} className={`side-panel${open ? " is-open" : ""}`} aria-label={row ? "Row details" : "Filters"}>
         <div className="panel-bar">
-          {row ? (
-            <button type="button" className="text-button" onClick={onBack}>
-              ← Filters
-            </button>
-          ) : (
-            <span />
-          )}
+          <span />
           <button type="button" ref={closeRef} className="text-button sheet-close" onClick={onClose}>
             Close
           </button>
         </div>
         {row === null ? (
           <FilterView models={models} filters={filters} onFilters={onFilters} hint={hint} />
-        ) : row.kind === "model" ? (
-          <ModelDetails row={row} />
         ) : (
-          <BotDetails row={row} />
+          // The card slides out over the filters; its close button puts them back.
+          <div className="detail-card">
+            <button type="button" className="detail-close" aria-label="Back to filters" title="Back to filters" onClick={onBack}>
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+              <span>← Filters</span>
+            </button>
+            {row.kind === "model" ? <ModelDetails row={row} /> : <BotDetails row={row} />}
+          </div>
         )}
       </aside>
     </>

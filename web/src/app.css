@@ -653,6 +653,63 @@ main:focus {
   font-size: 12.5px;
 }
 
+.detail-card {
+  position: relative;
+  margin: 0 -6px;
+  padding: 16px 16px 18px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-card);
+  background: var(--raised);
+  box-shadow: -10px 12px 32px rgba(0, 0, 0, 0.28);
+  animation: detail-pop 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.15);
+}
+
+:root[data-theme="light"] .detail-card {
+  background: var(--surface);
+  box-shadow: -8px 10px 28px rgba(15, 27, 45, 0.12);
+}
+
+@keyframes detail-pop {
+  from {
+    opacity: 0;
+    transform: translateX(28px) scale(0.98);
+  }
+}
+
+.detail-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--line-2);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.detail-close:hover {
+  color: var(--text);
+  border-color: var(--text-3);
+}
+
+.detail-close:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.detail-close span {
+  display: none;
+}
+
+.detail-card .detail-title {
+  padding-right: 34px;
+}
+
 .detail-title {
   display: flex;
   gap: 10px;
@@ -1755,6 +1812,27 @@ main:focus {
     display: inline;
   }
 
+  /* The sheet already has Close, so an X here would read as a second one. */
+  .detail-close {
+    width: auto;
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 13px;
+    font-size: 12.5px;
+  }
+
+  .detail-close svg {
+    display: none;
+  }
+
+  .detail-close span {
+    display: inline;
+  }
+
+  .detail-card .detail-title {
+    padding-right: 84px;
+  }
+
   .sheet-scrim {
     display: block;
     position: fixed;
@@ -1852,6 +1930,10 @@ main:focus {
 @media (prefers-reduced-motion: reduce) {
   .side-panel {
     transition: none;
+  }
+
+  .detail-card {
+    animation: none;
   }
 }
 

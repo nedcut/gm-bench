@@ -83,7 +83,7 @@ test("filters hide rows on every tab and a row opens its details", async ({ page
   await page.locator("#standings .row-name", { hasText: "gpt-6-luna" }).click();
   await expect(page.locator(".side-panel h2")).toHaveText("gpt-6-luna");
   await expect(page.locator(".side-panel")).toContainText("vs pick-trader");
-  await page.getByRole("button", { name: "← Filters" }).click();
+  await page.getByRole("button", { name: "Back to filters" }).click();
   await expect(page.locator(".side-panel h2")).toHaveText("Filter");
 });
 
@@ -250,12 +250,12 @@ test("mobile sheets contain focus, restore triggers, and survive navigation and 
   const row = page.locator("#standings .row-name", { hasText: "gpt-6-luna" });
   await row.click();
   await expect(close).toBeFocused();
-  await dialog.getByRole("button", { name: "← Filters" }).click();
+  await dialog.getByRole("button", { name: "Back to filters" }).click();
   await expect(close).toBeFocused();
   await close.click();
   await expect(row).toBeFocused();
   await row.click();
-  await dialog.getByRole("button", { name: "← Filters" }).click();
+  await dialog.getByRole("button", { name: "Back to filters" }).click();
   await dialog.getByRole("checkbox", { name: /OpenAI/ }).uncheck();
   await close.click();
   await expect(filter).toBeFocused();

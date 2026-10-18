@@ -39,7 +39,7 @@ for (const width of [1440, 390, 320]) {
     await page.screenshot({ path: `../output/playwright/output-tokens-${width}.png` });
     await picker.selectOption("cost");
     if (width <= 900) await page.getByRole("button", { name: "Filter", exact: true }).click();
-    else await page.getByRole("button", { name: "← Filters" }).click();
+    else await page.getByRole("button", { name: "Back to filters" }).click();
     await page.getByRole("checkbox", { name: /OpenAI/ }).uncheck();
     if (width <= 900) await page.getByRole("button", { name: "Close", exact: true }).click();
     for (const id of ["calls", "output-total", "cost"]) {
