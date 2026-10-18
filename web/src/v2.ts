@@ -232,6 +232,29 @@ const ROW_CAVEATS: Record<string, string> = {
     "so that is the actual bill. OpenCode reports $12.66, priced from its own model catalog rather than " +
     "Z.AI's rates. Played on driver commit adf2d69, which pins the token limits OpenCode asks OpenRouter " +
     "for, after a raised output limit on models.dev left the Z.AI host unable to serve the requests.",
+  "agentic-2.1:opencode-2.0.27:openrouter/xiaomi/mimo-v2.6-flash":
+    "Exploratory, not pre-registered: added after the first paid round. Played through OpenRouter, pinned to " +
+    "the Xiaomi host with fallbacks off. The Xiaomi host was slow during the run: in 7 of 32 games at least " +
+    "one phase (9 of 640 in all) hit the 1200-second phase guard and was closed without the agent's " +
+    "decisions. That is a provider effect, not the model's, and the score is not adjusted for it: the row " +
+    "is the mean of all 32 games. On the 25 games with no phase-guard stop, the lift over pick-trader is " +
+    "+21.8 (95% interval +7.6 to +35.3), against +18.7 on all 32. The operator stopped the panel once for " +
+    "the slow host and resumed it: games 0 to 10 were kept, and game 11, unfinished, was set aside and " +
+    "replayed from the start. The cost shown is the tokens at Xiaomi's list rates ($0.14 input, $0.0028 " +
+    "cached input, $0.28 output per million tokens), $4.84 for the panel; OpenCode reports the same $4.84. " +
+    "One episode's tool-call count is a recount: OpenCode refused one call with malformed JSON before " +
+    "running it, so it never reached GM-Bench; counted as 187 of 187. Played on driver commit 1fb4597.",
+  "agentic-2.1:opencode-2.0.27:openrouter/xiaomi/mimo-v2.6-pro":
+    "Exploratory, not pre-registered: added after the first paid round. Played through OpenRouter, pinned to " +
+    "the Xiaomi host with fallbacks off. The Xiaomi host was slow during the run: in 7 of 32 games one " +
+    "phase (7 of 640 in all) hit the 1200-second phase guard and was closed without the agent's decisions. " +
+    "That is a provider effect, not the model's, and the score is not adjusted for it: the row is the mean " +
+    "of all 32 games. On the 25 games with no phase-guard stop, the lift over pick-trader is +21.2 (95% " +
+    "interval +6.8 to +34.0), against +20.7 on all 32. The cost shown is the tokens at Xiaomi's list rates " +
+    "($0.435 input, $0.0036 cached input, $0.87 output per million tokens), $12.36 for the panel; OpenCode " +
+    "reports the same $12.36. One episode's tool-call count is a recount: OpenCode refused one call with " +
+    "malformed JSON before running it, so it never reached GM-Bench; counted as 164 of 164. Played on " +
+    "driver commit 1fb4597.",
 };
 
 function v1Comparison(row: AgenticLaneRow): ModelRow["v1"] {
