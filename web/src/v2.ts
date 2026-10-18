@@ -24,6 +24,7 @@ const VENDOR_PREFIXES: Array<[RegExp, string, string]> = [
   [/^deepseek/, "deepseek", "DeepSeek"],
   [/^minimax/, "minimax", "MiniMax"],
   [/^qwen/, "qwen", "Qwen"],
+  [/^mimo/, "xiaomi", "Xiaomi"],
 ];
 
 export interface Vendor {
