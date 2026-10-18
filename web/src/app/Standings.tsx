@@ -1,3 +1,4 @@
+import { useState } from "react";
 import ModelLogo, { BotLogo } from "./ModelLogo";
 import type { Leaderboard } from "../types";
 import {
@@ -90,6 +91,70 @@ export function StandingsIntro({ data }: { data: Leaderboard }) {
   );
 }
 
+type SortKey = "player" | "score" | "lift" | "toolCalls" | "cost";
+type Sort = { key: SortKey; desc: boolean };
+
+/* Bots have no lift, tool calls or cost; they sink below every model on those
+   columns whichever way the column is sorted. Ties fall back to score. */
+function sortValue(row: StandingsRow, key: SortKey): number | string | null {
+  if (key === "player") return row.label.toLowerCase();
+  if (key === "score") return row.score;
+  if (row.kind === "bot") return null;
+  if (key === "lift") return row.lift;
+  if (key === "toolCalls") return row.toolCalls;
+  return row.cost.usd;
+}
+
+function sortRows(rows: StandingsRow[], { key, desc }: Sort): StandingsRow[] {
+  return [...rows].sort((a, b) => {
+    const x = sortValue(a, key);
+    const y = sortValue(b, key);
+    if (x === null || y === null) return x === y ? b.score - a.score : x === null ? 1 : -1;
+    const order = x < y ? -1 : x > y ? 1 : 0;
+    return (desc ? -order : order) || b.score - a.score;
+  });
+}
+
+function SortHeader({
+  label,
+  column,
+  sort,
+  setSort,
+  className,
+}: {
+  label: string;
+  column: SortKey;
+  sort: Sort;
+  setSort: (sort: Sort) => void;
+  className?: string;
+}) {
+  const active = sort.key === column;
+  return (
+    <th
+      scope="col"
+      className={className}
+      aria-sort={active ? (sort.desc ? "descending" : "ascending") : undefined}
+    >
+      <button
+        type="button"
+        className={active ? "sort is-sorted" : "sort"}
+        onClick={() =>
+          setSort(
+            active
+              ? { key: column, desc: !sort.desc }
+              : { key: column, desc: column !== "player" },
+          )
+        }
+      >
+        {label}
+        <span className="sort-arrow" aria-hidden="true">
+          {active ? (sort.desc ? "↓" : "↑") : "↕"}
+        </span>
+      </button>
+    </th>
+  );
+}
+
 function StandingsTable({
   rows,
   bar,
@@ -101,6 +166,8 @@ function StandingsTable({
   selected: string | null;
   select: (id: string) => void;
 }) {
+  const [sort, setSort] = useState<Sort>({ key: "score", desc: true });
+  const header = { sort, setSort };
   const max =
     Math.ceil(
       Math.max(
@@ -115,26 +182,18 @@ function StandingsTable({
       <table className="standings">
         <thead>
           <tr>
-            <th scope="col">Player</th>
+            <SortHeader label="Player" column="player" {...header} />
             <th scope="col" className="col-bar">
               <span className="sr-only">Score bar</span>
             </th>
-            <th scope="col" className="r">
-              Score
-            </th>
-            <th scope="col" className="r">
-              vs baseline
-            </th>
-            <th scope="col" className="r hide-sm">
-              Tool calls
-            </th>
-            <th scope="col" className="r hide-sm">
-              $ / game
-            </th>
+            <SortHeader label="Score" column="score" className="r" {...header} />
+            <SortHeader label="vs baseline" column="lift" className="r" {...header} />
+            <SortHeader label="Tool calls" column="toolCalls" className="r hide-sm" {...header} />
+            <SortHeader label="$ / game" column="cost" className="r hide-sm" {...header} />
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
+          {sortRows(rows, sort).map((row) => (
             <tr
               key={row.id}
               className={
@@ -185,7 +244,7 @@ function StandingsTable({
               <td className="r lift">
                 {row.kind === "model" ? vsBar(row) : ""}
               </td>
-              <td className="r hide-sm">
+              <td className="r hide-sm calls">
                 {row.kind === "model" ? num(row.toolCalls, 0) : ""}
               </td>
               <td className="r hide-sm">
@@ -199,8 +258,8 @@ function StandingsTable({
   );
 }
 
-function sorted(models: ModelRow[], bots: BotRow[], showBots: boolean): StandingsRow[] {
-  return [...models, ...bots.filter((row) => showBots || row.isBar)].sort((a, b) => b.score - a.score);
+function standingsRows(models: ModelRow[], bots: BotRow[], showBots: boolean): StandingsRow[] {
+  return [...models, ...bots.filter((row) => showBots || row.isBar)];
 }
 
 export function StandingsSection({ view }: { view: WorkspaceView }) {
@@ -215,9 +274,9 @@ export function StandingsSection({ view }: { view: WorkspaceView }) {
           intervals · red line: pick-trader
         </span>
       </div>
-      <StandingsTable rows={sorted(shown, bots, filters.showBots)} bar={lane.bar ?? 0} selected={selected} select={select} />
+      <StandingsTable rows={standingsRows(shown, bots, filters.showBots)} bar={lane.bar ?? 0} selected={selected} select={select} />
       <p className="view-note">
-        Sorted by score for reading. Each row is compared only with
+        Sorted by score unless you pick a column. Each row is compared only with
         pick-trader on the same seeds, never with another row.
       </p>
       {!archived && <SeasonStrip />}

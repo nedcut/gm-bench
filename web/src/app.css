@@ -364,6 +364,32 @@ main:focus {
   white-space: nowrap;
 }
 
+.standings .sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.standings .sort:hover,
+.standings .sort.is-sorted {
+  color: var(--text);
+}
+
+.standings .sort-arrow {
+  font-size: 10px;
+  opacity: 0.45;
+}
+
+.standings .sort.is-sorted .sort-arrow {
+  opacity: 1;
+}
+
 .standings tbody th,
 .standings td {
   padding: 0 8px;

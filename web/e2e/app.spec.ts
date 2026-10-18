@@ -66,6 +66,35 @@ test("the headline and standings count the 2.1 rows against 2.1's pick-trader, a
   expect(errors).toEqual([]);
 });
 
+test("standings columns sort both ways, with the bar's blank cells kept last", async ({ page }) => {
+  await page.goto("/");
+  const table = page.locator("#standings .standings");
+  const header = (name: string) => table.getByRole("columnheader", { name, exact: true });
+  const cells = async (cls: string) => (await table.locator(`tbody .${cls}`).allTextContents()).map((t) => t.trim());
+  await expect(header("Score")).toHaveAttribute("aria-sort", "descending");
+
+  await header("Tool calls").getByRole("button").click();
+  await expect(header("Tool calls")).toHaveAttribute("aria-sort", "descending");
+  await expect(header("Score")).not.toHaveAttribute("aria-sort");
+  let calls = await cells("calls");
+  expect(calls.at(-1)).toBe("");
+  let counts = calls.slice(0, -1).map((t) => Number(t.replace(/,/g, "")));
+  expect([...counts].sort((a, b) => b - a)).toEqual(counts);
+
+  await header("Tool calls").getByRole("button").click();
+  await expect(header("Tool calls")).toHaveAttribute("aria-sort", "ascending");
+  calls = await cells("calls");
+  expect(calls.at(-1)).toBe("");
+  counts = calls.slice(0, -1).map((t) => Number(t.replace(/,/g, "")));
+  expect([...counts].sort((a, b) => a - b)).toEqual(counts);
+
+  await header("Player").getByRole("button").click();
+  await expect(header("Player")).toHaveAttribute("aria-sort", "ascending");
+  // The bar is labelled "baseline pick-trader" but sorts as pick-trader.
+  const names = (await cells("name")).map((t) => t.replace(/^baseline /, "").toLowerCase());
+  expect([...names].sort()).toEqual(names);
+});
+
 test("filters hide rows on every tab and a row opens its details", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("checkbox", { name: /Claude Code/ }).uncheck();
