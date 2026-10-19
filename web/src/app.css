@@ -978,15 +978,6 @@ main:focus {
 .replays-content .legacy .play { padding: 32px 24px; border-radius: 10px; }
 
 .rink-sidebar { position: sticky; top: min(88px, calc(100dvh - 960px)); padding-top: 4px; }
-.rink-eyebrow, .rink-caption {
-  color: var(--text-3);
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: .14em;
-  text-transform: uppercase;
-}
-.rink-sidebar h2 { margin: 12px 0 6px; font-size: 25px; font-weight: 800; font-stretch: 80%; }
-.rink-intro { margin: 0; color: var(--text-2); font-size: 13px; }
 .rink-board { display: block; width: 100%; max-height: 450px; margin: 14px auto; }
 .rink-outer { fill: var(--raised); stroke: var(--line-2); stroke-width: 1; }
 .rink-ice { fill: var(--surface); stroke: var(--line-2); stroke-width: 1; }
@@ -1036,35 +1027,21 @@ main:focus {
 @media (prefers-reduced-motion: reduce) {
   .rink-player.is-hinting .rink-player-art { animation: none; }
 }
-.rink-phases { list-style: none; padding: 0; margin: 14px 0 0; }
-.rink-phases li { display: flex; align-items: center; gap: 14px; padding: 10px 0; border-top: 1px solid var(--line); }
-.rink-phase-number { color: var(--text-3); font: 11px var(--font-code); }
-.rink-phases strong { display: block; font-size: 12px; font-weight: 650; }
-.rink-phases div > span { display: block; color: var(--text-3); font-size: 11px; margin-top: 2px; }
-.rink-phases .is-active .rink-phase-number, .rink-phases .is-active strong { color: var(--bar); }
-.rink-footnote { margin: 16px 0 0; color: var(--text-3); font-size: 11px; line-height: 1.6; }
 
 @media (max-width: 1100px) {
   .rink-layout { grid-template-columns: minmax(0, 1fr) 240px; gap: 28px; padding-inline: 24px; }
 }
 @media (max-width: 900px) {
   .rink-layout { grid-template-columns: minmax(0, 1fr); max-width: 800px; }
-  .rink-sidebar { position: static; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 24px; border-top: 1px solid var(--line); padding-top: 24px; }
-  .rink-playground { grid-column: 2; grid-row: 1 / 7; align-self: center; margin-bottom: 0; }
+  .rink-sidebar { position: static; border-top: 1px solid var(--line); padding-top: 24px; }
+  .rink-playground { max-width: 340px; margin: 0 auto; }
   .rink-playground .rink-board { max-height: 320px; margin-top: 0; }
   .rink-controls { flex-wrap: wrap; }
-  .rink-sidebar h2 { font-size: 22px; }
-  .rink-caption { margin-top: 24px; }
-  .rink-footnote { grid-column: 1 / -1; }
 }
 @media (max-width: 540px) {
   .rink-layout { padding: 28px 16px 40px; }
-  .rink-sidebar { display: block; }
-  .rink-playground { grid-column: 1 / -1; grid-row: auto; width: 100%; max-width: 340px; margin: 20px auto; }
+  .rink-playground { width: 100%; margin: 20px auto; }
   .rink-playground .rink-board { max-height: 450px; }
-  .rink-eyebrow { font-size: 9px; letter-spacing: .06em; }
-  .rink-sidebar h2 { font-size: 20px; }
-  .rink-phases li { gap: 8px; }
   .replays-content .legacy .play { padding: 24px 16px; }
 }
 
@@ -2115,7 +2092,6 @@ main:focus {
 .tool-group { border-top: 1px solid var(--line); padding: 22px 0 28px; }
 .tool-group > header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 18px; }
 .tool-group h3 { font-size: 14px; margin: 0; }
-.tool-group > header p { color: var(--text-3); font-size: 12px; margin: 0; }
 .tool-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
 .tool-pair .metric { padding: 0; border: 0; border-radius: 0; background: none; }
 .metric h4 { margin: 0; font-size: 14px; }

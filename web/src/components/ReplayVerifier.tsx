@@ -45,7 +45,7 @@ export default function ReplayVerifier() {
   const busy = status.kind === "loading" || status.kind === "running";
   const description =
     status.kind === "idle"
-      ? "Runs one committed scripted episode in Python compiled to WebAssembly."
+      ? "Replays a committed scripted game with the real simulator, compiled to WebAssembly, and checks it ends on the recorded final state."
       : status.kind === "loading"
         ? "Loading the Python runtime. The first run takes a while."
         : status.kind === "running"

@@ -13,7 +13,7 @@ mountPage(
       <div className="view replays-head">
         <div className="view-head">
           <h1 id="replays-title">Replays</h1>
-          <span>Explore a public replay or the verified outcomes of a selected best-case agent episode.</span>
+          <span>Two GMs side by side on public seed 1, move by move, and gpt-6-astra's best-case episode.</span>
         </div>
       </div>
       <div className="legacy">
@@ -21,6 +21,6 @@ mountPage(
         <PlayAlong set={puzzleData as PuzzleSet} />
       </div>
     </div>
-    <RinkSidebar replay />
+    <RinkSidebar />
   </div>,
 );

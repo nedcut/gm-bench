@@ -279,7 +279,7 @@ export function CostSection({ view }: { view: WorkspaceView }) {
           <Chart priced={priced} bar={bar} scale={scale} view={view} axis={axis} />
         )}
       </div>
-      <p className="view-note">{axis.definition} Every game spans five seasons. Intervals compare each model with pick-trader, not with other models.</p>
+      <p className="view-note">{axis.definition}</p>
       {unmeasured.length > 0 && (
         <p className="view-note">
           {axis.id === "cost" ? "Not shown, cost unmeasured:" : `Not shown, ${axis.label.toLowerCase()} unmeasured or incomplete/incompatible telemetry:`} {unmeasured.map((row) => `${row.model} (${row.harness})`).join(", ")}.
