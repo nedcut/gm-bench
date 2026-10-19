@@ -364,6 +364,32 @@ main:focus {
   white-space: nowrap;
 }
 
+.standings .sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.standings .sort:hover,
+.standings .sort.is-sorted {
+  color: var(--text);
+}
+
+.standings .sort-arrow {
+  font-size: 10px;
+  opacity: 0.45;
+}
+
+.standings .sort.is-sorted .sort-arrow {
+  opacity: 1;
+}
+
 .standings tbody th,
 .standings td {
   padding: 0 8px;
@@ -510,6 +536,11 @@ main:focus {
 .standings tr.is-bar .meter i {
   background: var(--bar);
   opacity: 0.85;
+}
+
+/* A scripted bot's lift, tool calls and cost are facts, not measurements: shown quietly. */
+.standings td.nil {
+  color: var(--text-3);
 }
 
 /* A model with no logo keeps a dot; centre it in the 24px logo slot so names line up. */
@@ -1024,8 +1055,9 @@ main:focus {
 .rink-center-logo { color: var(--text); opacity: .85; }
 .rink-playground { min-width: 0; margin-bottom: 24px; }
 .rink-surface { position: relative; }
-.rink-reset { position: absolute; right: 18%; bottom: 8.5%; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: var(--surface); color: var(--text-3); cursor: pointer; }
-.rink-reset:hover { color: var(--rink-blue); background: var(--raised); }
+.rink-reset { position: absolute; right: 18%; bottom: 8.5%; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--text); cursor: pointer; }
+:root[data-theme="light"] .rink-reset { color: #1b2f5e; }
+.rink-reset:hover { color: var(--rink-blue); }
 .rink-confetti { pointer-events: none; }
 .rink-confetti rect { opacity: 0; transform-box: fill-box; transform-origin: center; }
 .rink-net { fill: none; stroke: var(--bar); stroke-width: 2; opacity: .7; }

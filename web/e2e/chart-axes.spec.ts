@@ -18,7 +18,7 @@ for (const width of [1440, 390, 320]) {
     await page.evaluate(() => document.fonts.ready);
     const picker = page.getByRole("combobox", { name: "X-axis", exact: true });
     await expect(picker).toHaveValue("cost");
-    await page.locator(".pt", { hasText: "gpt-6-astra" }).locator("circle").click();
+    await page.locator('.pt[aria-label^="gpt-6-astra,"]').locator("circle").click();
     if (width <= 900) await page.getByRole("button", { name: "Close", exact: true }).click();
     for (let repeat = 0; repeat < 2; repeat++) {
       for (const id of ["output-total", "time", "calls", "input-total", "output-game", "cost"]) {
@@ -44,11 +44,11 @@ for (const width of [1440, 390, 320]) {
     if (width <= 900) await page.getByRole("button", { name: "Close", exact: true }).click();
     for (const id of ["calls", "output-total", "cost"]) {
       await picker.selectOption(id);
-      await expect(page.locator(".pt", { hasText: "gpt-6-astra" })).toHaveCount(0);
+      await expect(page.locator('.pt[aria-label^="gpt-6-astra,"]')).toHaveCount(0);
     }
     await picker.selectOption("output-total");
     await expect(page.locator("#cost")).toContainText("including reasoning tokens");
-    await expect(page.locator(".pt title").first()).toContainText(/tokens \/ panel; 32 five-season episodes/);
+    await expect(page.locator(".pt").first()).toHaveAttribute("aria-label", /tokens \/ panel; 32 five-season episodes/);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     const result = await new AxeBuilder({ page }).include("#cost").withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
     expect(result.violations).toEqual([]);

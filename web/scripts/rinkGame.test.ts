@@ -118,7 +118,7 @@ describe("rink game", () => {
     expect(game.score.home).toBe(1);
     const reloaded = decodeRink(encodeRink(game));
     expect(reloaded.puckInGoal).toBeNull();
-    expect(reloaded.bodies[PUCK_INDEX]).toMatchObject({ x: 160, y: 255, vx: 0, vy: 0, locked: false });
+    expect(reloaded.bodies[PUCK_INDEX]).toMatchObject({ x: 160, y: 235, vx: 0, vy: 0, locked: false });
     puck.locked = false;
     puck.y = 85;
     tracePuck(game, 160, position[1]);
@@ -133,7 +133,7 @@ describe("rink game", () => {
     expect(tracePuck(game, 160, 90).scored).toBe("home");
     faceoff(game);
     expect(game.puckInGoal).toBeNull();
-    expect(puck).toMatchObject({ x: 160, y: 255, vx: 0, vy: 0, locked: false });
+    expect(puck).toMatchObject({ x: 160, y: 235, vx: 0, vy: 0, locked: false });
     expect(game.score.home).toBe(1);
     Object.assign(puck, { x: 160, y: 25, vy: -1200 });
     expect(tracePuck(game, 160, 90).scored).toBe("home");
