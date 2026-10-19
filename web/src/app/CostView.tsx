@@ -1,7 +1,7 @@
 import ModelLogo from "./ModelLogo";
 import { useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { Leaderboard } from "../types";
-import { clearsBar, num, type ModelRow } from "../v2";
+import { num } from "../v2";
 import Workspace, { type WorkspaceView } from "./Workspace";
 import { CHART_AXES, chartRows, logTicks, type ChartAxis, type ChartRow } from "./chartAxes";
 
@@ -94,31 +94,6 @@ function placeLabels(
     out[point.i] = { x: best.x, y: best.y, anchorEnd: best.anchorEnd };
   }
   return out;
-}
-
-/* The chart shows billed and estimated costs alike; the row details say which is which. */
-const usd = (row: ModelRow) => `$${num(row.cost.usd, 2)}`;
-
-/* One sentence on cost and the bar. Rows are never compared with each other. */
-function takeaway(priced: ChartRow[], bar: number): string {
-  if (priced.length === 0) return "";
-  const byCost = [...priced].sort((a, b) => a.xValue - b.xValue);
-  const lo = byCost[0];
-  const hi = byCost.at(-1)!;
-  const ratio = hi.xValue / lo.xValue;
-  const above = priced.filter((row) => row.score > bar).length;
-  const clear = priced.filter(clearsBar).length;
-  const range =
-    priced.length === 1
-      ? `One measured row, at ${usd(lo)} a game.`
-      : `Cost per game runs from ${usd(lo)} to ${usd(hi)}${Number.isFinite(ratio) && ratio >= 2 ? `, a ${Math.round(ratio)}× spread` : ""}.`;
-  const verdict =
-    clear > 0
-      ? `${clear} measured row${clear === 1 ? " beats" : "s beat"} pick-trader by more than the noise.`
-      : above > 0
-        ? `${above} measured row${above === 1 ? " scores" : "s score"} above pick-trader's mean, within the noise.`
-        : "No measured row scores above pick-trader.";
-  return `${range} ${verdict}`;
 }
 
 function Chart({ priced, bar, scale, view, axis }: { priced: ChartRow[]; bar: number; scale: Scale; view: WorkspaceView; axis: ChartAxis }) {
@@ -275,7 +250,6 @@ export function CostSection({ view }: { view: WorkspaceView }) {
     <section className="view stats-section" id="cost" tabIndex={-1} aria-labelledby="cost-title">
       <div className="view-head">
         <h2 id="cost-title">{axis.id === "cost" ? "Score vs cost per game" : `Score vs ${axis.label.toLowerCase()}`}</h2>
-        <span>{axis.id === "cost" ? takeaway(priced, bar) : `${priced.length} measured rows · five seasons per game · panel sizes: ${[...new Set(priced.map(row => row.source.panel.episodes))].join(", ") || "none"} episodes. Longer is not better.`}</span>
       </div>
       <div className="card">
         <div className="card-head">
