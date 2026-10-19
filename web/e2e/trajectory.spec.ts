@@ -10,7 +10,7 @@ test("opens on an agent run beside pick-trader, with its recorded tool calls", a
   await expect(page.locator(".tx-left h3")).toHaveText("Claude Code · sonnet-5");
   await expect(page.locator(".tx-right h3")).toHaveText("Pick-trader");
   await expect(page.locator(".tx-left .tx-policy-tag")).toContainText("agent run · claude 2.1.281");
-  await expect(page.getByText("Matched start · divergent trajectories.")).toBeVisible();
+  await expect(page.getByText(/One seed shows how each player behaves/)).toBeVisible();
   await page.getByRole("button", { name: "Observations & tools", exact: true }).click();
   await expect(page.locator(".tx-left").getByText("get_status", { exact: true }).first()).toBeVisible();
   await expect(page.locator(".tx-left").getByText("Tool retrieval trace: unavailable.")).toHaveCount(0);

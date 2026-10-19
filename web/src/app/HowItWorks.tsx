@@ -586,8 +586,7 @@ export default function HowItWorks({ data }: { data: Leaderboard }) {
       <article className="page how">
         <h1>How it works</h1>
         <p className="lede">
-          One season on the bench, decision by decision: what the GM is told, what it can do, and what the bar every model has to beat actually
-          did.
+          One real season, decision by decision: the brief a model reads, the tools it gets, and what pick-trader did with them.
         </p>
         <ol className="how-steps" aria-label="Walkthrough steps">
           {STEP_TITLES.map((title, i) => (
@@ -615,7 +614,7 @@ export default function HowItWorks({ data }: { data: Leaderboard }) {
         </div>
         {nav}
       </article>
-      <RinkSidebar step={index} />
+      <RinkSidebar />
     </div>
   );
 }

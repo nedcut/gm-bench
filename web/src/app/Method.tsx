@@ -138,15 +138,10 @@ export default function Method({ data }: { data: Leaderboard }) {
       </p>
 
       <h2>Check a recorded game in your browser</h2>
-      <p>This replays a committed game with the real simulator, compiled to WebAssembly, and checks it lands on the recorded final state.</p>
       <div className="legacy">
         <ReplayVerifier />
       </div>
 
-      <p className="view-note">
-        Earlier versions: the <a href={routes.v2}>2.0 archive</a> and the single-prompt{" "}
-        <a href={routes.v1}>1.0 archive</a>.
-      </p>
     </article>
   );
 }

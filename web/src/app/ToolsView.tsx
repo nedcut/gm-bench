@@ -77,9 +77,9 @@ function MetricCard({ metric, rows, view }: { metric: Metric; rows: ModelRow[]; 
 }
 
 const GROUPS = [
-  { title: "Activity & time", note: "How much work each harness did", metrics: METRICS.slice(0, 2) },
-  { title: "Token budget", note: "Reported input and output per game", metrics: METRICS.slice(2, 4) },
-  { title: "Phase outcomes", note: "Status-only phases and rejected moves", metrics: METRICS.slice(4) },
+  { title: "Activity & time", metrics: METRICS.slice(0, 2) },
+  { title: "Token budget", metrics: METRICS.slice(2, 4) },
+  { title: "Phase outcomes", metrics: METRICS.slice(4) },
 ];
 
 export function ToolsSection({ view }: { view: WorkspaceView }) {
@@ -93,7 +93,7 @@ export function ToolsSection({ view }: { view: WorkspaceView }) {
       <div className="tool-ledger">
         {GROUPS.map(group => (
           <section className="tool-group" key={group.title} aria-label={group.title}>
-            <header><h3>{group.title}</h3><p>{group.note}</p></header>
+            <header><h3>{group.title}</h3></header>
             <div className="tool-pair">{group.metrics.map(metric => <MetricCard key={metric.title} metric={metric} rows={view.shown} view={view} />)}</div>
           </section>
         ))}

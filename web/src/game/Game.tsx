@@ -238,9 +238,7 @@ export default function Game() {
     <article className="gm-game" aria-busy={busy}>
       <header className={`gm-heading ${s ? "is-compact" : ""}`}>
         <div>
-          {!s && <p className="gm-eyebrow">THE HUMAN CHALLENGE</p>}
           <h1>Your call, GM.</h1>
-          {!s && <p>Five seasons. One franchise. Every decision is yours.</p>}
         </div>
         <div className="gm-actions">
           {s && <span className="gm-save-status">{saveStatus}</span>}
@@ -323,21 +321,10 @@ export default function Game() {
       {!s ? (
         <section className="gm-welcome">
           <div>
-            <span className="gm-eyebrow">TAKE THE BENCH</span>
-            <h2>
-              Build a contender.
-              <br />
-              Leave a better team.
-            </h2>
             <p>
-              Manage the Anchorage Auroras in a 12-team hockey league. Sign
-              players, negotiate trades, scout prospects, set your lineup, and
-              see how your decisions hold up over a five-season benchmark
-              challenge.
-            </p>
-            <p>
-              Your roster, standings, and cap space stay within reach. The final
-              score rewards both winning now and the future you build.
+              Run the Anchorage Auroras for five seasons in a 12-team league:
+              sign players, trade, scout prospects and set your lineup. The
+              score counts wins and playoff runs plus the team you leave behind.
             </p>
             <div className="gm-actions">
               <label>
@@ -362,19 +349,10 @@ export default function Game() {
               )}
             </div>
             <p className="muted">
-              Same seed, same starting league. Runs in your browser with the
-              benchmark engine. No model account needed. Autosaves after every
-              move.
+              Same seed, same starting league. Runs in your browser on the
+              benchmark engine and saves after every move.
             </p>
           </div>
-          <aside className="gm-welcome-aside">
-            <b>20 decision windows</b>
-            <span>Preseason → Midseason → Trade deadline → Draft</span>
-            <b>Full GM control</b>
-            <span>Roster · Contracts · Lineup · Trades · Scouting</span>
-            <b>A score to beat</b>
-            <span>Wins + playoffs + the team you leave behind</span>
-          </aside>
         </section>
       ) : (
         <>

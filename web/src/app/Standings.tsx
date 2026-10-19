@@ -277,8 +277,8 @@ export function StandingsSection({ view }: { view: WorkspaceView }) {
       </div>
       <StandingsTable rows={standingsRows(shown, bots, filters.showBots)} bar={lane.bar ?? 0} selected={selected} select={select} />
       <p className="view-note">
-        Sorted by score unless you pick a column. Each row is compared only with
-        pick-trader on the same seeds, never with another row.
+        Each row is compared only with pick-trader on the same seeds, never with
+        another row.
       </p>
       {!archived && <SeasonStrip />}
     </section>
