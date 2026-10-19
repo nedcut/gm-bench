@@ -205,6 +205,8 @@ test("pages open light even on a dark device, and a dark choice is remembered", 
 });
 
 test("every page passes axe in both themes", async ({ page }) => {
+  // Eighteen full-page axe scans; on CI runners this alone takes about 30s.
+  test.setTimeout(90_000);
   const errors = await noErrors(page);
   for (const theme of ["dark", "light"]) {
     await page.addInitScript((t) => localStorage.setItem("gm-bench-theme", t), theme);
