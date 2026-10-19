@@ -21,6 +21,11 @@ GAME_TOOLS = frozenset(
 )
 
 
+def _check_seed(seed: Any) -> None:
+    if type(seed) is not int or not 0 <= seed <= 2147483647:
+        raise ValueError("Choose a whole-number seed between 0 and 2147483647.")
+
+
 @lru_cache(maxsize=8)
 def _reference(seed: int) -> dict[str, Any]:
     from gm_bench.agents import AGENTS
@@ -37,8 +42,7 @@ def _reference(seed: int) -> dict[str, Any]:
 
 class BrowserGame:
     def __init__(self, seed: int = 1, *, engine_version: str = "development") -> None:
-        if type(seed) is not int or not 0 <= seed <= 2147483647:
-            raise ValueError("Choose a whole-number seed between 0 and 2147483647.")
+        _check_seed(seed)
         self.engine_version = engine_version
         # Humans can leave a tab open indefinitely. The model harness's wall
         # clock guard must not advance a human's game while they are away.
@@ -131,6 +135,12 @@ def dispatch(request_json: str, engine_version: str) -> str:
     request = json.loads(request_json)
     command = request["command"]
     result = None
+    if command == "reference":
+        # The start screen shows the score to beat before a game exists; the
+        # active game, if any, is left alone.
+        seed = request.get("seed")
+        _check_seed(seed)
+        return json.dumps({"reference": _reference(seed)})
     if command == "new":
         candidate = BrowserGame(request.get("seed", 1), engine_version=engine_version)
         _game = candidate

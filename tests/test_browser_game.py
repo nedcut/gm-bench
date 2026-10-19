@@ -64,6 +64,20 @@ def test_invalid_seed(seed):
         BrowserGame(seed)
 
 
+def test_reference_command_gives_the_end_of_game_target_without_touching_the_game():
+    version = "test-engine"
+    dispatch(json.dumps({"command": "new", "seed": 42}), version)
+    reference = json.loads(dispatch(json.dumps({"command": "reference", "seed": 1}), version))["reference"]
+    assert reference["name"] == "Pick-trader"
+    assert reference["final_score"] == pytest.approx(198.147, abs=0.001)
+    current = json.loads(
+        dispatch(json.dumps({"command": "act", "tool": "write_memo", "arguments": {"text": "Still here"}}), version)
+    )
+    assert current["snapshot"]["seed"] == 42
+    with pytest.raises(ValueError, match="seed"):
+        dispatch(json.dumps({"command": "reference", "seed": -1}), version)
+
+
 def test_rejected_import_preserves_active_game():
     version = "test-engine"
     active = json.loads(dispatch(json.dumps({"command": "new", "seed": 42}), version))
