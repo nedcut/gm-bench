@@ -25,12 +25,12 @@ function useWidth<T extends Element>() {
   return [ref, width] as const;
 }
 
-/* Round steps (1, 2 or 5 times a power of ten) from zero past max. */
-function linearTicks(max: number): number[] {
-  const rough = max / 5;
+/* Round steps (1, 2 or 5 times a power of ten) from min (rounded down to a step) past max. */
+function linearTicks(min: number, max: number): number[] {
+  const rough = (max - min) / 5;
   const power = 10 ** Math.floor(Math.log10(rough));
   const step = [1, 2, 5, 10].map((m) => m * power).find((s) => s >= rough) ?? rough;
-  const ticks = [0];
+  const ticks = [Math.floor(min / step) * step];
   while (ticks.at(-1)! < max) ticks.push(Number((ticks.at(-1)! + step).toFixed(6)));
   return ticks;
 }
@@ -137,11 +137,12 @@ function Chart({ priced, bar, scale, view, axis }: { priced: ChartRow[]; bar: nu
   const start = PAD.l + (hasZero ? zeroGap : 16);
   const xLo = Math.log10((positive.length ? Math.min(...positive) : 0.1) / 1.6);
   const xHi = Math.log10((positive.length ? Math.max(...positive) : 1) * 1.6);
-  const lin = linearTicks(Math.max(...values, 0.01) * 1.05);
-  const linMax = lin.at(-1)!;
+  const linFloor = axis.zeroBased === false ? Math.min(...values) * 0.9 : 0;
+  const lin = linearTicks(linFloor, Math.max(...values, linFloor + 0.01) * 1.05);
+  const [linMin, linMax] = [lin[0], lin.at(-1)!];
   const x = (usd: number) =>
     scale === "linear"
-      ? PAD.l + 16 + (usd / linMax) * (right - PAD.l - 16)
+      ? PAD.l + 16 + ((usd - linMin) / (linMax - linMin)) * (right - PAD.l - 16)
       : usd === 0
         ? PAD.l + 16
         : start + ((Math.log10(usd) - xLo) / (xHi - xLo)) * (right - start);
@@ -278,11 +279,13 @@ export function CostSection({ view }: { view: WorkspaceView }) {
       </div>
       <div className="card">
         <div className="card-head">
-          <label className="axis-picker">X-axis
-            <select value={axis.id} onChange={event => { const next = CHART_AXES.find(item => item.id === event.target.value); if (next) { setAxis(next); setScale(next.defaultScale); } }}>
-              {CHART_AXES.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
-            </select>
-          </label>
+          <div className="seg axis-picker" role="group" aria-label="X-axis">
+            {CHART_AXES.map(item => (
+              <button key={item.id} type="button" aria-pressed={axis.id === item.id} title={item.label} onClick={() => { setAxis(item); setScale(item.defaultScale); }}>
+                {item.short}
+              </button>
+            ))}
+          </div>
           <ul className="legend" aria-label="Legend">
             <li><i className="key-dot" /> Model, colored by vendor</li>
             <li><i className="key-ci" /> 95% interval</li>
