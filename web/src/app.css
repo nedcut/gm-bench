@@ -2137,5 +2137,4 @@ main:focus {
 .chart-key li { padding: 0; }
 .chart-key button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 0; background: none; border: 0; text-align: left; cursor: pointer; }
 .chart-key button[aria-pressed="true"] { background: var(--raised); }
-.axis-picker { display: flex; align-items: center; gap: 8px; font-size: 12px; }
-.axis-picker select { max-width: 100%; border: 1px solid var(--line-2); border-radius: 5px; background: var(--surface); color: var(--text); font: inherit; padding: 6px 8px; }
+.axis-picker { flex-wrap: wrap; }
