@@ -106,7 +106,7 @@ export interface GameSave {
 }
 export interface GameRequest {
   id: number;
-  command: "new" | "restore" | "act";
+  command: "new" | "restore" | "act" | "reference";
   seed?: number;
   save?: unknown;
   tool?: string;
@@ -114,6 +114,7 @@ export interface GameRequest {
 }
 export interface GameResponse {
   id: number;
+  reference?: Snapshot["reference"];
   snapshot?: Snapshot;
   save?: GameSave;
   result?: {

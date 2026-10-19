@@ -62,6 +62,21 @@ async function advance(page: Page) {
   await confirm(page);
 }
 
+test("the start screen shows pick-trader's score on the chosen seed before a game starts", async ({
+  page,
+}) => {
+  await runtime(page);
+  await page.goto("/play/");
+  const target = page.locator(".gm-side.is-them");
+  await expect(target).toContainText("pick-trader · seed 1");
+  await expect(target.locator(".gm-side-score")).toHaveText("198.1", { timeout: 45000 });
+  await page.getByLabel("Seed").fill("2");
+  await expect(target).toContainText("pick-trader · seed 2");
+  await expect(target.locator(".gm-side-score")).toHaveText("192.4", { timeout: 45000 });
+  await page.getByLabel("Seed").fill("");
+  await expect(target).not.toContainText("seed 2");
+});
+
 test("play a full challenge: roster, contracts, lineup, scouting, draft, scores and resume", async ({
   page,
 }) => {

@@ -1,5 +1,19 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { GameRequest, GameResponse, GameSave, Snapshot } from "./types";
+
+type Target = { seed: number; reference: NonNullable<Snapshot["reference"]> | null; failed?: boolean };
+
+const STEPS: [string, string][] = [
+  ["Preseason", "Sign, extend, set the lineup"],
+  ["Midseason", "Claim waivers, cover injuries"],
+  ["Trade deadline", "Deal with 11 rival GMs"],
+  ["Draft", "Scout and pick"],
+];
+
+function parseSeed(text: string): number | null {
+  const value = Number(text);
+  return /^\d+$/.test(text) && Number.isSafeInteger(value) && value <= 2147483647 ? value : null;
+}
 import {
   PHASES,
   LABEL,
@@ -51,6 +65,9 @@ export default function Game() {
     run: () => void;
   } | null>(null);
   const [memo, setMemo] = useState("");
+  const [target, setTarget] = useState<Target | null>(null);
+  // Score-to-beat requests use negative ids so game replies never mistake them.
+  const targetId = useRef(0);
   useEffect(() => () => worker.current?.terminate(), []);
   useEffect(() => {
     if (!notice) return;
@@ -63,12 +80,20 @@ export default function Game() {
     setBusy(true);
     setError("");
     setNotice(null);
+    gameWorker().postMessage({ ...request, id: ++requestId.current });
+  }
+  function gameWorker(): Worker {
     if (!worker.current) {
       worker.current = new Worker(new URL("./gameWorker.ts", import.meta.url), {
         type: "module",
       });
       worker.current.onmessage = (event: MessageEvent<GameResponse>) => {
         const response = event.data;
+        if (response.id < 0) {
+          if (response.id === -targetId.current)
+            setTarget((t) => t && { ...t, reference: response.reference ?? null, failed: !response.reference });
+          return;
+        }
         if (response.id !== requestId.current) return;
         busyRef.current = false;
         setBusy(false);
@@ -138,23 +163,31 @@ export default function Game() {
         setError(
           "The simulator worker stopped. Reload this page to resume the last autosave.",
         );
+        setTarget((t) => t && { ...t, failed: true });
         worker.current?.terminate();
         worker.current = null;
       };
     }
-    worker.current.postMessage({ ...request, id: ++requestId.current });
+    return worker.current;
   }
+  // The start screen loads the engine early and shows pick-trader's score on the chosen seed.
+  useEffect(() => {
+    if (s) return;
+    const value = parseSeed(seed);
+    const timer = setTimeout(() => {
+      if (value === null) return setTarget(null);
+      setTarget({ seed: value, reference: null });
+      gameWorker().postMessage({ command: "reference", seed: value, id: -++targetId.current });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [seed, s]);
   const act: Act = (tool, args = {}) =>
     send({ command: "act", tool, arguments: args });
   const review: Review = (title, body, tool, args) =>
     setConfirm({ title, body, run: () => act(tool, args) });
   function start() {
-    const value = Number(seed);
-    if (
-      !/^\d+$/.test(seed) ||
-      !Number.isSafeInteger(value) ||
-      value > 2147483647
-    ) {
+    const value = parseSeed(seed);
+    if (value === null) {
       setError("Choose a whole-number seed between 0 and 2147483647.");
       return;
     }
@@ -239,6 +272,12 @@ export default function Game() {
       <header className={`gm-heading ${s ? "is-compact" : ""}`}>
         <div>
           <h1>Your call, GM.</h1>
+          {!s && (
+            <p>
+              Run the Anchorage Auroras for five seasons on the benchmark
+              engine. Finish above pick-trader on the same seed.
+            </p>
+          )}
         </div>
         <div className="gm-actions">
           {s && <span className="gm-save-status">{saveStatus}</span>}
@@ -319,40 +358,63 @@ export default function Game() {
         </div>
       </div>
       {!s ? (
-        <section className="gm-welcome">
-          <div>
-            <p>
-              Run the Anchorage Auroras for five seasons in a 12-team league:
-              sign players, trade, scout prospects and set your lineup. The
-              score counts wins and playoff runs plus the team you leave behind.
-            </p>
-            <div className="gm-actions">
-              <label>
-                League seed
-                <input
-                  type="number"
-                  min="0"
-                  max="2147483647"
-                  step="1"
-                  value={seed}
-                  onChange={(e) => setSeed(e.target.value)}
-                  disabled={busy}
-                />
-              </label>
-              <button className="gm-primary" disabled={busy} onClick={start}>
-                {busy ? "Loading simulator…" : "Start challenge"}
-              </button>
-              {stored && (
-                <button disabled={busy} onClick={() => restore(stored)}>
-                  Resume saved challenge
+        <section className="gm-start">
+          <div className="gm-matchup">
+            <div className="gm-side is-you">
+              <span className="gm-side-label">You</span>
+              <span className="gm-side-score is-empty" aria-hidden="true">—</span>
+              <div className="gm-actions">
+                <label>
+                  Seed
+                  <input
+                    type="number"
+                    min="0"
+                    max="2147483647"
+                    step="1"
+                    value={seed}
+                    onChange={(e) => setSeed(e.target.value)}
+                    disabled={busy}
+                  />
+                </label>
+                <button className="gm-primary" disabled={busy} onClick={start}>
+                  {busy ? "Loading simulator…" : "Start challenge"}
                 </button>
-              )}
+                {stored && (
+                  <button disabled={busy} onClick={() => restore(stored)}>
+                    Resume saved challenge
+                  </button>
+                )}
+              </div>
             </div>
-            <p className="muted">
-              Same seed, same starting league. Runs in your browser on the
-              benchmark engine and saves after every move.
-            </p>
+            <span className="gm-vs" aria-hidden="true">vs</span>
+            <div className="gm-side is-them" aria-live="polite">
+              <span className="gm-side-label">
+                pick-trader{target ? ` · seed ${target.seed}` : ""}
+              </span>
+              <span className="gm-side-score">
+                {target?.reference ? rating(target.reference.final_score) : "—"}
+              </span>
+              <small>
+                {target?.reference
+                  ? `${target.reference.wins} wins · ${target.reference.championships} titles · same league, same five seasons`
+                  : target?.failed
+                    ? "Score to beat unavailable. It still appears when you finish."
+                    : "Loading the simulator to score this seed…"}
+              </small>
+            </div>
           </div>
+          <ol className="gm-steps">
+            {STEPS.map(([phase, what]) => (
+              <li key={phase}>
+                <b>{phase}</b>
+                {what}
+              </li>
+            ))}
+          </ol>
+          <p className="muted">
+            20 decisions · runs in your browser and saves after every move ·
+            practice games never enter the standings
+          </p>
         </section>
       ) : (
         <>
