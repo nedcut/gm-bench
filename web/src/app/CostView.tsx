@@ -1,7 +1,7 @@
 import ModelLogo from "./ModelLogo";
 import { useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { Leaderboard } from "../types";
-import { clearsBar, num, type ModelRow } from "../v2";
+import { num } from "../v2";
 import Workspace, { type WorkspaceView } from "./Workspace";
 import { CHART_AXES, chartRows, logTicks, type ChartAxis, type ChartRow } from "./chartAxes";
 
@@ -25,12 +25,12 @@ function useWidth<T extends Element>() {
   return [ref, width] as const;
 }
 
-/* Round steps (1, 2 or 5 times a power of ten) from zero past max. */
-function linearTicks(max: number): number[] {
-  const rough = max / 5;
+/* Round steps (1, 2 or 5 times a power of ten) from min (rounded down to a step) past max. */
+function linearTicks(min: number, max: number): number[] {
+  const rough = (max - min) / 5;
   const power = 10 ** Math.floor(Math.log10(rough));
   const step = [1, 2, 5, 10].map((m) => m * power).find((s) => s >= rough) ?? rough;
-  const ticks = [0];
+  const ticks = [Math.floor(min / step) * step];
   while (ticks.at(-1)! < max) ticks.push(Number((ticks.at(-1)! + step).toFixed(6)));
   return ticks;
 }
@@ -96,31 +96,6 @@ function placeLabels(
   return out;
 }
 
-/* The chart shows billed and estimated costs alike; the row details say which is which. */
-const usd = (row: ModelRow) => `$${num(row.cost.usd, 2)}`;
-
-/* One sentence on cost and the bar. Rows are never compared with each other. */
-function takeaway(priced: ChartRow[], bar: number): string {
-  if (priced.length === 0) return "";
-  const byCost = [...priced].sort((a, b) => a.xValue - b.xValue);
-  const lo = byCost[0];
-  const hi = byCost.at(-1)!;
-  const ratio = hi.xValue / lo.xValue;
-  const above = priced.filter((row) => row.score > bar).length;
-  const clear = priced.filter(clearsBar).length;
-  const range =
-    priced.length === 1
-      ? `One measured row, at ${usd(lo)} a game.`
-      : `Cost per game runs from ${usd(lo)} to ${usd(hi)}${Number.isFinite(ratio) && ratio >= 2 ? `, a ${Math.round(ratio)}× spread` : ""}.`;
-  const verdict =
-    clear > 0
-      ? `${clear} measured row${clear === 1 ? " beats" : "s beat"} pick-trader by more than the noise.`
-      : above > 0
-        ? `${above} measured row${above === 1 ? " scores" : "s score"} above pick-trader's mean, within the noise.`
-        : "No measured row scores above pick-trader.";
-  return `${range} ${verdict}`;
-}
-
 function Chart({ priced, bar, scale, view, axis }: { priced: ChartRow[]; bar: number; scale: Scale; view: WorkspaceView; axis: ChartAxis }) {
   const [frame, width] = useWidth<HTMLDivElement>();
   const W = Math.max(width || 1040, 280);
@@ -137,11 +112,12 @@ function Chart({ priced, bar, scale, view, axis }: { priced: ChartRow[]; bar: nu
   const start = PAD.l + (hasZero ? zeroGap : 16);
   const xLo = Math.log10((positive.length ? Math.min(...positive) : 0.1) / 1.6);
   const xHi = Math.log10((positive.length ? Math.max(...positive) : 1) * 1.6);
-  const lin = linearTicks(Math.max(...values, 0.01) * 1.05);
-  const linMax = lin.at(-1)!;
+  const linFloor = axis.zeroBased === false ? Math.min(...values) * 0.9 : 0;
+  const lin = linearTicks(linFloor, Math.max(...values, linFloor + 0.01) * 1.05);
+  const [linMin, linMax] = [lin[0], lin.at(-1)!];
   const x = (usd: number) =>
     scale === "linear"
-      ? PAD.l + 16 + (usd / linMax) * (right - PAD.l - 16)
+      ? PAD.l + 16 + ((usd - linMin) / (linMax - linMin)) * (right - PAD.l - 16)
       : usd === 0
         ? PAD.l + 16
         : start + ((Math.log10(usd) - xLo) / (xHi - xLo)) * (right - start);
@@ -274,15 +250,16 @@ export function CostSection({ view }: { view: WorkspaceView }) {
     <section className="view stats-section" id="cost" tabIndex={-1} aria-labelledby="cost-title">
       <div className="view-head">
         <h2 id="cost-title">{axis.id === "cost" ? "Score vs cost per game" : `Score vs ${axis.label.toLowerCase()}`}</h2>
-        <span>{axis.id === "cost" ? takeaway(priced, bar) : `${priced.length} measured rows · five seasons per game · panel sizes: ${[...new Set(priced.map(row => row.source.panel.episodes))].join(", ") || "none"} episodes. Longer is not better.`}</span>
       </div>
       <div className="card">
         <div className="card-head">
-          <label className="axis-picker">X-axis
-            <select value={axis.id} onChange={event => { const next = CHART_AXES.find(item => item.id === event.target.value); if (next) { setAxis(next); setScale(next.defaultScale); } }}>
-              {CHART_AXES.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
-            </select>
-          </label>
+          <div className="seg axis-picker" role="group" aria-label="X-axis">
+            {CHART_AXES.map(item => (
+              <button key={item.id} type="button" aria-pressed={axis.id === item.id} title={item.label} onClick={() => { setAxis(item); setScale(item.defaultScale); }}>
+                {item.short}
+              </button>
+            ))}
+          </div>
           <ul className="legend" aria-label="Legend">
             <li><i className="key-dot" /> Model, colored by vendor</li>
             <li><i className="key-ci" /> 95% interval</li>
@@ -302,7 +279,7 @@ export function CostSection({ view }: { view: WorkspaceView }) {
           <Chart priced={priced} bar={bar} scale={scale} view={view} axis={axis} />
         )}
       </div>
-      <p className="view-note">{axis.definition} Every game spans five seasons. Intervals compare each model with pick-trader, not with other models.</p>
+      <p className="view-note">{axis.definition}</p>
       {unmeasured.length > 0 && (
         <p className="view-note">
           {axis.id === "cost" ? "Not shown, cost unmeasured:" : `Not shown, ${axis.label.toLowerCase()} unmeasured or incomplete/incompatible telemetry:`} {unmeasured.map((row) => `${row.model} (${row.harness})`).join(", ")}.

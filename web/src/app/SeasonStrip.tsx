@@ -11,7 +11,7 @@ const PHASES = [
 export default function SeasonStrip() {
   return (
     <section className="season-strip" aria-labelledby="season-title">
-      <h2 id="season-title">Five seasons, four calls each</h2>
+      <h2 id="season-title">Five seasons, four phases each</h2>
       <ol>
         {PHASES.map(([phase, what], i) => (
           <li key={phase} className={i === 2 ? "is-red" : undefined}>

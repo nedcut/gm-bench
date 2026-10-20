@@ -17,9 +17,6 @@ const rows: Row[] = data.agentic_v21_lane;
 const v20: Row[] = data.agentic_lane;
 const bar = rows[0].reference.mean_score;
 const clears = (row: Row) => row.reference.paired_lift_ci95[0] > 0;
-const priced = rows.filter(
-  (row) => (row.telemetry.cost_per_episode_usd ?? row.telemetry.api_equivalent_cost_per_episode_usd ?? null) !== null,
-);
 function verdict(set: Row[], clear: string, above: string, none: string): string {
   const c = set.filter(clears).length;
   const a = set.filter((row) => row.mean_score > bar).length;
@@ -154,14 +151,7 @@ test("how it works steps through one pick-trader season with its tool calls", as
 test("cost points and tool bars open details in the side panel and highlight their row", async ({ page }) => {
   const errors = await noErrors(page);
   await page.goto("/cost/");
-  await expect(page.locator("#cost .view-head span")).toContainText(
-    verdict(
-      priced,
-      `N measured row${priced.filter(clears).length === 1 ? " beats" : "s beat"} pick-trader by more than the noise.`,
-      `N measured row${priced.filter((row) => row.mean_score > bar).length === 1 ? " scores" : "s score"} above pick-trader's mean, within the noise.`,
-      "No measured row scores above pick-trader.",
-    ),
-  );
+  await expect(page.locator("#cost .view-head span")).toHaveCount(0);
   await page.evaluate(() => document.fonts.ready);
   const point = page.getByRole("button", { name: /^gpt-6-luna, Codex: score/ });
   await point.locator("circle").hover();
@@ -215,6 +205,8 @@ test("pages open light even on a dark device, and a dark choice is remembered", 
 });
 
 test("every page passes axe in both themes", async ({ page }) => {
+  // Eighteen full-page axe scans; on CI runners this alone takes about 30s.
+  test.setTimeout(90_000);
   const errors = await noErrors(page);
   for (const theme of ["dark", "light"]) {
     await page.addInitScript((t) => localStorage.setItem("gm-bench-theme", t), theme);

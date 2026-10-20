@@ -30,7 +30,7 @@ export default function Stats({ data, start }: { data: Leaderboard; start?: "cos
   return (
     <>
       <StandingsIntro data={data} />
-      <Workspace data={data} hint="Filters apply to all three sections. Select a row, point or bar for its details.">
+      <Workspace data={data} hint="Select a row, point or bar for its details.">
         {view => (
           <div className="stats-content">
             <nav className="stats-index" aria-label="Statistics sections">

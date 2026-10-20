@@ -102,6 +102,7 @@ svg{display:block}
 <p class="lede">Internal log of how scoring and contract decisions get made: what we tried, what it showed, what we decided. Newest first. Every number cites a committed diagnostic or a published row; nothing here is a published result.</p>
 
 <nav class="toc"><b>Entries</b><ol>
+ <li><a href="#e-2026-10-19-input-tokens">2026-10-19 · Why input tokens differ 9× between models: re-sent context, not reading</a></li>
  <li><a href="#e-2026-10-18-provider-timeouts">2026-10-18 · Provider timeouts: keep the official mean, disclose a no-timeout lift</a></li>
  <li><a href="#e-2026-10-17-openrouter-cost">2026-10-17 · The first OpenRouter row: cost at the pinned host's list price</a></li>
  <li><a href="#e-2026-10-16-behavior">2026-10-16 · Why the Claude rows trail: the roster left at the end, not empty phases</a></li>
@@ -115,6 +116,44 @@ svg{display:block}
  <li><a href="#e-2026-10-15-v2">2026-10-15 · score-v1 vs the proposed score-v2</a></li>
  <li><a href="#e-2026-10-14-ceiling">2026-10-14 · How much headroom is above <code>pick-trader</code>?</a></li>
 </ol></nav>
+
+<!-- ======================================================================= -->
+<article class="entry" id="e-2026-10-19-input-tokens">
+<header><div class="date">2026-10-19</div><h2>Why input tokens differ 9× between models: re-sent context, not reading</h2>
+<div class="tags"><span class="tag">results/agentic_v21/*.json</span><span class="tag decision">decision</span></div></header>
+
+<div class="key"><b>Tried:</b> explaining why <code>mimo-v2.6-pro</code> records 21.4M input tokens per game and <code>gpt-6-astra</code> 2.3M (9.3×) when their tool calls per game are 179 and 154 (1.2×). Every 2.1 row was compared on <code>episodes[].usage</code> (<code>input_tokens</code>, <code>cached_input_tokens</code>, <code>output_tokens</code>, <code>api_calls</code>, <code>harness.compactions</code>) and <code>episodes[].agentic.tool_calls</code>. <b>Showed:</b> each game is one harness session across all 20 phases. The model APIs behind these harnesses take the whole conversation on every request, so a session's input is the sum of its context size over all requests: it grows with how many requests a session makes and with everything that has piled up in it. The rows record only each game's totals, not what each request contained; the 92–99% cache-read share in every row is what a prefix re-sent request after request looks like. The OpenCode rows all have zero compactions. The five OpenCode rows' input per request tracks their output per game almost exactly (r = 0.998; each extra output token per game adds about 0.68 tokens to the average request), while their tool calls stay within 153–179. That fits a model's own replies and reasoning staying in the history and being re-sent on every later request. MiMo Pro writes 166k output tokens per game, Astra 7k. Within MiMo Pro's 32 games, input and output correlate at r = 0.81.</div>
+
+<table>
+<thead><tr><th>Model</th><th>Harness</th><th class="num">Input / game</th><th class="num">Output / game</th><th class="num">Tool calls / game</th><th class="num">Requests / game</th><th class="num">Input / request</th><th class="num">Cached</th></tr></thead>
+<tbody>
+<tr><td><code>gpt-6-astra</code></td><td>Codex 0.162.1</td><td class="num">2.3M</td><td class="num">7k</td><td class="num">154</td><td class="num">n/a</td><td class="num">n/a</td><td class="num">97%</td></tr>
+<tr><td><code>gpt-6.1-sol</code></td><td>Codex 0.162.1</td><td class="num">2.4M</td><td class="num">8k</td><td class="num">161</td><td class="num">n/a</td><td class="num">n/a</td><td class="num">96%</td></tr>
+<tr><td><code>gpt-6-luna</code></td><td>Codex 0.162.1</td><td class="num">10.6M</td><td class="num">23k</td><td class="num">147</td><td class="num">n/a</td><td class="num">n/a</td><td class="num">97%</td></tr>
+<tr><td><code>claude-sonnet-5-5</code></td><td>Claude 2.1.281</td><td class="num">6.1M</td><td class="num">17k</td><td class="num">107</td><td class="num">72</td><td class="num">85k</td><td class="num">98%</td></tr>
+<tr><td><code>claude-haiku-5-5</code></td><td>Claude 2.1.281</td><td class="num">8.0M</td><td class="num">73k</td><td class="num">137</td><td class="num">93</td><td class="num">87k</td><td class="num">97%</td></tr>
+<tr><td><code>claude-opus-5-5</code></td><td>Claude 2.1.281</td><td class="num">11.0M</td><td class="num">30k</td><td class="num">155</td><td class="num">111</td><td class="num">99k</td><td class="num">99%</td></tr>
+<tr><td><code>deepseek-v4-pro</code></td><td>OpenCode 2.0.27</td><td class="num">10.1M</td><td class="num">31k</td><td class="num">153</td><td class="num">94</td><td class="num">107k</td><td class="num">92%</td></tr>
+<tr><td><code>deepseek-v4.1-flash</code></td><td>OpenCode 2.0.27</td><td class="num">11.9M</td><td class="num">71k</td><td class="num">156</td><td class="num">91</td><td class="num">131k</td><td class="num">98%</td></tr>
+<tr><td><code>glm-5.3-flash</code></td><td>OpenCode 2.0.27</td><td class="num">16.9M</td><td class="num">89k</td><td class="num">179</td><td class="num">120</td><td class="num">141k</td><td class="num">99%</td></tr>
+<tr><td><code>mimo-v2.6-flash</code></td><td>OpenCode 2.0.27</td><td class="num">18.5M</td><td class="num">139k</td><td class="num">172</td><td class="num">103</td><td class="num">179k</td><td class="num">98%</td></tr>
+<tr><td><code>mimo-v2.6-pro</code></td><td>OpenCode 2.0.27</td><td class="num">21.4M</td><td class="num">166k</td><td class="num">179</td><td class="num">108</td><td class="num">197k</td><td class="num">98%</td></tr>
+</tbody></table>
+<div class="sub">Means over each row's 32 games. Requests = <code>usage.api_calls</code>; input per request = input ÷ requests. Cached = <code>cached_input_tokens</code> ÷ <code>input_tokens</code>.</div>
+
+<div class="grid2">
+ <div class="card"><h4>What the rows can't show</h4><ul>
+  <li>Codex reports completed turns, not model requests: <code>api_calls</code> is 1 per game. Astra's and Sol's context per request is unknown, and so is why Luna records 4.6× Astra's input on the same Codex build.</li>
+  <li>The rows keep one usage total per game, so "reasoning stays in the history" is inferred from the cross-model fit, not seen request by request.</li>
+ </ul></div>
+ <div class="card"><h4>Why it barely moves cost</h4><ul>
+  <li>92–99% of every row's input is cache reads. Per game at list prices (<code>api_equivalent_cost_usd</code>), MiMo Pro costs $0.39 with 21.4M input and Astra $3.32 with 2.3M.</li>
+  <li>The token chart mostly measures session length and how much a model writes, not how much game data it read.</li>
+ </ul></div>
+</div>
+
+<div class="decide"><b>Decided:</b> read the input-token axis as billed context (the whole session, re-sent on every request), not as data read. No change to the site for now: the Codex half is unexplained. Next step, in the driver files, not the contract: record per-request usage, or at least peak context per game, in each row, from OpenCode's session export (per message) and Codex's session rollouts (per turn). That would settle the Codex rows.</div>
+</article>
 
 <!-- ======================================================================= -->
 <article class="entry" id="e-2026-10-18-provider-timeouts">
