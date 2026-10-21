@@ -5,6 +5,10 @@
   </picture>
 </p>
 
+<p align="center">
+  <a href="https://gm-bench.pages.dev/"><b>Live leaderboard: gm-bench.pages.dev</b></a>
+</p>
+
 # GM-Bench
 
 GM-Bench is a small, deterministic sports general-manager benchmark inspired by
