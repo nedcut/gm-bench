@@ -44,8 +44,9 @@ test("the headline and standings count the 2.1 rows against 2.1's pick-trader, a
   );
   const names = await page.locator("#standings .standings tbody .name").allTextContents();
   // A model on two versions of one harness is named with the version, once per row.
+  // The free-endpoint MiniMax row is shown under its model's name (src/v2.ts modelRow).
   for (const row of rows) {
-    const model = row.model.split("/").at(-1)!;
+    const model = row.model === "opencode/minimax-m3.1-flash-free" ? "minimax-m3.1-flash" : row.model.split("/").at(-1)!;
     const twins = rows.filter((other) => other.model === row.model && other.harness.name === row.harness.name);
     expect(names).toContain(twins.length > 1 ? `${model} (${row.harness.version})` : model);
   }

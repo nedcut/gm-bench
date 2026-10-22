@@ -103,6 +103,9 @@ function ModelDetails({ row }: { row: ModelRow }) {
           </p>
         </div>
       </div>
+      {row.source.model === "opencode/minimax-m3.1-flash-free" && (
+        <p className="endpoint-notice">Used a free endpoint.</p>
+      )}
       <dl className="stats">
         <Stat label="Score" value={num(row.score)} note={`± ${num(row.sd)} across seeds`} />
         <Stat

@@ -18,9 +18,10 @@ decisions through a JSON-compatible API.
 
 The current benchmark is **GM-Bench 2.1** (released 2026-10-16): an agentic
 lane where a model plays one five-season game inside its own agent harness,
-scored under score-v2 on a 32-seed private panel. Eleven rows are published, each
+scored under score-v2 on a 32-seed private panel. Twelve rows are published, each
 compared only with the scripted `pick-trader` (249.6 under 2.1) on the same
-seeds. `gpt-6-astra` (+46.9, interval +36.5 to +57.4), `mimo-v2.6-pro`
+seeds. `gpt-6-astra` (+46.9, interval +36.5 to +57.4),
+`minimax-m3.1-flash-free` (+23.0, +11.4 to +33.5), `mimo-v2.6-pro`
 (+20.7, +8.2 to +32.5), `gpt-6.1-sol` (+19.1, +10.6 to +27.8) and
 `mimo-v2.6-flash` (+18.7, +6.4 to +30.9) beat it; `deepseek-v4-pro` (+1.9),
 `deepseek-v4.1-flash` (+1.2), `gpt-6-luna` (-7.6) and `glm-5.3-flash`
