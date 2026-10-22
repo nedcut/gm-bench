@@ -256,6 +256,18 @@ const ROW_CAVEATS: Record<string, string> = {
     "reports the same $12.36. One episode's tool-call count is a recount: OpenCode refused one call with " +
     "malformed JSON before running it, so it never reached GM-Bench; counted as 164 of 164. Played on " +
     "driver commit 1fb4597.",
+  "agentic-2.1:opencode-2.0.27:opencode/minimax-m3.1-flash-free":
+    "Exploratory, not pre-registered: added after the first paid round. Played on OpenCode Zen's free tier, " +
+    "which may log prompts and can change how it serves the model without notice. In 23 of 32 games at " +
+    "least one phase (27 of 640 in all) hit the 1200-second phase guard and was closed without the agent's " +
+    "decisions, often after only a few tool calls; the run cannot tell a slow free tier from long model " +
+    "turns. In 4 games the harness exited early and 14 phases were closed without the agent. The score is " +
+    "not adjusted for either: the row is the mean of all 32 games. On the 11 games with no phase-guard " +
+    "stop, the lift over pick-trader is +28.4 (95% interval +0.9 to +49.8), against +23.0 on all 32. The " +
+    "panel was resumed twice: after a machine restart (game 18, unfinished, replayed from the start) and " +
+    "after a free-tier usage limit (game 29 replayed). Nothing was billed; the cost shown is an estimate, " +
+    "the tokens at MiniMax's list rates ($0.15 input, $0.015 cached input, $0.60 output per million " +
+    "tokens), $33.08 for the panel. Played on driver commit 935d5f5.",
 };
 
 function v1Comparison(row: AgenticLaneRow): ModelRow["v1"] {
