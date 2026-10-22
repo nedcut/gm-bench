@@ -11,8 +11,8 @@ import {
   type ModelRow,
   type StandingsRow,
 } from "../v2";
+import { routes } from "../site";
 import Rink from "./Rink";
-import SeasonStrip from "./SeasonStrip";
 import { type WorkspaceView } from "./Workspace";
 
 function Bar({
@@ -64,7 +64,7 @@ function vsBar(row: ModelRow) {
 
 /* The headline counts the current contract's rows (2.1) against its own pick-trader. */
 export function StandingsIntro({ data }: { data: Leaderboard }) {
-  const { models, bar: pickTrader } = laneOf(data, "2.1");
+  const { models, bar: pickTrader, seeds } = laneOf(data, "2.1");
   const bar = pickTrader ?? 0;
   const clear = models.filter(clearsBar).length;
   const above = models.filter((row) => row.score > bar).length;
@@ -73,20 +73,37 @@ export function StandingsIntro({ data }: { data: Leaderboard }) {
     <section className="intro">
       <Rink />
       <div className="intro-copy">
-        <h1>Can an LLM run a hockey team?</h1>
+        <h1>Can an AI run a hockey team?</h1>
         <p className="intro-answer">
           {clear > 0
-            ? `${clear} of ${models.length} models beat${clear === 1 ? "s" : ""} pick-trader by more than the noise.`
+            ? `${clear} of ${models.length} AI models beat${clear === 1 ? "s" : ""} our scripted GM by more than luck can explain.`
             : above > 0
-              ? `Not clearly. ${above} of ${models.length} score above pick-trader, within the noise.`
-              : "Not yet. No model beats pick-trader."}
+              ? `Not clearly. ${above} of ${models.length} AI models score above our scripted GM, but within luck.`
+              : "Not yet. No AI model beats our scripted GM."}
         </p>
         <p>
-          Each agent runs a franchise for five seasons inside its own harness:
-          Claude Code, Codex, Cursor or OpenCode. pick-trader is a short
-          scripted GM.
+          We hand AI models the job of a hockey general manager: sign players, make trades, draft prospects. Then we see who
+          builds the better franchise.
+        </p>
+        <p className="intro-actions">
+          <a className="cta is-primary" href={routes.how}>How it works</a>
+          <a className="cta" href={routes.play}>Try it yourself</a>
         </p>
       </div>
+      <ol className="intro-steps" aria-label="The game in three steps">
+        <li>
+          <b>An AI gets a team</b>
+          One of 12 clubs in a made-up league, with a roster, a salary cap and rivals making their own moves.
+        </li>
+        <li>
+          <b>It makes 20 rounds of decisions</b>
+          Four a season for five seasons: free agency, waivers, the trade deadline and the draft.
+        </li>
+        <li>
+          <b>We score the franchise</b>
+          Wins and titles now, plus the team it leaves behind, against pick-trader, a simple scripted GM, on {seeds ?? "the same"} secret leagues.
+        </li>
+      </ol>
     </section>
   );
 }
@@ -271,16 +288,15 @@ export function StandingsSection({ view }: { view: WorkspaceView }) {
       <div className="view-head">
         <h2 id="standings-title">{archived ? `GM-Bench ${lane.contract} standings` : "Standings"}</h2>
         <span>
-          {lane.seeds ?? "—"} private seeds · bars show 95%
-          intervals · red line: pick-trader
+          Average score over {lane.seeds ?? "—"} private leagues. Red line: pick-trader, the scripted GM to beat.
+          Whiskers: 95% range.
         </span>
       </div>
       <StandingsTable rows={standingsRows(shown, bots, filters.showBots)} bar={lane.bar ?? 0} selected={selected} select={select} />
       <p className="view-note">
-        Each row is compared only with pick-trader on the same seeds, never with
-        another row.
+        Each row is compared only with pick-trader on the same leagues, never with another row.{" "}
+        <a href={routes.method}>How a game is scored</a>
       </p>
-      {!archived && <SeasonStrip />}
     </section>
   );
 }
