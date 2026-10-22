@@ -32,7 +32,7 @@ lift on the 25 games with no such stop (+21.8 and +21.2). The flash panel
 was stopped once by the operator and resumed (game 11 replayed); then
 `minimax-m3.1-flash-free` +23.0 (+11.4 to +33.5, exploratory, 2026-10-22)
 on OpenCode Zen's free tier, so nothing was billed: $33.08 at MiniMax's
-list rates is an estimate. In 23 of 32 games the phase guard closed at
+list rates is an estimate. In 21 of 32 games the phase guard closed at
 least one phase without the agent (27 of 640 phases), and in 4 games 14
 phases were closed after the harness exited; the row keeps the 32-game
 mean and discloses the lift on the 11 games with no phase-guard stop

@@ -258,7 +258,7 @@ const ROW_CAVEATS: Record<string, string> = {
     "driver commit 1fb4597.",
   "agentic-2.1:opencode-2.0.27:opencode/minimax-m3.1-flash-free":
     "Exploratory, not pre-registered: added after the first paid round. Played on OpenCode Zen's free tier, " +
-    "which may log prompts and can change how it serves the model without notice. In 23 of 32 games at " +
+    "which may log prompts and can change how it serves the model without notice. In 21 of 32 games at " +
     "least one phase (27 of 640 in all) hit the 1200-second phase guard and was closed without the agent's " +
     "decisions, often after only a few tool calls; the run cannot tell a slow free tier from long model " +
     "turns. In 4 games the harness exited early and 14 phases were closed without the agent. The score is " +
@@ -283,6 +283,9 @@ function v1Comparison(row: AgenticLaneRow): ModelRow["v1"] {
 }
 
 function modelRow(row: AgenticLaneRow): ModelRow {
+  const model = row.model === "opencode/minimax-m3.1-flash-free"
+    ? "minimax-m3.1-flash"
+    : row.model.split("/").at(-1) ?? row.model;
   const t = row.telemetry;
   const r = row.reference;
   const liftCi = r.paired_lift_ci95?.length === 2 ? ([r.paired_lift_ci95[0], r.paired_lift_ci95[1]] as [number, number]) : null;
@@ -291,8 +294,8 @@ function modelRow(row: AgenticLaneRow): ModelRow {
   return {
     kind: "model",
     id: row.id,
-    label: row.model.split("/").at(-1) ?? row.model,
-    model: row.model.split("/").at(-1) ?? row.model,
+    label: model,
+    model,
     harness: HARNESSES[row.harness.name] ?? row.harness.name,
     harnessKey: row.harness.name,
     harnessVersion: row.harness.version + (row.harness.variant ? ` (${row.harness.variant})` : ""),
