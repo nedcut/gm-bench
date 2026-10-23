@@ -29,7 +29,15 @@ and $12.36 at Xiaomi's list rates. The host was slow, so in 7 of 32 games
 of each panel the 1200-second phase guard closed at least one phase
 without the agent; the rows keep the full 32-game mean and disclose the
 lift on the 25 games with no such stop (+21.8 and +21.2). The flash panel
-was stopped once by the operator and resumed (game 11 replayed). The site shows 2.1: its
+was stopped once by the operator and resumed (game 11 replayed); then
+`minimax-m3.1-flash-free` +23.0 (+11.4 to +33.5, exploratory, 2026-10-22)
+on OpenCode Zen's free tier, so nothing was billed: $33.08 at MiniMax's
+list rates is an estimate. In 21 of 32 games the phase guard closed at
+least one phase without the agent (27 of 640 phases), and in 4 games 14
+phases were closed after the harness exited; the row keeps the 32-game
+mean and discloses the lift on the 11 games with no phase-guard stop
+(+28.4, +0.9 to +49.8). The panel was resumed twice (games 18 and 29
+replayed). The site shows 2.1: its
 standings, headline, score-vs-cost and tool-use sections use the 2.1 rows,
 each against 2.1's `pick-trader`. The 2.0 board (score-v2) moved to a
 2.0 archive page linked from the footer beside the 1.0 archive; scores are
