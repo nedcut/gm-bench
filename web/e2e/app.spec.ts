@@ -33,13 +33,13 @@ async function noErrors(page: Page) {
 test("the headline and standings count the 2.1 rows against 2.1's pick-trader, and nothing from 2.0 or 1.0", async ({ page }) => {
   const errors = await noErrors(page);
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Can an LLM run a hockey team?");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Can an AI run a hockey team?");
   await expect(page.locator(".intro-answer")).toHaveText(
     verdict(
       rows,
-      `N of ${rows.length} models beat${rows.filter(clears).length === 1 ? "s" : ""} pick-trader by more than the noise.`,
-      `Not clearly. N of ${rows.length} score above pick-trader, within the noise.`,
-      "Not yet. No model beats pick-trader.",
+      `N of ${rows.length} AI models beat${rows.filter(clears).length === 1 ? "s" : ""} our scripted GM by more than luck can explain.`,
+      `Not clearly. N of ${rows.length} AI models score above our scripted GM, but within luck.`,
+      "Not yet. No AI model beats our scripted GM.",
     ),
   );
   const names = await page.locator("#standings .standings tbody .name").allTextContents();
@@ -130,21 +130,29 @@ test("score vs cost plots measured rows and names the unmeasured ones", async ({
   for (const r of unmeasured) await expect(page.getByText(new RegExp(`cost unmeasured: .*${r.model}`))).toBeVisible();
 });
 
-test("how it works steps through one pick-trader season with its tool calls", async ({ page }) => {
+test("how it works explains the job, then steps through one pick-trader season with its tool calls", async ({ page }) => {
   const errors = await noErrors(page);
   await page.goto("/how-it-works/");
   await expect(page.locator(".tabs a[aria-current=page]")).toHaveText("How it works");
+  for (const title of ["The job", "How it’s scored", "The GM to beat", "Watch one season", "Under the hood"]) {
+    await expect(page.getByRole("heading", { level: 2, name: title })).toBeVisible();
+  }
+  await expect(page.locator(".how-schedule tbody tr")).toHaveCount(5);
+  await expect(page.locator(".how-brief")).toBeHidden();
+  await page.getByText("The brief a model reads first, word for word").click();
   await expect(page.locator(".how-brief")).toContainText("You are the general manager of");
-  await page.getByRole("button", { name: "Preseason →" }).click();
-  await expect(page).toHaveURL(/#preseason$/);
-  await expect(page.locator(".how-step h2")).toHaveText("Season 1 · Preseason");
+  await expect(page.locator(".how-step-title")).toHaveText("Season 1 · Preseason");
   await expect(page.locator(".how-moves")).toContainText("Extended Gabe Reed");
   await page.getByText(/tool calls a model would make/).click();
-  await expect(page.locator(".how-raw code")).toContainText('extend_contract({"player_id":8');
-  await page.getByRole("button", { name: /Trade deadline/ }).first().click();
+  await expect(page.locator(".how-step pre code")).toContainText('extend_contract({"player_id":8');
+  await page.getByRole("button", { name: "Watch season 1, Trade deadline" }).click();
+  await expect(page).toHaveURL(/#trade-deadline$/);
+  await expect(page.locator(".how-step-title")).toHaveText("Season 1 · Trade deadline");
   await expect(page.locator(".how-moves")).toContainText("to Boston Harbors for their season-2 draft pick");
+  await page.getByRole("button", { name: "Draft →" }).click();
+  await expect(page).toHaveURL(/#draft$/);
   await page.goto("/how-it-works/#recap");
-  await expect(page.locator(".how-step h2")).toHaveText("The rest of the game");
+  await expect(page.locator(".how-step-title")).toHaveText("The rest of the game");
   await expect(page.locator(".how-final")).toContainText("198.");
   expect(errors).toEqual([]);
 });

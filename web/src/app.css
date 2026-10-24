@@ -1110,10 +1110,6 @@ main:focus {
   outline: none;
 }
 
-.how-step > h2 {
-  margin: 28px 0 4px;
-  font-size: 24px;
-}
 
 .how-block {
   margin-top: 22px;
@@ -1123,7 +1119,7 @@ main:focus {
   background: var(--surface);
 }
 
-.how-block h3 {
+.how-block h4 {
   margin: 0 0 10px;
   font-stretch: 85%;
   font-size: 14px;
@@ -1159,7 +1155,7 @@ main:focus {
 }
 
 .how-situation dt {
-  color: var(--text-3);
+  color: var(--text-2);
   font-size: 11.5px;
 }
 
@@ -1914,7 +1910,6 @@ main:focus {
 
 .view-head h1,
 .view-head h2,
-.season-strip h2,
 .metric h2 {
   font-stretch: 80%;
   font-weight: 800;
@@ -2011,51 +2006,121 @@ main:focus {
   font-size: 15px;
 }
 
-.season-strip {
-  margin-top: 36px;
-}
-
-.season-strip h2 {
-  margin: 0 0 12px;
-  font-size: 14px;
-}
-
-.season-strip ol {
+/* The landing hero: the question and answer on the left, the game in three
+   steps on the right, the standings starting right under it. */
+.intro {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1.25fr) minmax(280px, 1fr);
+  align-items: center;
+  gap: 28px clamp(32px, 5vw, 80px);
+}
+
+.intro p.intro-actions {
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+  margin-top: 20px;
 }
 
-.season-strip li {
-  padding: 10px 12px 11px;
-  border-top: 3px solid var(--rink-blue);
+.cta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 18px;
+  border: 1.5px solid var(--text);
+  border-radius: 999px;
   background: var(--surface);
+  color: var(--text);
+  font-stretch: 90%;
+  font-weight: 800;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.cta:hover {
+  background: var(--raised);
+}
+
+.cta.is-primary {
+  border-color: var(--bar);
+  background: var(--bar);
+  color: var(--bg);
+}
+
+.cta.is-primary:hover {
+  background: color-mix(in srgb, var(--bar) 85%, var(--text));
+}
+
+.intro-steps {
+  position: relative;
+  margin: 0;
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  backdrop-filter: blur(6px);
+  list-style: none;
+  counter-reset: step;
+}
+
+.intro-steps li {
+  position: relative;
+  padding: 0 0 16px 44px;
   color: var(--text-2);
-  font-size: 13px;
+  font-size: 14px;
+  counter-increment: step;
 }
 
-.season-strip li.is-red {
-  border-top-color: var(--bar);
+.intro-steps li:last-child {
+  padding-bottom: 0;
 }
 
-.season-strip li span {
+/* Each step is a faceoff dot; the line between them is the blue line. */
+.intro-steps li::before {
+  content: counter(step);
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--bar);
+  color: var(--bg);
+  font-stretch: 80%;
+  font-weight: 900;
+  font-size: 15px;
+}
+
+.intro-steps li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 32px;
+  bottom: 4px;
+  left: 13px;
+  width: 2px;
+  background: color-mix(in srgb, var(--rink-blue) 45%, transparent);
+}
+
+.intro-steps b {
   display: block;
+  margin-bottom: 2px;
   color: var(--text);
   font-stretch: 85%;
   font-weight: 800;
-  font-size: 15px;
+  font-size: 16px;
+}
+
+@media (max-width: 900px) {
+  .intro {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 640px) {
   .intro {
     padding: 28px 14px 26px;
-  }
-
-  .season-strip ol {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .wordmark {
@@ -2123,3 +2188,213 @@ main:focus {
 .chart-key button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 0; background: none; border: 0; text-align: left; cursor: pointer; }
 .chart-key button[aria-pressed="true"] { background: var(--raised); }
 .axis-picker { flex-wrap: wrap; }
+
+/* ---------- How it works: a story first, the walkthrough and internals after ---------- */
+
+.how-hero .lede {
+  max-width: 62ch;
+  margin-top: 14px;
+  color: var(--text);
+  font-size: clamp(16px, 1.6vw, 19px);
+  line-height: 1.5;
+}
+
+.how-section {
+  margin-top: 56px;
+}
+
+.page .how-section > h2 {
+  margin: 0 0 14px;
+  padding-top: 14px;
+  border-top: 3px solid var(--rink-blue);
+  font-stretch: 72%;
+  font-weight: 900;
+  font-size: clamp(24px, 2.6vw, 32px);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.page .how-section > p:not(.how-hint) {
+  color: var(--text);
+  font-size: 15.5px;
+}
+
+.how-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  margin: 18px 0 28px;
+}
+
+.how-facts b,
+.how-score b {
+  display: block;
+  font-stretch: 85%;
+  font-weight: 800;
+  font-size: 17px;
+}
+
+.page .how-facts p {
+  margin: 4px 0 0;
+  font-size: 14.5px;
+}
+
+/* The schedule reads like a rink-side board: seasons down, windows across. */
+.how-schedule {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 6px;
+  margin: 0 -6px;
+  table-layout: fixed;
+}
+
+.how-schedule thead th {
+  padding: 0 4px 6px;
+  border-bottom: 3px solid var(--rink-blue);
+  text-align: left;
+  vertical-align: bottom;
+  font-weight: 400;
+}
+
+.how-schedule thead th:nth-child(4) {
+  border-bottom-color: var(--bar);
+}
+
+.how-schedule thead b {
+  display: block;
+  font-stretch: 85%;
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.how-schedule thead span {
+  display: block;
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+
+.how-schedule td:first-child,
+.how-schedule tbody th {
+  width: 84px;
+}
+
+.how-schedule tbody th {
+  padding-right: 6px;
+  color: var(--text-2);
+  text-align: left;
+  font-stretch: 85%;
+  font-weight: 700;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.how-slot {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 20px;
+  border: 1px dashed var(--line-2);
+  border-radius: 6px;
+}
+
+button.how-slot {
+  height: 36px;
+  border: 1px solid var(--bar);
+  background: var(--bar-soft);
+  color: color-mix(in srgb, var(--bar) 75%, var(--text));
+  font-stretch: 85%;
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+button.how-slot:hover {
+  background: var(--bar);
+  color: var(--bg);
+}
+
+.how-schedule tr.is-open th {
+  color: var(--text);
+}
+
+.how-score {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 16px;
+  margin: 18px 0 12px;
+}
+
+.how-score > div {
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--bar);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.how-score > div + span + div {
+  border-top-color: var(--rink-blue);
+}
+
+.how-score ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.how-score-plus {
+  align-self: center;
+  color: var(--text-3);
+  font-weight: 900;
+  font-size: 28px;
+}
+
+.how-step-title {
+  margin: 22px 0 6px;
+  font-stretch: 85%;
+  font-weight: 800;
+  font-size: 20px;
+}
+
+.how-next .intro-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  max-width: none;
+}
+
+@media (max-width: 720px) {
+  .how-facts,
+  .how-score {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .how-score-plus {
+    justify-self: center;
+    line-height: 1;
+  }
+
+  .how-schedule thead span {
+    display: none;
+  }
+
+  .how-schedule {
+    border-spacing: 4px;
+    margin: 0 -4px;
+  }
+
+  .how-schedule thead th {
+    padding: 0 1px 4px;
+  }
+
+  .how-schedule thead b {
+    font-size: 12.5px;
+    line-height: 1.15;
+  }
+
+  .how-schedule td:first-child,
+  .how-schedule tbody th {
+    width: 58px;
+  }
+}

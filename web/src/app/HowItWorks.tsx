@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { Leaderboard } from "../types";
-import { routes } from "../site";
-import { num, pickTraderScoreV1 } from "../v2";
+import { REPO, REPO_BLOB, routes } from "../site";
+import { laneOf, num, pickTraderScoreV1 } from "../v2";
 import walkthroughData from "../data/walkthrough.json";
 import RinkSidebar from "./RinkSidebar";
 
@@ -103,8 +103,8 @@ const DELTA_LABEL: Record<string, string> = {
   roster_depth_contribution: "Roster depth",
 };
 
-const STEP_IDS = ["brief", "preseason", "midseason", "trade-deadline", "draft", "recap"] as const;
-const STEP_TITLES = ["The brief", "Preseason", "Midseason", "Trade deadline", "Draft", "The rest of the game"];
+const STEP_IDS = ["preseason", "midseason", "trade-deadline", "draft", "recap"] as const;
+const STEP_TITLES = ["Preseason", "Midseason", "Trade deadline", "Draft", "The rest of the game"];
 
 const ordinal = (n: number) => `${n}${n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd" : n % 10 === 3 && n !== 13 ? "rd" : "th"}`;
 const signed = (value: number) => `${value > 0 ? "+" : value < 0 ? "−" : ""}${num(Math.abs(value), 1)}`;
@@ -370,26 +370,18 @@ function PhaseStep({ step }: { step: Step }) {
   return (
     <>
       <section className="how-block">
-        <h3>What the GM is told</h3>
+        <h4>What the GM is told</h4>
         <p className="how-note">
           <span className="muted">From the brief:</span> {step.note}.
         </p>
         <Situation step={step} />
       </section>
       <section className="how-block">
-        <h3>What’s on the table</h3>
+        <h4>What’s on the table</h4>
         <OnTheTable step={step} />
       </section>
       <section className="how-block">
-        <h3>Tools open this phase</h3>
-        <p className="how-hint">
-          Highlighted: the ones pick-trader’s moves map to. Faded: open in another phase only. A model also calls read tools like{" "}
-          <code>get_status</code> and <code>get_team</code>; pick-trader reads the same state directly.
-        </p>
-        <Tools step={step} />
-      </section>
-      <section className="how-block">
-        <h3>What pick-trader did</h3>
+        <h4>What pick-trader did</h4>
         <ol className="how-moves">
           {step.queries.map((query, i) => {
             const scouted = step.scouted.find((s) => s.id === query.arguments.player_id);
@@ -413,6 +405,14 @@ function PhaseStep({ step }: { step: Step }) {
         </ol>
         <p className="how-why">{WHY[step.phase](step)}</p>
         <details className="how-raw">
+          <summary>The tools a model has open in this phase</summary>
+          <p className="how-hint">
+            Highlighted: the ones pick-trader’s moves map to. Faded: open in another phase only. A model also calls read tools like{" "}
+            <code>get_status</code> and <code>get_team</code>; pick-trader reads the same state directly.
+          </p>
+          <Tools step={step} />
+        </details>
+        <details className="how-raw">
           <summary>The {calls.length + 1} tool calls a model would make for these moves</summary>
           <pre className="code-block">
             <code>
@@ -425,7 +425,7 @@ function PhaseStep({ step }: { step: Step }) {
         </details>
       </section>
       <section className="how-block">
-        <h3>How the score moved</h3>
+        <h4>How the score moved</h4>
         <p className="how-hint">
           The asset terms of the score, measured as if the game ended right after this phase. Wins and playoff rounds count as the games are
           played.
@@ -436,33 +436,72 @@ function PhaseStep({ step }: { step: Step }) {
   );
 }
 
-function BriefStep() {
+const PHASES: [Step["phase"], string][] = [
+  ["preseason", "Sign free agents, re-sign players, set the lineup"],
+  ["midseason", "Cover injuries from the waiver wire"],
+  ["trade_deadline", "Take, turn down or make trade offers"],
+  ["draft", "Scout prospects and make a pick"],
+];
+
+/* The whole game as a schedule: five seasons of the same four decision windows.
+   Season 1 is the walkthrough below, so its windows open their step. */
+function Schedule({ open }: { open: (index: number) => void }) {
+  return (
+    <table className="how-schedule">
+      <caption className="sr-only">The 20 decision windows of a game: four a season for five seasons</caption>
+      <thead>
+        <tr>
+          <td />
+          {PHASES.map(([phase, what]) => (
+            <th scope="col" key={phase}>
+              <b>{PHASE_LABEL[phase]}</b>
+              <span>{what}</span>
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {[1, 2, 3, 4, 5].map((season) => (
+          <tr key={season} className={season === 1 ? "is-open" : undefined}>
+            <th scope="row">Season {season}</th>
+            {PHASES.map(([phase], i) => (
+              <td key={phase}>
+                {season === 1 ? (
+                  <button type="button" className="how-slot" onClick={() => open(i)}>
+                    Watch<span className="sr-only"> season 1, {PHASE_LABEL[phase]}</span>
+                  </button>
+                ) : (
+                  <span className="how-slot" />
+                )}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function UnderTheHood() {
   const tools = walkthrough.tools;
   return (
-    <>
-      <section className="how-block">
-        <h3>The setup</h3>
-        <p>
-          A model is put in charge of the {walkthrough.team.name}, one of {walkthrough.team.teams} teams in a fictional hockey league, for five
-          seasons. It plays inside its own agent harness (Claude Code, Codex, Cursor or OpenCode) and touches the league only through{" "}
-          {tools.length} tools on an MCP server. Each season has four decisions. In each one the model reads what it needs, makes moves, then
-          calls <code>end_phase</code>; that is the only way time moves.
-        </p>
-        <p>
-          This walkthrough follows one real season. The GM here is pick-trader, the scripted bot every model is measured against, playing
-          public seed {walkthrough.source.seed}. It sees the same league a model does and makes the same moves, so it shows what a good
-          season of decisions looks like.
-        </p>
-      </section>
-      <section className="how-block">
-        <h3>The brief, word for word</h3>
-        <p className="how-hint">The first thing a model reads. It has the rules and the scoring, but no rosters or prices: those are behind tools.</p>
+    <section className="how-section" id="under-the-hood" aria-labelledby="hood-title">
+      <h2 id="hood-title">Under the hood</h2>
+      <p>
+        For the technical reader. Each model runs inside its own agent harness (Claude Code, Codex, Cursor or OpenCode), one session per
+        five-season game, and touches the league only through {tools.length} tools on an MCP server. It reads what it needs, makes moves,
+        then calls <code>end_phase</code>; that is the only way time moves. Every league is generated from a seed, so the same seed and the
+        same moves always play out the same way.
+      </p>
+      <details className="how-raw">
+        <summary>The brief a model reads first, word for word</summary>
+        <p className="how-hint">It has the rules and the scoring, but no rosters or prices: those are behind tools.</p>
         <pre className="code-block how-brief" tabIndex={0} aria-label="The task brief">
           <code>{walkthrough.brief}</code>
         </pre>
-      </section>
-      <section className="how-block">
-        <h3>The tools</h3>
+      </details>
+      <details className="how-raw">
+        <summary>All {tools.length} tools</summary>
         <ul className="how-tool-list">
           {tools.map((tool) => (
             <li key={tool.name}>
@@ -474,8 +513,13 @@ function BriefStep() {
             </li>
           ))}
         </ul>
-      </section>
-    </>
+      </details>
+      <p className="how-links">
+        <a className="text-link" href={routes.method}>Full method and scoring weights</a>
+        <a className="text-link" href={`${REPO_BLOB}docs/bench_v2_1_spec.md#running-and-checking`}>Reproduce a run</a>
+        <a className="text-link" href={REPO}>Source on GitHub</a>
+      </p>
+    </section>
   );
 }
 
@@ -485,7 +529,7 @@ function RecapStep({ data }: { data: Leaderboard }) {
   return (
     <>
       <section className="how-block">
-        <h3>Then it does it again, four more times</h3>
+        <h4>Then it does it again, four more times</h4>
         <p>
           The same four decisions repeat each season, against rivals who keep making their own moves. On this seed, pick-trader’s running score
           after each season:
@@ -522,51 +566,51 @@ function RecapStep({ data }: { data: Leaderboard }) {
         <p className="how-hint">Under 2.0, the rules this game was played with, the record counts all games so far, so it grows across the seasons. 2.1 resets it each season.</p>
       </section>
       <section className="how-block">
-        <h3>What a model has to beat</h3>
+        <h4>What a model has to beat</h4>
         <p>
           A model plays the same game on a set of private seeds, and its score is compared with pick-trader’s on those same seeds. The{" "}
           {num(walkthrough.final_score)} above is one public seed; pick-trader’s average on the private seeds is {bar === null ? "—" : num(bar)}.
           Both are under GM-Bench 2.0 and score-v1, the rules this walkthrough was recorded with; the standings now use GM-Bench 2.1 and score-v2. See
           the full scoring in <a href={routes.method}>Method</a>.
         </p>
-        <p className="how-links">
-          <a className="text-link" href={routes.standings}>
-            See how the models did
-          </a>
-          <a className="text-link" href={routes.replays}>
-            Step through real model games
-          </a>
-        </p>
       </section>
     </>
   );
 }
 
-function readHash(): number {
-  if (typeof window === "undefined") return 0;
+function readHash(): number | null {
+  if (typeof window === "undefined") return null;
   const index = STEP_IDS.indexOf(window.location.hash.slice(1) as (typeof STEP_IDS)[number]);
-  return index < 0 ? 0 : index;
+  return index < 0 ? null : index;
 }
 
 export default function HowItWorks({ data }: { data: Leaderboard }) {
-  const [index, setIndex] = useState(readHash);
+  const [index, setIndex] = useState(() => readHash() ?? 0);
   const last = STEP_IDS.length - 1;
+  const { seeds } = laneOf(data, "2.1");
 
   useEffect(() => {
-    const sync = () => setIndex(readHash());
+    const sync = () => {
+      const next = readHash();
+      if (next === null) return;
+      setIndex(next);
+      document.getElementById("season")?.scrollIntoView();
+    };
+    if (readHash() !== null) document.getElementById("season")?.scrollIntoView();
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
   }, []);
 
-  const go = (next: number) => {
+  const go = (next: number, scroll = false) => {
     const clamped = Math.max(0, Math.min(last, next));
     setIndex(clamped);
     window.history.replaceState(null, "", `#${STEP_IDS[clamped]}`);
     document.getElementById("how-step")?.focus({ preventScroll: true });
-    document.querySelector(".how-steps")?.scrollIntoView({ block: "nearest" });
+    if (scroll) document.getElementById("season")?.scrollIntoView({ behavior: "smooth" });
+    else document.querySelector(".how-steps")?.scrollIntoView({ block: "nearest" });
   };
 
-  const step = index >= 1 && index <= 4 ? walkthrough.steps[index - 1] : null;
+  const step = index <= 3 ? walkthrough.steps[index] : null;
   const nav = (
     <div className="how-nav">
       <button type="button" className="how-button" onClick={() => go(index - 1)} disabled={index === 0}>
@@ -584,35 +628,119 @@ export default function HowItWorks({ data }: { data: Leaderboard }) {
   return (
     <div className="rink-layout">
       <article className="page how">
-        <h1>How it works</h1>
-        <p className="lede">
-          One real season, decision by decision: the brief a model reads, the tools it gets, and what pick-trader did with them.
-        </p>
-        <ol className="how-steps" aria-label="Walkthrough steps">
-          {STEP_TITLES.map((title, i) => (
-            <li key={title}>
-              <button type="button" aria-current={i === index ? "step" : undefined} className={i < index ? "is-done" : undefined} onClick={() => go(i)}>
-                <span>{i === 0 ? "0" : i === last ? "★" : i}</span>
-                {title}
-              </button>
-            </li>
-          ))}
-        </ol>
-        <div id="how-step" className="how-step" tabIndex={-1} aria-live="polite">
-          <h2>
-            {step ? (
-              <>
-                <span className="muted">Season 1 ·</span> {PHASE_LABEL[step.phase]}
-              </>
-            ) : (
-              STEP_TITLES[index]
-            )}
-          </h2>
-          {index === 0 && <BriefStep />}
-          {step && <PhaseStep step={step} />}
-          {index === last && <RecapStep data={data} />}
-        </div>
-        {nav}
+        <header className="how-hero">
+          <h1>How it works</h1>
+          <p className="lede">
+            A hockey general manager doesn’t coach the games. They build the team: who to sign, who to trade, who to draft, and how to fit
+            it all under a salary cap. GM-Bench hands that job to an AI and scores the team it builds.
+          </p>
+        </header>
+
+        <section className="how-section" aria-labelledby="job-title">
+          <h2 id="job-title">The job</h2>
+          <div className="how-facts">
+            <div>
+              <b>One team</b>
+              <p>
+                The AI runs the {walkthrough.team.name}, one of {walkthrough.team.teams} teams in a made-up league. Every player has a rating,
+                an age, a salary and a contract. Eleven rival front offices make their own moves.
+              </p>
+            </div>
+            <div>
+              <b>Five seasons</b>
+              <p>The simulator plays every game. The AI only makes front-office calls, in four windows a season: 20 rounds of decisions.</p>
+            </div>
+            <div>
+              <b>Real GM moves</b>
+              <p>Sign free agents, re-sign its own players, trade, claim players off waivers, scout and draft prospects, and pick the lineup.</p>
+            </div>
+          </div>
+          <Schedule open={(i) => go(i, true)} />
+        </section>
+
+        <section className="how-section" aria-labelledby="score-title">
+          <h2 id="score-title">How it’s scored</h2>
+          <p>The score rewards a team that wins now without wrecking its future. Selling everything for one title run doesn’t pay.</p>
+          <div className="how-score">
+            <div>
+              <b>Winning now</b>
+              <ul>
+                <li>Regular-season wins, every season</li>
+                <li>Playoff runs</li>
+                <li>Championships, worth the most</li>
+              </ul>
+            </div>
+            <span className="how-score-plus" aria-hidden="true">+</span>
+            <div>
+              <b>The team it leaves behind</b>
+              <ul>
+                <li>The value of the roster after season five</li>
+                <li>Young players still improving</li>
+                <li>Future draft picks and cap room</li>
+              </ul>
+            </div>
+          </div>
+          <p className="how-hint">
+            Moves the rules reject cost a few points. Playoff runs are scored by their odds, not by one lucky bounce.{" "}
+            <a href={routes.method}>The exact weights</a>.
+          </p>
+        </section>
+
+        <section className="how-section" aria-labelledby="bar-title">
+          <h2 id="bar-title">The GM to beat</h2>
+          <p>
+            Every AI is measured against <b>pick-trader</b>, a scripted GM written as a short list of rules: re-sign young players worth
+            keeping, sign the best-value free agents it can afford, sell aging veterans for draft picks at the deadline, and draft the best
+            prospect. No reasoning, just discipline.
+          </p>
+          <p>
+            Each AI and pick-trader play the same {seeds ?? ""} private leagues, which no model has seen. An AI only counts as beating
+            pick-trader when its lead across those leagues is bigger than luck explains.
+          </p>
+        </section>
+
+        <section className="how-section" id="season" aria-labelledby="season-title">
+          <h2 id="season-title">Watch one season</h2>
+          <p>
+            Season 1 of a real game, played by pick-trader on public league #{walkthrough.source.seed}. Each step shows what was on the
+            table, what it did, and how the score moved. A model sees the same information and can make the same moves.
+          </p>
+          <ol className="how-steps" aria-label="Walkthrough steps">
+            {STEP_TITLES.map((title, i) => (
+              <li key={title}>
+                <button type="button" aria-current={i === index ? "step" : undefined} className={i < index ? "is-done" : undefined} onClick={() => go(i)}>
+                  <span>{i === last ? "★" : i + 1}</span>
+                  {title}
+                </button>
+              </li>
+            ))}
+          </ol>
+          <div id="how-step" className="how-step" tabIndex={-1} aria-live="polite">
+            <h3 className="how-step-title">
+              {step ? (
+                <>
+                  <span className="muted">Season 1 ·</span> {PHASE_LABEL[step.phase]}
+                </>
+              ) : (
+                STEP_TITLES[index]
+              )}
+            </h3>
+            {step && <PhaseStep step={step} />}
+            {index === last && <RecapStep data={data} />}
+          </div>
+          {nav}
+        </section>
+
+        <section className="how-section how-next" aria-labelledby="next-title">
+          <h2 id="next-title">Now see how the AIs did</h2>
+          <p className="intro-actions">
+            <a className="cta is-primary" href={routes.standings}>See the standings</a>
+            <a className="cta" href={routes.play}>Play it yourself</a>
+            <a className="cta" href={routes.replays}>Watch real AI games</a>
+          </p>
+        </section>
+
+        <UnderTheHood />
       </article>
       <RinkSidebar />
     </div>
