@@ -6,7 +6,7 @@ const endpoint = "**/replay/trajectory-demo.json";
 
 test("opens on an agent run beside pick-trader, with its recorded tool calls", async ({ page }) => {
   const errors: string[] = []; page.on("pageerror", e => errors.push(e.message));
-  await page.goto("/replays/");
+  await page.goto("/replays/?example=public-replay");
   await expect(page.locator(".tx-left h3")).toHaveText("Claude Code · sonnet-5");
   await expect(page.locator(".tx-right h3")).toHaveText("Pick-trader");
   await expect(page.locator(".tx-left .tx-policy-tag")).toContainText("agent run · claude 2.1.281");
@@ -60,7 +60,7 @@ test("all windows, reversed navigation, views, swapping and browser history", as
 
 test("keyboard, mobile and light/dark accessibility", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/replays/");
+  await page.goto("/replays/?example=public-replay");
   const next = page.getByRole("button", { name: "Next decision", exact: true });
   await next.focus(); await page.keyboard.press("Enter");
   await expect(page.getByText("Window 2 of 20", { exact: true })).toBeVisible();
@@ -81,7 +81,7 @@ test("loading, HTTP error, retry and malformed export", async ({ page }) => {
   let resolve: () => void = () => {};
   const gate = new Promise<void>(r => { resolve = r; });
   await page.route(endpoint, async route => { await gate; await route.fulfill({ status: 503, body: "unavailable" }); });
-  await page.goto("/replays/");
+  await page.goto("/replays/?example=public-replay");
   await expect(page.getByRole("heading", { name: "Opening the front-office ledger…" })).toBeVisible();
   resolve();
   await expect(page.getByRole("alert")).toContainText("HTTP 503");

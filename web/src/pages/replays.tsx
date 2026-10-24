@@ -10,15 +10,19 @@ mountPage(
   "replays",
   <div className="rink-layout">
     <div className="replays-content">
-      <div className="view replays-head">
-        <div className="view-head">
-          <h1 id="replays-title">Replays</h1>
-          <span>Two GMs side by side on public seed 1, move by move, and gpt-6-astra's best-case episode.</span>
-        </div>
-      </div>
+      <header className="replays-head">
+        <h1 id="replays-title">Replays</h1>
+        <p className="lede">
+          Real games from the benchmark, one decision at a time. Make a few front-office calls yourself, then read how the best AI
+          game played out or compare an AI and the scripted GM move by move.
+        </p>
+      </header>
       <div className="legacy">
-        <ReplayExamples />
         <PlayAlong set={puzzleData as PuzzleSet} />
+        <section className="replays-games" aria-labelledby="games-title">
+          <h2 id="games-title" className="replays-section-title">Watch a real game</h2>
+          <ReplayExamples />
+        </section>
       </div>
     </div>
     <RinkSidebar />
