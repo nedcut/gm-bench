@@ -2234,7 +2234,7 @@ main:focus {
   text-transform: uppercase;
 }
 
-.page .how-section > p {
+.page .how-section > p:not(.how-hint) {
   color: var(--text);
   font-size: 15.5px;
 }
