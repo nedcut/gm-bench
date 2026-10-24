@@ -33,10 +33,10 @@ export default function PlayAlong({ set }: { set: PuzzleSet }) {
             Your call, GM.
           </h2>
           <p>
-            {deck.length} real decisions from recorded games. Each option is a move a scripted
-            policy made from that spot. Pick one to see what it did to the roster.
+            {deck.length} real spots from recorded games. Every option is a move one of our scripted
+            GMs actually made from there. Pick yours, then see how much it moved the score.
           </p>
-          <p><a className="text-link" href={routes.play}>Play a full game →</a></p>
+          <p><a className="text-link" href={routes.play}>Play a full five-season game</a></p>
           <div className="play-tally" aria-live="polite">
             <span className="play-tally-num">
               {best}

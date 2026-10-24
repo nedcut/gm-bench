@@ -104,7 +104,10 @@
 .tx-score-table td:nth-child(3) .tx-score-bar { background: var(--red-soft); border-color: var(--red); }
 .tx-score-table tfoot { border-top: 2px solid var(--ink); font-size: 22px; }
 .tx-score-table tfoot td, .tx-score-table tbody tr:last-child td { text-align: right; padding-right: 20px; font-variant-numeric: tabular-nums; }
-.tx-provenance { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; border-top: 1px solid var(--line-strong); padding-top: 32px; }
+.tx-provenance-toggle { border-top: 1px solid var(--line-strong); margin-top: 32px; }
+.tx-provenance-toggle > summary { cursor: pointer; padding: 18px 0; font-size: 14px; font-weight: 600; }
+.tx-provenance-toggle > summary:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+.tx-provenance { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; padding: 8px 0 24px; }
 .tx-provenance p { font-size: 13px; color: var(--steel); margin-top: 18px; }
 .tx-source-ledger { border-left: 1px solid var(--line); padding-left: 28px; min-width: 0; }
 .tx-source-ledger h3 { font-size: 16px; }

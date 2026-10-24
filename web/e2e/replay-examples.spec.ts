@@ -10,8 +10,8 @@ for (const width of [1440, 390]) {
     await page.goto("/replays/?left=conservative&right=pick-trader&window=3&view=roster");
     await expect(page.locator(".tx-left h3")).toHaveText("Conservative");
     await expect(page.getByText("Window 3 of 20", { exact: true })).toBeVisible();
-    const best = page.getByRole("button", { name: /Best-case agent episode/ });
-    const replay = page.getByRole("button", { name: /Public replay · Pick Trader/ });
+    const best = page.getByRole("button", { name: /The best AI game/ });
+    const replay = page.getByRole("button", { name: /AI vs pick-trader, side by side/ });
     for (let attempt = 0; attempt < 3; attempt++) {
       await best.click();
       await expect(page.getByRole("heading", { name: "gpt-6-astra", exact: true })).toBeVisible();
@@ -52,3 +52,15 @@ for (const width of [1440, 390]) {
     expect(errors).toEqual([]);
   });
 }
+
+test("replays open on the quiz and the best AI game; replay links still open the replay", async ({ page }) => {
+  await page.goto("/replays/");
+  await expect(page.getByRole("heading", { name: "Your call, GM." })).toBeVisible();
+  await expect(page.getByRole("button", { name: /The best AI game/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".best-run")).toContainText("best case, not a representative mean");
+  await expect(page.locator(".best-run-about")).not.toHaveAttribute("open", "");
+  await expect(page.locator(".tx-explorer")).toHaveCount(0);
+  await page.goto("/replays/?window=3");
+  await expect(page.getByRole("button", { name: /AI vs pick-trader/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("Window 3 of 20", { exact: true })).toBeVisible();
+});

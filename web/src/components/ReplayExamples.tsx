@@ -6,7 +6,14 @@ import TrajectoryExplorer from "./TrajectoryExplorer";
 import "../replay-examples.css";
 
 type Example = "public-replay" | "best-run";
-const readExample = (): Example => new URLSearchParams(window.location.search).get("example") === "best-run" ? "best-run" : "public-replay";
+/* The story opens by default; a replay link (any explorer parameter) opens the replay. */
+const REPLAY_PARAMS = ["left", "right", "window", "view"];
+function readExample(): Example {
+  const params = new URLSearchParams(window.location.search);
+  const example = params.get("example");
+  if (example === "best-run" || example === "public-replay") return example;
+  return REPLAY_PARAMS.some((key) => params.has(key)) ? "public-replay" : "best-run";
+}
 
 const highlights = [
   { title: "Rebuild before the first puck drops", story: "Two accepted preseason trades brought in Rafi Grant, Rafi Ivers and Hugo Anders for seven players and the season 2, 3 and 4 picks. Astra made five free-agent signings across preseason and midseason, scouted three prospects and drafted Finn Quill. The team finished seventh and exited in round one." },
@@ -15,22 +22,22 @@ const highlights = [
   { title: "Revisit an unsuccessful target", story: "The Quin Olsen trade finally succeeded: Alex Chen plus season 6 and 7 picks went to Austin. Astra also extended Hugo Anders, Jules Diaz and Nico Mason, and claimed Kai Anders from waivers. Kai left at rollover. A second title followed; the evidence does not establish that the trade caused it." },
   { title: "Renew rather than acquire", story: "All fourteen roster transactions were accepted extensions, each for two years. They included Rafi Grant at $8.50M, Milo Olsen at $7.81M and Rafi Ivers at $7.08M per year. There were no trades, signings, draft selections or waiver claims this season. The third consecutive title arrived with $1.84M of cap room at the season-summary snapshot." },
 ];
+const record = showcase.seasons.reduce((sum, season) => ({ wins: sum.wins + season.wins, losses: sum.losses + season.losses }), { wins: 0, losses: 0 });
 const phaseName = (phase: string) => phase.replaceAll("_", " ");
 
 function BestRunSummary() {
   return <section className="best-run shell" aria-labelledby="best-run-title">
     <div className="best-run-heading">
-      <div><p className="best-run-kicker">Selected best-case · verified season story</p><h2 id="best-run-title">{summary.model}</h2><p>Codex {summary.harness_version} · {summary.seasons} seasons · private panel</p></div>
+      <div><p className="best-run-kicker">The best AI game we’ve recorded</p><h2 id="best-run-title">{summary.model}</h2><p>Played through Codex {summary.harness_version} · {summary.seasons} seasons on a private league</p></div>
       <div className="best-run-score"><strong>{summary.final_score.toFixed(3)}</strong><span>final score (score-v1)</span></div>
     </div>
-    <p className="best-run-context">The highest-scoring individual episode among {summary.selection_episodes} episodes in the {summary.selection_rows} published GM-Bench 2.0 agentic panel rows. These rows share the same frozen contract, private panel and five-season horizon.</p>
+    <p className="best-run-context">Out of {summary.selection_episodes} five-season games played by AI models on GM-Bench 2.0, this one scored highest: three championships in five seasons. It is a best case, not a representative mean: Astra averaged {summary.panel_mean_score.toFixed(1)} over its {summary.panel_episodes} games.</p>
     <dl className="best-run-outcomes">
       <div><dt>Championships</dt><dd>{summary.championships}</dd></div>
-      <div><dt>Published wins counter*</dt><dd>{summary.wins}</dd></div>
+      <div><dt>Regular-season record</dt><dd>{record.wins}–{record.losses}</dd></div>
       <div><dt>Tool calls</dt><dd>{summary.tool_calls}</dd></div>
       <div><dt>Moves accepted / rejected</dt><dd>{summary.moves_accepted} / {summary.moves_rejected}</dd></div>
     </dl>
-    <p className="best-run-counter-note">*The frozen engine retains cumulative win counters at season boundaries and sums those snapshots: 17 + 37 + 63 + 85 + 109 = 311. The season records below are differences between snapshots: 109 actual wins and 56 losses over 165 regular-season games. This explains the published counter; no benchmark score has been changed.</p>
     <div className="best-run-timeline" aria-label="Season-by-season timeline">
       {showcase.seasons.map((season, index) => <article className="best-run-season" key={season.season} aria-labelledby={`astra-season-${season.season}`}>
         <div className="best-run-season-number"><span>Season</span><strong>{season.season}</strong>{season.champion && <span className="best-run-title-badge">Champion</span>}</div>
@@ -58,12 +65,16 @@ function BestRunSummary() {
         </div>
       </article>)}
     </div>
+    <details className="best-run-about">
+    <summary>About this game: how it was picked, what the evidence shows, and what is withheld</summary>
+    <p className="best-run-counter-note">The published results list this game with {summary.wins} wins. The frozen engine keeps a running win count and the results sum its season-end snapshots: 17 + 37 + 63 + 85 + 109 = {summary.wins}. The season records above are the differences between snapshots: {record.wins} actual wins and {record.losses} losses over {record.wins + record.losses} regular-season games. This explains the published counter; no benchmark score has been changed.</p>
     <div className="best-run-evidence">
       <div><h3>One exceptional episode</h3><p>This is a selected best-case, not a representative mean or evidence that this model is superior overall. Astra’s mean under score-v1, the score this showcase was recorded with, is {summary.panel_mean_score.toFixed(3)} across {summary.panel_episodes} episodes; the standings now use score-v2. The final score here is {summary.strategy_score.toFixed(3)} strategy points minus a {summary.protocol_penalty.toFixed(3)} protocol penalty.</p></div>
       <div><h3>How these highlights were selected</h3><p>We selected the accepted acquisitions, draft selection, largest renewals and a rejected trade target that was later acquired. Supporting detail includes every roster move and rejected attempt, plus lineup counts and rollover departures. Chronology and outcomes come from the retained run and a verified ledger replay; the narrative does not infer Astra’s reasoning or attribute titles to individual moves.</p></div>
       <div><h3>Evidence and disclosure limits</h3><p>The private seed is redacted. This is a sanitized, derived account, not an executable replay: no raw ledger, entity IDs, initial state, full lineups, hidden player attributes, harness text or seed-bearing download is published. Player names and contract terms here are simulated.</p><p>First-round exits are reconstructed from playoff qualification and zero rounds won; opponents, game scores and league points are not retained. Season-summary benchmark points are computed before that summary is appended to scoring history and the calendar advances; they are not the final episode score.</p></div>
       <div><h3>A separate public replay</h3><p>The public Pick Trader replay also spans five seasons, but uses a different, public seed. It is not a matched comparison with this episode. The private episode cannot be loaded into that replay.</p></div>
     </div>
+    </details>
     <p className="best-run-source"><a href={`${REPO}/blob/main/${summary.source}`}>Inspect the published compact source ↗</a><span>Episode index {summary.episode_index} (zero-based artifact index; not a seed)</span></p>
   </section>;
 }
@@ -77,15 +88,14 @@ export default function ReplayExamples() {
   }, []);
   function choose(next: Example) {
     const url = new URL(window.location.href);
-    if (next === "best-run") url.searchParams.set("example", next);
-    else url.searchParams.delete("example");
+    url.searchParams.set("example", next);
     window.history.pushState(null, "", url);
     setExample(next);
   }
   return <>
     <div className="replay-examples shell" role="group" aria-label="Example runs">
-      <button aria-pressed={example === "public-replay"} onClick={() => choose("public-replay")}><strong>Public replay · Pick Trader & agents</strong><span>Every recorded move · public seed 1</span></button>
-      <button aria-pressed={example === "best-run"} onClick={() => choose("best-run")}><strong>Best-case agent episode · Astra</strong><span>409.132 points · five-season story</span></button>
+      <button aria-pressed={example === "best-run"} onClick={() => choose("best-run")}><strong>The best AI game</strong><span>gpt-6-astra · {summary.championships} titles in {summary.seasons} seasons, told season by season</span></button>
+      <button aria-pressed={example === "public-replay"} onClick={() => choose("public-replay")}><strong>AI vs pick-trader, side by side</strong><span>Every move of one public game, decision by decision</span></button>
     </div>
     {example === "public-replay" ? <TrajectoryExplorer /> : <BestRunSummary />}
   </>;

@@ -974,12 +974,32 @@ main:focus {
 }
 
 .replays-content { min-width: 0; }
-.replays-content .replays-head { padding: 0; margin-bottom: 24px; }
+.replays-content .replays-head { padding: 0; margin-bottom: 28px; }
 .replays-content .replays-head h1 {
   margin: 0;
+  font-stretch: 72%;
   font-size: clamp(30px, 4vw, 42px);
   font-weight: 900;
   line-height: 1;
+  text-transform: uppercase;
+}
+.replays-content .replays-head .lede {
+  max-width: 62ch;
+  margin: 14px 0 0;
+  color: var(--text);
+  font-size: clamp(16px, 1.6vw, 19px);
+  line-height: 1.5;
+}
+.replays-games { margin-top: 56px; }
+.replays-content .replays-section-title {
+  margin: 0 0 6px;
+  padding-top: 14px;
+  border-top: 3px solid var(--rink-blue);
+  font-stretch: 72%;
+  font-weight: 900;
+  font-size: clamp(24px, 2.6vw, 32px);
+  line-height: 1;
+  text-transform: uppercase;
 }
 .replays-content .view-head { display: block; }
 .replays-content .view-head > span { display: block; margin-top: 16px; }

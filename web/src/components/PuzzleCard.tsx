@@ -80,8 +80,8 @@ export default function PuzzleCard({
           </p>
           <h3>{situation.team}</h3>
           <p className="puzzle-blurb">
-            Recorded from the <code>{puzzle.subject}</code> policy. Pick the move you would
-            make.
+            From a game played by the scripted <code>{puzzle.subject}</code> GM. What’s your
+            call?
           </p>
         </div>
         <dl className="puzzle-facts">

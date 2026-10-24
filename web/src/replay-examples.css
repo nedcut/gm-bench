@@ -9,7 +9,7 @@
 .replay-examples button:focus-visible, .best-run a:focus-visible { outline: 3px solid var(--blue); outline-offset: 4px; }
 .best-run { padding-bottom: 48px; }
 .best-run-heading { display: flex; justify-content: space-between; align-items: end; gap: 24px; padding: 20px 0 24px; border-bottom: 1px solid var(--line-strong); }
-.best-run-kicker { color: var(--blue); font: 11px var(--font-mono); text-transform: uppercase; letter-spacing: .06em; }
+.best-run-kicker { color: var(--blue); font-size: 14px; font-weight: 700; }
 .best-run h2 { font: 700 30px var(--font-display); margin: 12px 0 8px; }
 .best-run p { line-height: 1.65; color: var(--steel); font-size: 14px; }
 .best-run-score { text-align: right; flex-shrink: 0; }
@@ -25,7 +25,10 @@
 .best-run-source { border-top: 1px solid var(--line); padding-top: 20px; }
 .best-run-source a { color: var(--blue); text-underline-offset: 4px; }
 .best-run-source span { display: block; font: 11px var(--font-mono); margin-top: 10px; }
-.best-run-counter-note { max-width: 900px; margin: 18px 0 32px; }
+.best-run-counter-note { max-width: 900px; margin: 18px 0 0; }
+.best-run-about { margin: 8px 0 24px; border-top: 1px solid var(--line); }
+.best-run-about > summary { cursor: pointer; padding: 18px 0; font-size: 14px; font-weight: 600; }
+.best-run-about > summary:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
 .best-run-season { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 28px; padding: 30px 0; border-top: 1px solid var(--line); }
 .best-run-season-number { display: flex; flex-direction: column; align-items: start; gap: 8px; font: 12px var(--font-mono); color: var(--steel); }
 .best-run-season-number strong { font: 700 36px var(--font-display); color: var(--ink); }
