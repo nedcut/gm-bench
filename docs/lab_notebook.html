@@ -102,6 +102,7 @@ svg{display:block}
 <p class="lede">Internal log of how scoring and contract decisions get made: what we tried, what it showed, what we decided. Newest first. Every number cites a committed diagnostic or a published row; nothing here is a published result.</p>
 
 <nav class="toc"><b>Entries</b><ol>
+ <li><a href="#e-2026-10-26-ceiling21">2026-10-26 · Headroom under 2.1: Astra beats the clairvoyant search, so the search is no ceiling</a></li>
  <li><a href="#e-2026-10-22-free-tier">2026-10-22 · The first free-tier row: list-price estimate, timeouts disclosed the same way</a></li>
  <li><a href="#e-2026-10-19-input-tokens">2026-10-19 · Why input tokens differ 9× between models: re-sent context, not reading</a></li>
  <li><a href="#e-2026-10-18-provider-timeouts">2026-10-18 · Provider timeouts: keep the official mean, disclose a no-timeout lift</a></li>
@@ -117,6 +118,22 @@ svg{display:block}
  <li><a href="#e-2026-10-15-v2">2026-10-15 · score-v1 vs the proposed score-v2</a></li>
  <li><a href="#e-2026-10-14-ceiling">2026-10-14 · How much headroom is above <code>pick-trader</code>?</a></li>
 </ol></nav>
+
+<!-- ======================================================================= -->
+<article class="entry" id="e-2026-10-26-ceiling21">
+<header><div class="date">2026-10-26</div><h2>Headroom under 2.1: Astra beats the clairvoyant search, so the search is no ceiling</h2>
+<div class="tags"><span class="tag">docs/score_ceiling.md</span><span class="tag">results/diagnostics/score_ceiling/v21_*.json</span><span class="tag">scripts/ceiling_search.py</span><span class="tag decision">decision</span></div></header>
+
+<div class="key"><b>Tried:</b> the 2026-10-14 ceiling searches were on the 1.0 simulator and score-v1, while <code>gpt-6-astra</code>'s 2.1 row is +46.9 over <code>pick-trader</code>, above both old bounds, on different seeds and rules. We added <code>--contract 2.1</code> to <code>scripts/ceiling_search.py</code> (<code>League21</code>, score-v2; no frozen file touched, 1.0 output unchanged) and reran both searches on public seeds with the 1.0 settings unchanged. score-v2 is the luck-neutral objective: same bracket odds, weights and windows for the playoff terms, only the wins term differs. <b>Showed:</b> the fair planner with generated moves beats <code>pick-trader</code> by +20.1 (se 4.1, ahead on 20 of 24 seeds, 101–124) and +23.1 (se 2.9, 43 of 48, 125–172). The clairvoyant hindsight search (beam 4) beats it by +33.1 (se 2.7, 24 of 24). Astra's +46.9 (se 5.2, 32 of 32, private panel, so the seed sets differ) is 27 points above the fair planner and 14 above the clairvoyant search. Four more rows (+18.7 to +23.0) sit at the fair planner's level. The gap is wins: Astra's row averages 106.3 wins and 1.38 titles a game, while <code>pick-trader</code> wins 85.0–87.4 on the public seeds and the searches add only 4.4–6.9 wins. Each search candidate is a one-window deviation followed by <code>pick-trader</code>, so a sustained win-now plan is never scored as one. Paired against the 1.0 luck-neutral rows on the same seeds, the 2.1 bounds are a little lower (fair −6.1 and −2.4, hindsight −8.1, each se 3.4–4.7).</div>
+
+<div>
+ <h3>Lift over <code>pick-trader</code> under 2.1 (score-v2) <span class="sub">· searches on public seeds, model rows on the private panel</span></h3>
+ <svg id="c-ceiling21" width="100%" height="190"></svg>
+ <div class="sub">Bars: 95% interval whiskers (1.96 se). Searches: <code>v21_hindsight.json</code>, <code>v21_fair_generated.json</code>, <code>v21_fair_generated_125_172.json</code>. Model rows: <code>results/agentic_v21/*.json</code> <code>reference</code> blocks, a different seed set, so not paired with the searches.</div>
+</div>
+
+<div class="decide"><b>Decided:</b> read the ceiling searches as lower bounds only. They do not show the top of the 2.1 scale near saturation: at least +47 is reachable, and the upper end is unmeasured. Don't describe the leaderboard's top as "near the ceiling". If a real ceiling estimate is wanted, the next step is a stronger search (multi-move windows, contract extensions in the generated menu, a win-now continuation policy in the rollouts), not more seeds of this one. No contract or scoring change.</div>
+</article>
 
 <!-- ======================================================================= -->
 <article class="entry" id="e-2026-10-22-free-tier">
@@ -602,6 +619,17 @@ function drawIntervals(){const s=svg('c-ci');
    const p=mk(s,'circle',{cx:x(m),cy:y+dy,r:4.5,fill:r[j+2]?cc:css('--background'),stroke:cc,'stroke-width':2});hover(p,`${r[0]} · ${lab}: ${sgn(m)} (±${h.toFixed(1)})`)})});
  s.setAttribute('height',H+38)}
 
+// --- 2026-10-26 ceiling under 2.1: searches (public seeds) vs published rows (private panel) ---
+function drawCeiling21(){const s=svg('c-ceiling21');
+ const rows=[["gpt-6-astra (private panel)",46.9,5.2,'--chart-4'],["Clairvoyant search, 101–124",33.1,2.7,'--chart-3'],["Fair planner, 125–172",23.1,2.9,'--chart-1'],["Fair planner, 101–124",20.1,4.1,'--chart-1'],["gpt-6.1-sol (private panel)",19.1,4.4,'--chart-4']];
+ const W=s.clientWidth,L=Math.min(210,W*.42),R=40,T=4,rh=34,x=v=>L+v/60*(W-L-R),H=T+rows.length*rh;
+ for(let t=0;t<=60;t+=10){mk(s,'line',{x1:x(t),x2:x(t),y1:T,y2:H,stroke:css('--border'),'stroke-width':t==0?1.5:.6});mk(s,'text',{x:x(t),y:H+15,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},'+'+t)}
+ rows.forEach(([n,v,se,c],i)=>{const y=T+i*rh+rh/2;mk(s,'text',{x:0,y:y+4,'font-size':12,fill:css('--foreground')},n);
+  const b=mk(s,'rect',{x:x(0),y:y-7,width:x(v)-x(0),height:14,rx:3,fill:css(c)});hover(b,`${n}: +${v} (se ${se})`);
+  mk(s,'line',{x1:x(v-1.96*se),x2:x(v+1.96*se),y1:y,y2:y,stroke:css('--foreground'),'stroke-width':1.5});
+  mk(s,'text',{x:x(v+1.96*se)+6,y:y+4,'font-size':11,fill:css('--muted-foreground')},'+'+v)});
+ s.setAttribute('height',H+22)}
+
 // --- 2026-10-14 ceiling: lift ladder (score_ceiling.md results table) ---
 function drawCeiling(){const s=svg('c-ceiling');
  const rows=[["Clairvoyant (realized)",129.8,8.8,'--chart-3'],["Clairvoyant (luck-neutral)",41.2,3.4,'--chart-3'],["Fair planner (luck-neutral)",26.2,4.2,'--chart-1'],["Fair planner, 48 fresh seeds",25.4,3.2,'--chart-1'],["Fair planner, scripted menu (realized)",11.9,7.6,'--chart-1']];
@@ -686,7 +714,7 @@ function drawBehaviorGap(){const s=svg('c-behavior-gap');
   mk(s,'text',{x:x(Math.max(v+1.96*se,0))+6,y:y+4,'font-size':11,fill:css('--muted-foreground')},sgn(+v.toFixed(1)))});
  s.setAttribute('height',H+22)}
 
-function drawAll(){drawBehaviorGap();drawRound();drawRoundSd();drawSite();drawDraft();drawResidual();drawCanary21();drawDecomposition();drawContinuation();drawStrip();drawSeeds();drawIntervals();drawCeiling()}
+function drawAll(){drawCeiling21();drawBehaviorGap();drawRound();drawRoundSd();drawSite();drawDraft();drawResidual();drawCanary21();drawDecomposition();drawContinuation();drawStrip();drawSeeds();drawIntervals();drawCeiling()}
 drawAll();addEventListener('resize',drawAll);
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',drawAll);
 </script>

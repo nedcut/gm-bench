@@ -5,6 +5,11 @@ contract change, or a submission. The tool is `scripts/ceiling_search.py`;
 per-seed results, including each search's chosen move path, are in
 `results/diagnostics/score_ceiling/`.
 
+**Update, 2026-10-26:** the searches were rerun under the current contract
+(GM-Bench 2.1 rules, score-v2); see [the 2.1 section](#2026-10-26-rerun-under-gm-bench-21-and-score-v2)
+at the end. Everything between here and that section is the 2026-10-14
+measurement under 1.0 and is left as recorded.
+
 Every number below is on public seeds 101-124, five seasons, the current
 1.0 simulator and `score-v1`. Lifts are paired against `pick-trader` on the
 same seed (`pick-trader` mean 232.2 on these seeds; se is the standard error
@@ -204,3 +209,144 @@ python scripts/ceiling_search.py fair --generated --seeds 101-124 --worlds 6 --j
 The scripted-only fair row above was produced before the fair rollouts
 switched to the luck-neutral objective, so rerunning the third line now
 gives a luck-neutral-objective version of it.
+
+## 2026-10-26: rerun under GM-Bench 2.1 and score-v2
+
+The table above was measured on the 1.0 simulator under score-v1. The
+published 2.1 rows are played on `League21` (records reset each season,
+the opponent-draft fix) and scored with score-v2, and the top one,
+`gpt-6-astra`, is +46.9 over `pick-trader`: above both old bounds. The
+seeds and rules differed, so the comparison was not clean. This rerun
+plays both searches under the 2.1 rules and scores them with score-v2
+(`scripts/ceiling_search.py --contract 2.1`), on public seeds only, with
+every other setting as in the 1.0 rows: fair planner with generated moves,
+6 worlds, 1.5-se switching rule, planner seed 0; hindsight beam 4. Files:
+`v21_fair_generated.json`, `v21_hindsight.json` and
+`v21_fair_generated_125_172.json` in `results/diagnostics/score_ceiling/`.
+
+### Luck-neutral and score-v2
+
+Under 2.1 there is no separate luck-neutral objective, because score-v2
+already is one. Its two playoff terms are the 1.0 luck-neutral terms: the
+same exact bracket odds (`League21` records them with a function equal to
+the tool's; a test asserts the two agree), the same weights (9 a round, 35
+a title) and the same windows (rounds over the last three seasons, titles
+over all five). Only the wins term differs (every season's own wins at
+1.02, against 0.42 times the running totals), and the 2.1 simulator
+differs. So the 2.1 hindsight search optimizing score-v2 is the analogue
+of the 1.0 `--luck-neutral` hindsight row, and the fair planner's rollout
+objective is score-v2 itself. On seeds 101-124 `pick-trader` scores 243.3
+luck-neutral under 1.0 and 249.1 under 2.1, with 0.49 and 0.51 expected
+titles per five seasons. The "realized playoffs" column below puts the
+single-game playoff results back into score-v2. It moves each lift by a few
+points with a standard error two to four times larger, as the 1.0 "real"
+column did.
+
+### Results
+
+Lifts are paired against `pick-trader` played under 2.1 on the same seed;
+se is the standard error of the paired lift.
+
+| Search (2.1, score-v2) | Seeds | `pick-trader` mean | Search mean | Lift (se) | Seeds ahead | Lift, realized playoffs (se) | 1.0 counterpart, luck-neutral |
+|---|---|---|---|---|---|---|---|
+| Hindsight (clairvoyant), beam 4 | 101-124 | 249.1 | 282.2 | **+33.1 (2.7)** | 24 / 24 | +22.1 (11.2) | +41.2 (3.4) |
+| Fair, with generated moves | 101-124 | 249.1 | 269.2 | **+20.1 (4.1)** | 20 / 24 | +23.8 (9.3) | +26.2 (4.2) |
+| Fair, with generated moves | 125-172 | 250.8 | 273.9 | **+23.1 (2.9)** | 43 / 48 | +33.5 (8.2) | +25.4 (3.2) |
+
+Next to them, the published 2.1 rows (`results/agentic_v21/*.json`,
+`reference` block; se = paired SD / sqrt(32)). **These are on the 32-seed
+private panel, not on these public seeds,** so the comparison is between
+seed sets, not paired. `pick-trader` averages 249.6 on the panel against
+249.1 and 250.8 on the two public sets.
+
+| Published 2.1 row (private panel) | Lift (se) | Seeds ahead |
+|---|---|---|
+| Codex `gpt-6-astra` | +46.9 (5.2) | 32 / 32 |
+| OpenCode `minimax-m3.1-flash-free` | +23.0 (5.6) | 25 / 32 |
+| OpenCode `mimo-v2.6-pro` | +20.7 (6.0) | 25 / 32 |
+| Codex `gpt-6.1-sol` | +19.1 (4.4) | 24 / 32 |
+| OpenCode `mimo-v2.6-flash` | +18.7 (6.1) | 24 / 32 |
+| The other seven rows | -53.1 to +1.9 | 2 to 21 / 32 |
+
+### What the numbers say
+
+1. **Astra's +46.9 is above both bounds.** It is 27 points above the
+   fair planner (+20.1 on the same seed range, +23.1 on 48 fresh seeds)
+   and 14 points above the clairvoyant search (+33.1). The second gap is
+   about 2.3 standard errors if the two seed sets are treated as
+   independent samples. Four more rows (+18.7 to +23.0) land at the fair
+   planner's level.
+2. **So the searches are weak lower bounds, not a ceiling.** The
+   hindsight search sees the dice, yet a model that plays fair and can't
+   see them beats it on every one of its 32 seeds. The search is bounded
+   by its move menu, not by information. These numbers don't show the top
+   of the scale near saturation. The best measured result is +47, and
+   nothing here bounds the reachable score from above.
+3. **The gap is winning games.** Astra's row averages 106.3 wins and 1.38
+   titles per five-season game. On the public seeds `pick-trader` wins
+   85.0 (101-124) and 87.4 (125-172) with 0.51 and 0.59 expected titles.
+   That gap of about 20 wins is worth about 20 points from the wins term
+   alone, before the playoff value of a stronger team. The searches add
+   only 4.4 (fair), 5.3 (fair, 125-172) and 6.9 (hindsight) wins per game.
+   Their lifts are spread across terms. Fair: wins +4.5, expected playoff
+   rounds +4.1, expected titles +6.9, assets +3.8, depth +1.3. Hindsight:
+   wins +7.0, rounds +10.1, titles +10.2, assets +6.1. The 2.0 rows
+   replayed under score-v2 showed the same thing for Astra:
+   +67.4 from winning terms and -18.8 from end-state terms
+   ([score_deep_dive.md](score_deep_dive.md) section 1). It trades future
+   value for wins now, at a scale the searches never reach.
+4. **Why the menu can't reach it (a reading of the method, not
+   measured).** Every candidate is a one-window deviation from
+   `pick-trader`, judged by a rollout in which `pick-trader` plays every
+   later window. A plan that only pays off when it is kept up for several
+   seasons gets credit for one window at a time. None of the macro
+   policies is a good win-now policy: under 2.1 each one scores below
+   `pick-trader` (`validate-contract --contract 2.1`,
+   [bench_v2_1_spec.md](bench_v2_1_spec.md)), and the generated menu has
+   no contract extension. Astra extends 25 contracts a game
+   (`results/diagnostics/v21_behavior/behavior.json`), where the scripted
+   policies extend at most two players a preseason. It also makes about
+   155 tool calls a game, so many moves land in each window.
+5. **2.1 leaves a little less for these searches than 1.0 did.** Paired
+   by seed against the 1.0 luck-neutral rows: fair -6.1 (se 4.7) on
+   101-124 and -2.4 (se 3.4) on 125-172, hindsight -8.1 (se 4.4). The
+   same fair planner optimizing score-v2's formula (E) on the 1.0
+   simulator gained +29.1 on 101-124
+   (`results/diagnostics/score_deep_dive/exploit_E_101_124.json`). On
+   `League21` it gains +20.1, a difference of -9.0 (se 4.6). Taken with
+   the replication, the fair bound is about +20 to +23 under 2.1, against
+   +25 to +26 under 1.0. Whether records reset, the draft fix or noise
+   accounts for the rest was not separated.
+
+**What it implies.** `pick-trader` is still well below the best
+achievable play under 2.1. A public-information planner beats it by about
+22 points across 72 seeds, and a model beats it by 47 on the private
+panel. These searches can't say how much further the scale goes. A
+ceiling estimate that means anything above +47 needs a stronger search:
+multi-move windows, extensions in the generated menu, and rollouts with a
+continuation policy that keeps a win-now plan going instead of reverting
+to `pick-trader`. Until then, the honest reading of the leaderboard's top
+is "at least +47 is reachable, upper end unmeasured", not "near the
+ceiling".
+
+### Caveats
+
+- The public seeds and the private panel are different seed sets. The
+  `pick-trader` means agree within 2 points, but the model rows and the
+  searches are not paired.
+- Each search ran once (one planner seed, beam 4, 6 worlds), with the
+  1.0 rows' settings unchanged so the two contracts can be compared. Any
+  of those settings could be raised; this rerun did not tune them.
+- Under 2.1, `--luck-neutral` is refused: score-v2 is already the
+  luck-neutral objective.
+
+### Reproducing (2.1)
+
+Local CPU only, no model calls. On 12 cores with `--jobs 10`, the first
+and third lines take about 30 and 50 minutes and the second about 15.
+
+```bash
+python scripts/ceiling_search.py fair --contract 2.1 --generated --seeds 101-124 --worlds 6 --jobs 10 --out v21_fair_generated.json
+python scripts/ceiling_search.py hindsight --contract 2.1 --seeds 101-124 --beam 4 --jobs 10 --out v21_hindsight.json
+python scripts/ceiling_search.py fair --contract 2.1 --generated --seeds 125-172 --worlds 6 --jobs 10 --out v21_fair_generated_125_172.json
+```
