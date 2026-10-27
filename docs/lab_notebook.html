@@ -102,6 +102,7 @@ svg{display:block}
 <p class="lede">Internal log of how scoring and contract decisions get made: what we tried, what it showed, what we decided. Newest first. Every number cites a committed diagnostic or a published row; nothing here is a published result.</p>
 
 <nav class="toc"><b>Entries</b><ol>
+ <li><a href="#e-2026-10-26-planner21">2026-10-26 · What held the 2.1 searches back: the menu, not the horizon</a></li>
  <li><a href="#e-2026-10-26-ceiling21">2026-10-26 · Headroom under 2.1: Astra beats the clairvoyant search, so the search is no ceiling</a></li>
  <li><a href="#e-2026-10-22-free-tier">2026-10-22 · The first free-tier row: list-price estimate, timeouts disclosed the same way</a></li>
  <li><a href="#e-2026-10-19-input-tokens">2026-10-19 · Why input tokens differ 9× between models: re-sent context, not reading</a></li>
@@ -118,6 +119,23 @@ svg{display:block}
  <li><a href="#e-2026-10-15-v2">2026-10-15 · score-v1 vs the proposed score-v2</a></li>
  <li><a href="#e-2026-10-14-ceiling">2026-10-14 · How much headroom is above <code>pick-trader</code>?</a></li>
 </ol></nav>
+
+<!-- ======================================================================= -->
+<article class="entry" id="e-2026-10-26-planner21">
+<header><div class="date">2026-10-26</div><h2>What held the 2.1 searches back: the menu, not the horizon</h2>
+<div class="tags"><span class="tag">docs/score_ceiling.md</span><span class="tag">results/diagnostics/score_ceiling/v21_policy_*.json</span><span class="tag">results/diagnostics/score_ceiling/v21_fair_*.json</span><span class="tag">scripts/ceiling_planner.py</span><span class="tag decision">decision</span></div></header>
+
+<div class="key"><b>Tried:</b> the entry below left three untested reasons why the 2.1 searches stayed under <code>gpt-6-astra</code>'s +46.9: (a) every candidate hands back to <code>pick-trader</code> after one window, (b) no win-now policy on the menu, (c) no contract extensions among the generated moves. <code>scripts/ceiling_planner.py</code> adds a scripted win-now family (<code>contend</code>: extend the lineup through the final season, sign and buy for strength now with picks and bench players, dress the strongest lineup; public information and <code>inspect_team</code> only), generated extension and buy moves, and <code>--commit</code>, which lets a candidate make its policy the continuation for the rest of the game. Each change was run alone and together, on public seeds 101–124 with the earlier settings (6 worlds, 1.5-se rule), the best one replicated on 125–172. Every new row also hands both final leagues to <code>pick-trader</code> for five more seasons to check the end-state terms. <b>Showed:</b> (a) does nothing: commitment alone −1.4 (se 1.4) paired, +5.0 (se 7.0) on top of the fixed menu. (b) is most of the gap and (c) some of it: the win-now policies alone take the planner from +20.1 to +141.4 (paired +121.3, se 7.2), extension moves alone to +50.6 (paired +30.5, se 3.6), less than half of that from winning. With all of it the fair planner beats <code>pick-trader</code> by +155.7 (se 6.9, 24/24; 113.5 wins and 1.80 expected titles a game; +152.4, se 5.1, 48/48 on 125–172). The clairvoyant hindsight search given the same policies reaches +159.9, only +4.2 (se 6.8) above it. A single scripted policy, <code>contend-1g</code> (no unpublished second-goalie bonus), gets +54.3 and +50.9 on the two seed sets with Astra's profile: about 110 wins, 1.56 expected titles, 22 extensions a game, 18 players left at the end. Playing it only in the preseason and <code>pick-trader</code> otherwise gets +85.1 (se 3.7, 48/48) on 125–172. No illegal moves beyond <code>pick-trader</code>'s own; the second goalie is worth 5–15 points (the full planner still gets +141.2 without it). But the end-state terms over-credit extensions: the planner's end state is +43 to +55 over <code>pick-trader</code>'s, yet over the next five seasons it wins no more than <code>pick-trader</code> does (−4.7 and −0.4; <code>strategic</code> is at −4.2 end state and −13.2 later). score-v2 scores the roster after the final rollover, when expiring deals have just left; <code>pick-trader</code> ends with 11.4 players, the extension-heavy runs with 18–21, and Astra makes 11 season-5 extensions a game.</div>
+
+<div>
+ <h3>Where each run's lift comes from <span class="sub">· public seeds 101–124, paired against <code>pick-trader</code></span></h3>
+ <div class="legend"><span><span class="sw" style="background:var(--chart-1)"></span>winning terms</span><span><span class="sw" style="background:var(--chart-4)"></span>end-state terms</span><span><span class="dotk" style="background:var(--foreground)"></span>score-v2 lift</span><span><span class="dl"></span>gpt-6-astra +46.9 (private panel)</span></div>
+ <svg id="c-planner21" width="100%" height="320"></svg>
+ <div class="sub">Rows: <code>v21_fair_generated.json</code>, <code>v21_fair_commit.json</code>, <code>v21_fair_menu_policies.json</code>, <code>v21_fair_menu_extensions.json</code>, <code>v21_fair_menu_extended.json</code>, <code>v21_fair_extended_commit.json</code>, <code>v21_policy_contend-1g.json</code>, <code>v21_policy_contend-preseason-1g.json</code>, <code>v21_policy_strategic.json</code>. Astra's line is the published row's lift on a different seed set, not paired.</div>
+</div>
+
+<div class="decide"><b>Decided:</b> the 2.1 scale's top is far above the leaderboard: a fair planner reaches about +150, a fixed scripted mix +85, so Astra's +46.9 is not near a ceiling and <code>pick-trader</code> is a weak reference under 2.1. Report the planner's winning terms (+101 to +108) beside its lift, because 30–50 points of the lift is end-state credit that later seasons don't confirm. Extending through the final rollover games the end-state terms; that is a scoring issue for the next contract (score after refilling, or price contracts beyond the window), with this continuation check as its test. 2.1 rows stay as scored. No contract or scoring change here.</div>
+</article>
 
 <!-- ======================================================================= -->
 <article class="entry" id="e-2026-10-26-ceiling21">
@@ -619,6 +637,17 @@ function drawIntervals(){const s=svg('c-ci');
    const p=mk(s,'circle',{cx:x(m),cy:y+dy,r:4.5,fill:r[j+2]?cc:css('--background'),stroke:cc,'stroke-width':2});hover(p,`${r[0]} · ${lab}: ${sgn(m)} (±${h.toFixed(1)})`)})});
  s.setAttribute('height',H+38)}
 
+// --- 2026-10-26 planner under 2.1: winning vs end state per run (v21_fair_*.json, v21_policy_*.json) ---
+function drawPlanner21(){const s=svg('c-planner21');
+ const rows=[["Fair, base menu",15.4,4.8,20.1],["Fair, --commit only (a)",14.1,4.8,18.8],["Fair, + win-now policies (b)",102.0,39.4,141.4],["Fair, + extensions (c)",28.0,22.7,50.6],["Fair, full menu",107.5,43.4,150.8],["Fair, full menu + commit",101.3,54.5,155.7],["Fair, same, one goalie",108.9,32.3,141.2],["contend-1g (scripted)",82.8,-28.6,54.3],["contend-preseason-1g (scripted)",81.6,1.6,83.1],["strategic (scripted)",1.3,-4.2,-2.9]];
+ const W=s.clientWidth,L=Math.min(200,W*.4),R=10,T=6,rh=30,lo=-40,hi=170,x=v=>L+(v-lo)/(hi-lo)*(W-L-R),H=T+rows.length*rh;
+ for(let t=-40;t<=160;t+=20){mk(s,'line',{x1:x(t),x2:x(t),y1:T,y2:H,stroke:css('--border'),'stroke-width':t==0?1.5:.6});mk(s,'text',{x:x(t),y:H+15,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},sgn(t))}
+ mk(s,'line',{x1:x(46.9),x2:x(46.9),y1:T,y2:H,stroke:css('--muted-foreground'),'stroke-width':1.5,'stroke-dasharray':'5 4'});
+ rows.forEach(([n,w,e,net],i)=>{const y=T+i*rh+rh/2;mk(s,'text',{x:0,y:y+4,'font-size':12,fill:css('--foreground')},n);
+  [[w,-5,'--chart-1','winning terms'],[e,4,'--chart-4','end-state terms']].forEach(([v,dy,c,lab])=>{const r=mk(s,'rect',{x:Math.min(x(0),x(v)),y:y+dy-3.5,width:Math.max(1,Math.abs(x(v)-x(0))),height:7,rx:2,fill:css(c)});hover(r,`${n} · ${lab}: ${sgn(v)}`)});
+  const d=mk(s,'circle',{cx:x(net),cy:y,r:4.5,fill:css('--foreground'),stroke:css('--background'),'stroke-width':2});hover(d,`${n} · lift ${sgn(net)}`)});
+ s.setAttribute('height',H+22)}
+
 // --- 2026-10-26 ceiling under 2.1: searches (public seeds) vs published rows (private panel) ---
 function drawCeiling21(){const s=svg('c-ceiling21');
  const rows=[["gpt-6-astra (private panel)",46.9,5.2,'--chart-4'],["Clairvoyant search, 101–124",33.1,2.7,'--chart-3'],["Fair planner, 125–172",23.1,2.9,'--chart-1'],["Fair planner, 101–124",20.1,4.1,'--chart-1'],["gpt-6.1-sol (private panel)",19.1,4.4,'--chart-4']];
@@ -714,7 +743,7 @@ function drawBehaviorGap(){const s=svg('c-behavior-gap');
   mk(s,'text',{x:x(Math.max(v+1.96*se,0))+6,y:y+4,'font-size':11,fill:css('--muted-foreground')},sgn(+v.toFixed(1)))});
  s.setAttribute('height',H+22)}
 
-function drawAll(){drawCeiling21();drawBehaviorGap();drawRound();drawRoundSd();drawSite();drawDraft();drawResidual();drawCanary21();drawDecomposition();drawContinuation();drawStrip();drawSeeds();drawIntervals();drawCeiling()}
+function drawAll(){drawPlanner21();drawCeiling21();drawBehaviorGap();drawRound();drawRoundSd();drawSite();drawDraft();drawResidual();drawCanary21();drawDecomposition();drawContinuation();drawStrip();drawSeeds();drawIntervals();drawCeiling()}
 drawAll();addEventListener('resize',drawAll);
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',drawAll);
 </script>

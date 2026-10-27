@@ -49,10 +49,22 @@ under 2.1 it is both the search objective and the reported score, and
 ``--luck-neutral`` is not needed. Rows also report the score with realized
 playoff results put back, to show how much of a lift the playoff dice add.
 
+Planner options (2026-10-26, ``scripts/ceiling_planner.py``; every default
+reproduces the earlier runs): ``--menu`` adds the win-now policies
+(``policies``), generated contract extensions (``extensions``), or both plus
+generated buys of other teams' players (``extended``). ``--commit`` lets a
+candidate switch the continuation: ``plan:X`` plays X now, and X then plays
+every later window of the rollouts and of the real episode, until another
+``plan:`` move wins. ``--one-goalie`` keeps the win-now policies from
+dressing a second goalie on purpose (the +2.5 bonus is not published). The
+``policy`` mode plays one scripted or win-now policy, for reference rows.
+
     python scripts/ceiling_search.py hindsight --seeds 101-108 --beam 4
     python scripts/ceiling_search.py hindsight --seeds 101-108 --beam 4 --luck-neutral
     python scripts/ceiling_search.py fair --seeds 101-108 --worlds 6 --generated
     python scripts/ceiling_search.py fair --contract 2.1 --seeds 101-108 --worlds 6 --generated
+    python scripts/ceiling_search.py fair --contract 2.1 --seeds 101-108 --worlds 6 --generated --menu extended --commit
+    python scripts/ceiling_search.py policy --contract 2.1 --seeds 101-108 --policy contend
 """
 
 from __future__ import annotations
@@ -73,6 +85,11 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+# The win-now policies and extension/buy moves live in a sibling module.
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import ceiling_planner as planner  # noqa: E402
 
 from gm_bench.agents import AGENTS, Agent  # noqa: E402
 from gm_bench.oracle import OracleAgent  # noqa: E402
@@ -104,6 +121,15 @@ DROPPABLE = (
 # Phases where a generated single move is tried. The draft window is left to
 # the scripted policies: strategic scouting spends the window's query rounds.
 GENERATED_PHASES = ("preseason", "midseason", "trade_deadline")
+# --menu: "base" is the 2026-10-14 menu. "policies" adds the win-now
+# policies (macro moves and, with --commit, plans); "extensions" adds
+# generated contract extensions; "extended" adds both plus generated buys.
+MENUS = ("base", "policies", "extensions", "extended")
+MENUS_WITH_POLICIES = ("policies", "extended")
+MENUS_WITH_EXTENSIONS = ("extensions", "extended")
+# A --commit candidate "plan:X" plays X now and hands every later window to X.
+COMMIT_PREFIX = "plan:"
+PLANNER_OPTIONS = ("menu", "commit", "two_goalies")
 
 # Latent-potential population priors, pooled from gm_bench/generator.py
 # (initial rosters N(62, 9) seen with sd 5.5, free agents N(56.5, 7) / 6.5,
@@ -258,20 +284,21 @@ class OneMoveThenBase(Agent):
     if it were its own first round), so its lineup and cap math see the move.
     """
 
-    def __init__(self, move: dict[str, Any], base: str = BASE_POLICY) -> None:
+    def __init__(self, move: dict[str, Any] | list[dict[str, Any]], base: str = BASE_POLICY) -> None:
         self.move = move
-        self.base = AGENTS[base]()
+        self.base = planner.policy_factory(base)()
         self.name = self.base.name
         self.played = False
 
     def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
         if not self.played:
             self.played = True
-            return [self.move, {"type": "inspect_team", "team_id": observation["team"]["id"]}]
+            moves = self.move if isinstance(self.move, list) else [self.move]
+            return [*moves, {"type": "inspect_team", "team_id": observation["team"]["id"]}]
         return self.base.act({**observation, "interaction_round": 0})
 
 
-def candidate_moves(*, hindsight: bool) -> dict[str, Callable[[], Agent]]:
+def candidate_moves(*, hindsight: bool, menu: str = "base", two_goalies: bool = True) -> dict[str, Callable[[], Agent]]:
     moves: dict[str, Callable[[], Agent]] = {name: AGENTS[name] for name in PUBLIC_POLICIES}
     for drop in DROPPABLE:
         moves[f"{BASE_POLICY}-no-{drop}"] = lambda drop=drop: DropActions(AGENTS[BASE_POLICY], drop)
@@ -279,6 +306,30 @@ def candidate_moves(*, hindsight: bool) -> dict[str, Callable[[], Agent]]:
         # The oracle reads the seed; that is only acceptable when the search
         # is already clairvoyant.
         moves["oracle"] = OracleAgent
+    if menu in MENUS_WITH_POLICIES:
+        moves.update(planner.win_now_policies(two_goalies=two_goalies))
+    return moves
+
+
+def plan_names(menu: str = "base", two_goalies: bool = True) -> tuple[str, ...]:
+    """Policies a ``--commit`` search may switch its continuation to."""
+    if menu in MENUS_WITH_POLICIES:
+        return (*PUBLIC_POLICIES, *planner.win_now_policies(two_goalies=two_goalies))
+    return PUBLIC_POLICIES
+
+
+def continuation_of(name: str, plan: str) -> str:
+    """The policy that plays every later window after candidate ``name``."""
+    return name.removeprefix(COMMIT_PREFIX) if name.startswith(COMMIT_PREFIX) else plan
+
+
+def with_commitments(
+    moves: dict[str, Callable[[], Agent]], plan: str, menu: str, two_goalies: bool
+) -> dict[str, Callable[[], Agent]]:
+    """Add one ``plan:X`` candidate per other plan: play X now and in every later window."""
+    for name in plan_names(menu, two_goalies):
+        if name != plan:
+            moves[f"{COMMIT_PREFIX}{name}"] = moves[name]
     return moves
 
 
@@ -404,7 +455,7 @@ def play_step(league: League, agent: Agent, index: int) -> None:
 
 
 def rollout(league: League, start: int, policy: str = BASE_POLICY, *, luck_neutral: bool = False) -> float:
-    agent = AGENTS[policy]()
+    agent = planner.policy_factory(policy)()
     for index in range(start, len(STEPS)):
         play_step(league, agent, index)
     return objective(league, luck_neutral)
@@ -415,17 +466,31 @@ def rollout(league: League, start: int, policy: str = BASE_POLICY, *, luck_neutr
 # --------------------------------------------------------------------------
 
 
-def hindsight_search(seed: int, beam: int, luck_neutral: bool = False, contract: str = "1.0") -> dict[str, Any]:
-    moves = candidate_moves(hindsight=True)
-    frontier: list[tuple[float, list[str], League]] = [(0.0, [], new_league(seed, contract))]
+def hindsight_search(
+    seed: int,
+    beam: int,
+    luck_neutral: bool = False,
+    contract: str = "1.0",
+    *,
+    menu: str = "base",
+    commit: bool = False,
+    two_goalies: bool = True,
+) -> dict[str, Any]:
+    """Beam search on the real league. With ``commit``, each beam entry keeps
+    its own plan (the policy its rollouts continue with), and ``plan:X``
+    candidates switch it."""
+    moves = candidate_moves(hindsight=True, menu=menu, two_goalies=two_goalies)
+    frontier: list[tuple[float, list[str], League, str]] = [(0.0, [], new_league(seed, contract), BASE_POLICY)]
     for index in range(len(STEPS)):
-        expanded: list[tuple[float, list[str], League]] = []
-        for _value, path, league in frontier:
-            for name, factory in moves.items():
+        expanded: list[tuple[float, list[str], League, str]] = []
+        for _value, path, league, plan in frontier:
+            menu_here = with_commitments(dict(moves), plan, menu, two_goalies) if commit else moves
+            for name, factory in menu_here.items():
                 child = copy.deepcopy(league)
                 play_step(child, factory(), index)
-                value = rollout(copy.deepcopy(child), index + 1, luck_neutral=luck_neutral)
-                expanded.append((value, [*path, name], child))
+                then = continuation_of(name, plan)
+                value = rollout(copy.deepcopy(child), index + 1, then, luck_neutral=luck_neutral)
+                expanded.append((value, [*path, name], child, then))
         expanded.sort(key=lambda item: item[0], reverse=True)
         # Distinct moves often produce the same league (e.g. a policy that
         # does nothing this window); keep the beam diverse by rollout value.
@@ -438,7 +503,7 @@ def hindsight_search(seed: int, beam: int, luck_neutral: bool = False, contract:
             frontier.append(item)
             if len(frontier) == beam:
                 break
-    _value, path, league = frontier[0]
+    _value, path, league, _plan = frontier[0]
     return {"path": path, "league": league}
 
 
@@ -484,14 +549,65 @@ def sample_world(league: League, phase: str, world_seed: int) -> League:
     return world
 
 
-def fair_menu(league: League, index: int, generated: bool) -> dict[str, Callable[[], Agent]]:
-    menu = candidate_moves(hindsight=False)
+def fair_menu(
+    league: League,
+    index: int,
+    generated: bool,
+    *,
+    menu: str = "base",
+    plan: str = BASE_POLICY,
+    commit: bool = False,
+    two_goalies: bool = True,
+) -> dict[str, Callable[[], Agent]]:
+    """Candidates for this window, built from the real league's public state only."""
+    moves = candidate_moves(hindsight=False, menu=menu, two_goalies=two_goalies)
     if generated:
         _season, phase = STEPS[index]
         observation = copy.deepcopy(league).observation(phase, tier="full")
-        for name, move in generated_moves(observation).items():
-            menu[name] = lambda move=move: OneMoveThenBase(move)
-    return menu
+        built: dict[str, Any] = dict(generated_moves(observation))
+        if menu in MENUS_WITH_EXTENSIONS:
+            built.update(planner.extension_moves(observation, two_goalies=two_goalies))
+        if menu == "extended":
+            rosters = planner.public_rosters(league)
+            built.update(planner.buy_moves(observation, rosters, two_goalies=two_goalies))
+        for name, move in built.items():
+            moves[name] = lambda move=move: OneMoveThenBase(move, plan)
+    if commit:
+        moves = with_commitments(moves, plan, menu, two_goalies)
+    return moves
+
+
+def menu_outcomes(
+    league: League,
+    index: int,
+    worlds: int,
+    planner_seed: int,
+    *,
+    generated: bool = False,
+    menu: str = "base",
+    plan: str = BASE_POLICY,
+    commit: bool = False,
+    two_goalies: bool = True,
+) -> tuple[dict[str, list[float]], dict[str, Callable[[], Agent]]]:
+    """Each candidate's rollout value in each sampled world.
+
+    A candidate is played on a copy of each world, and the rest of the
+    episode by the policy it hands over to: the current ``plan``, or X for a
+    ``plan:X`` candidate.
+    """
+    moves = fair_menu(league, index, generated, menu=menu, plan=plan, commit=commit, two_goalies=two_goalies)
+    _season, phase = STEPS[index]
+    sampled = [sample_world(league, phase, planner_seed * 1000 + index * 50 + w) for w in range(worlds)]
+    outcomes: dict[str, list[float]] = {}
+    for name, factory in moves.items():
+        totals = []
+        for world in sampled:
+            trial = copy.deepcopy(world)
+            run_decision_point(trial, factory(), phase, CONFIG)
+            _finish_step(trial, index)
+            totals.append(rollout(trial, index + 1, continuation_of(name, plan), luck_neutral=True))
+        outcomes[name] = totals
+    return outcomes, moves
 
 
 def fair_choose(
@@ -502,41 +618,44 @@ def fair_choose(
     margin_z: float = 1.5,
     *,
     generated: bool = False,
+    menu: str = "base",
+    plan: str = BASE_POLICY,
+    commit: bool = False,
+    two_goalies: bool = True,
 ) -> tuple[str, dict[str, Callable[[], Agent]]]:
-    """Pick the move with the best paired gain over the base across sampled worlds.
+    """Pick the move with the best paired gain over the plan across sampled worlds.
 
     Called *after* the window's pre-step (midseason sim, deadline offers,
     opponent draft) so the sampled worlds share the public state the GM sees.
     """
-    menu = fair_menu(league, index, generated)
-    _season, phase = STEPS[index]
-    sampled = [sample_world(league, phase, planner_seed * 1000 + index * 50 + w) for w in range(worlds)]
-    outcomes: dict[str, list[float]] = {}
-    for name, factory in menu.items():
-        totals = []
-        for world in sampled:
-            trial = copy.deepcopy(world)
-            run_decision_point(trial, factory(), phase, CONFIG)
-            _finish_step(trial, index)
-            totals.append(rollout(trial, index + 1, luck_neutral=True))
-        outcomes[name] = totals
+    outcomes, moves = menu_outcomes(
+        league,
+        index,
+        worlds,
+        planner_seed,
+        generated=generated,
+        menu=menu,
+        plan=plan,
+        commit=commit,
+        two_goalies=two_goalies,
+    )
     # Every move is scored on the same worlds, whose dice are fixed by the
-    # world seed, so compare each move with the base policy world by world.
+    # world seed, so compare each move with the plan's own move world by world.
     # Picking the raw best of many noisy means overfits the sampled worlds
     # (winner's curse); deviate only when the paired gain clears `margin_z`
     # standard errors.
-    base = outcomes[BASE_POLICY]
-    gains: dict[str, float] = {BASE_POLICY: 0.0}
+    base = outcomes[plan]
+    gains: dict[str, float] = {plan: 0.0}
     for name, totals in outcomes.items():
-        if name == BASE_POLICY:
+        if name == plan:
             continue
         diffs = [a - b for a, b in zip(totals, base)]
         mean = statistics.mean(diffs)
         se = statistics.stdev(diffs) / math.sqrt(len(diffs)) if len(diffs) > 1 else math.inf
         if mean > 0 and mean > margin_z * se:
             gains[name] = mean
-    best = max(gains, key=lambda name: (gains[name], name == BASE_POLICY))
-    return best, menu
+    best = max(gains, key=lambda name: (gains[name], name == plan))
+    return best, moves
 
 
 def fair_search(
@@ -547,15 +666,37 @@ def fair_search(
     *,
     generated: bool = False,
     contract: str = "1.0",
+    menu: str = "base",
+    commit: bool = False,
+    two_goalies: bool = True,
 ) -> dict[str, Any]:
+    """Play the real league one window at a time with ``fair_choose``.
+
+    The plan starts as ``pick-trader``; with ``commit`` a chosen ``plan:X``
+    makes X the policy every later rollout, and every later window's default
+    move, continues with.
+    """
     league = new_league(seed, contract)
     path = []
+    plan = BASE_POLICY
     for index in range(len(STEPS)):
         _pre_step(league, index)
-        choice, menu = fair_choose(league, index, worlds, planner_seed, margin_z, generated=generated)
+        choice, moves = fair_choose(
+            league,
+            index,
+            worlds,
+            planner_seed,
+            margin_z,
+            generated=generated,
+            menu=menu,
+            plan=plan,
+            commit=commit,
+            two_goalies=two_goalies,
+        )
         path.append(choice)
-        run_decision_point(league, menu[choice](), STEPS[index][1], CONFIG)
+        run_decision_point(league, moves[choice](), STEPS[index][1], CONFIG)
         _finish_step(league, index)
+        plan = continuation_of(choice, plan)
     return {"path": path, "league": league}
 
 
@@ -591,8 +732,11 @@ def _run_seed(job: tuple[str, int, dict[str, Any]]) -> dict[str, Any]:
     started = time.perf_counter()
     baseline = new_league(seed, contract)
     rollout(baseline, 0)
-    if mode == "hindsight":
-        found = hindsight_search(seed, options["beam"], options["luck_neutral"], contract)
+    planner_options = {key: options[key] for key in PLANNER_OPTIONS if key in options}
+    if mode == "policy":
+        found = play_policy(seed, options["policy"], contract)
+    elif mode == "hindsight":
+        found = hindsight_search(seed, options["beam"], options["luck_neutral"], contract, **planner_options)
     else:
         found = fair_search(
             seed,
@@ -601,10 +745,15 @@ def _run_seed(job: tuple[str, int, dict[str, Any]]) -> dict[str, Any]:
             options["margin_z"],
             generated=options["generated"],
             contract=contract,
+            **planner_options,
         )
     league = found["league"]
     if contract == "2.1":
-        return _row_v21(seed, baseline, league, found["path"], started)
+        row = _row_v21(seed, baseline, league, found["path"], started)
+        if planner_options or mode == "policy":
+            row.update(planner.play_counts(baseline, league))
+            row.update(planner.continuation(baseline, league, play_step))
+        return row
     base_score, score = score_team(baseline, 0), score_team(league, 0)
     base_neutral, neutral = luck_neutral_score(baseline), luck_neutral_score(league)
     return {
@@ -623,6 +772,13 @@ def _run_seed(job: tuple[str, int, dict[str, Any]]) -> dict[str, Any]:
         "path": found["path"],
         "seconds": round(time.perf_counter() - started, 1),
     }
+
+
+def play_policy(seed: int, policy: str, contract: str = "1.0") -> dict[str, Any]:
+    """One scripted policy (a registered one or a win-now one) for a whole episode."""
+    league = new_league(seed, contract)
+    rollout(league, 0, policy)
+    return {"path": [policy] * len(STEPS), "league": league}
 
 
 def _row_v21(seed: int, baseline: League, league: League, path: list[str], started: float) -> dict[str, Any]:
@@ -664,6 +820,42 @@ def _summary_v21(mode: str, options: dict[str, Any], rows: list[dict[str, Any]])
     def mean(key: str) -> float:
         return round(statistics.mean(row[key] for row in rows), 3)
 
+    play: dict[str, Any] = {}
+    if "wins" in rows[0]:
+        # Non-default runs only, so the committed 2.1 files reproduce as written.
+        play = {
+            "play_means": {
+                "wins": mean("wins"),
+                "baseline_wins": mean("baseline_wins"),
+                "championships": mean("championships"),
+                "baseline_championships": mean("baseline_championships"),
+                "roster_at_end": mean("roster_at_end"),
+                "baseline_roster_at_end": mean("baseline_roster_at_end"),
+                "moves": {
+                    kind: round(statistics.mean(row["moves"][kind] for row in rows), 3) for kind in rows[0]["moves"]
+                },
+                "baseline_moves": {
+                    kind: round(statistics.mean(row["baseline_moves"][kind] for row in rows), 3)
+                    for kind in rows[0]["baseline_moves"]
+                },
+            },
+            "illegal_actions_total": sum(row["illegal_actions"] for row in rows),
+            "baseline_illegal_actions_total": sum(row["baseline_illegal_actions"] for row in rows),
+            "rejected_offers_total": sum(row["rejected_offers"] for row in rows),
+            # Winning value over five more seasons under pick-trader, against the
+            # end-state score that is supposed to stand in for it.
+            "continuation": {
+                "end_state_gap": dict(
+                    zip(("mean", "se"), _mean_se([r["end_state"] - r["baseline_end_state"] for r in rows]))
+                ),
+                "winning_gap": dict(
+                    zip(
+                        ("mean", "se"),
+                        _mean_se([r["continuation_winning"] - r["baseline_continuation_winning"] for r in rows]),
+                    )
+                ),
+            },
+        }
     return {
         "mode": mode,
         "contract": "2.1",
@@ -683,6 +875,7 @@ def _summary_v21(mode: str, options: dict[str, Any], rows: list[dict[str, Any]])
         "baseline_expected_championships_mean": mean("baseline_expected_championships"),
         "expected_championships_mean": mean("expected_championships"),
         "component_lift_means": {term: {"mean": m, "se": se} for term, (m, se) in component_lifts.items()},
+        **play,
         "rows": rows,
     }
 
@@ -708,7 +901,7 @@ def _summary_v1(mode: str, options: dict[str, Any], rows: list[dict[str, Any]]) 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("mode", choices=("hindsight", "fair"))
+    parser.add_argument("mode", choices=("hindsight", "fair", "policy"))
     parser.add_argument("--seeds", default="101-108", help="e.g. 101-108 or 101,105 (public seeds only)")
     parser.add_argument(
         "--contract",
@@ -724,6 +917,22 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--generated", action="store_true", help="fair: add generated single moves to the menu")
     parser.add_argument("--margin-z", type=float, default=1.5, help="fair: paired-gain z needed to leave the base")
     parser.add_argument("--planner-seed", type=int, default=0, help="fair: the planner's own randomness")
+    parser.add_argument(
+        "--menu",
+        choices=MENUS,
+        default="base",
+        help="base: the 2026-10-14 menu; policies: + win-now policies; extensions: + generated"
+        " extensions (with --generated); extended: both, plus generated buys",
+    )
+    parser.add_argument(
+        "--commit", action="store_true", help="candidates may also switch the continuation policy for the rest"
+    )
+    parser.add_argument(
+        "--one-goalie",
+        action="store_true",
+        help="win-now policies dress a second goalie only if he ranks in by overall (the bonus is unpublished)",
+    )
+    parser.add_argument("--policy", help="policy mode: the scripted or win-now policy to play")
     parser.add_argument("--jobs", type=int, default=1, help="seeds to search in parallel (local CPU only)")
     parser.add_argument("--out", type=Path, help="write per-seed JSON here")
     args = parser.parse_args(argv)
@@ -742,6 +951,18 @@ def main(argv: list[str] | None = None) -> int:
     if v21:
         # Only set off the default, so 1.0 output stays byte for byte as before.
         options["contract"] = args.contract
+    # Likewise: the planner options are recorded only when they are used.
+    if args.menu != "base":
+        options["menu"] = args.menu
+    if args.commit:
+        options["commit"] = True
+    if args.one_goalie:
+        options["two_goalies"] = False
+    if args.mode == "policy":
+        if not args.policy:
+            parser.error("policy mode needs --policy")
+        planner.policy_factory(args.policy)
+        options["policy"] = args.policy
     jobs = [(args.mode, seed, options) for seed in _parse_seeds(args.seeds)]
     rows: list[dict[str, Any]] = []
     with ProcessPoolExecutor(max_workers=max(1, args.jobs)) as pool:
