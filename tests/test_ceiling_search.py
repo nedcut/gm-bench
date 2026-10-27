@@ -265,6 +265,19 @@ def test_win_now_policies_play_legally(label):
     assert (signings == 0) == (label == "contend-extend")
 
 
+def test_mixed_policy_plays_win_now_preseasons_only():
+    league = ceiling_search.new_league(11, "2.1")
+    ceiling_search.rollout(league, 0, "contend-preseason-1g")
+    own = [t for t in league.transactions if t.team_id == 0 and t.accepted]
+    # Only the win-now policy queries other rosters, and only in preseason.
+    queried = {t.phase for t in own if t.action.get("type") == "inspect_team" and t.action.get("team_id") != 0}
+    assert queried == {"preseason"}
+    assert sum(t.action.get("type") == "extend_contract" for t in own) >= 10
+    # Mixed policies are reference rows, not menu entries.
+    menu = ceiling_search.candidate_moves(hindsight=False, menu="extended")
+    assert not any(name.endswith(("-preseason", "-preseason-1g")) for name in menu)
+
+
 def test_default_menu_is_unchanged():
     league = _v21_at(11, 4)
     menu = ceiling_search.fair_menu(league, 4, True)

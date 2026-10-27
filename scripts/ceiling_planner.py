@@ -565,10 +565,42 @@ def win_now_policies(*, two_goalies: bool = True) -> dict[str, Any]:
 WIN_NOW_POLICIES: dict[str, Any] = {**win_now_policies(two_goalies=True), **win_now_policies(two_goalies=False)}
 
 
+class PhaseMix(Agent):
+    """One policy per phase, each keeping its own state across the episode."""
+
+    def __init__(self, by_phase: dict[str, str], label: str) -> None:
+        self.by_phase = by_phase
+        self.name = label
+        self._agents: dict[str, Agent] = {}
+
+    def act(self, observation: dict[str, Any]) -> list[dict[str, Any]]:
+        policy = self.by_phase[observation["phase"]]
+        if policy not in self._agents:
+            self._agents[policy] = policy_factory(policy)()
+        return self._agents[policy].act(observation)
+
+
+# Reference rows for the policy mode only; not on any search menu. The fair
+# planner's paths mix win-now preseasons with pick-trader's in-season play;
+# these are that mix written as fixed scripted policies.
+MIXED_POLICIES: dict[str, Any] = {
+    f"{policy}-preseason{suffix}": (
+        lambda policy=policy, suffix=suffix: PhaseMix(
+            {phase: f"{policy}{suffix}" if phase == "preseason" else "pick-trader" for phase in PHASES},
+            f"{policy}-preseason{suffix}",
+        )
+    )
+    for policy in ("contend", "contend-nobuy")
+    for suffix in ("", "-1g")
+}
+
+
 def policy_factory(name: str) -> Any:
     """A fresh-agent factory for a registered scripted policy or a win-now policy."""
     if name in WIN_NOW_POLICIES:
         return WIN_NOW_POLICIES[name]
+    if name in MIXED_POLICIES:
+        return MIXED_POLICIES[name]
     return AGENTS[name]
 
 
