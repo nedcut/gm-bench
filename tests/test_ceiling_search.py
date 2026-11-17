@@ -278,6 +278,33 @@ def test_mixed_policy_plays_win_now_preseasons_only():
     assert not any(name.endswith(("-preseason", "-preseason-1g")) for name in menu)
 
 
+def test_blind_valuation_ignores_the_second_goalie_bonus():
+    skater = {"id": 1, "overall": 70.0, "position": "F", "sub_position": "W"}
+    one = [{"id": 2, "overall": 70.0, "position": "G"}, skater]
+    two = [*one, {"id": 3, "overall": 70.0, "position": "G"}]
+    # Every player has the same overall, so only the goalie bonus can move strength.
+    gain = planner.strength_of(two, 0.0, 1.0) - planner.strength_of(one, 0.0, 1.0)
+    assert gain == pytest.approx(planner.GOALIE_BONUS)
+    blind = planner.strength_of(two, 0.0, 1.0, goalie_bonus_max=1) - planner.strength_of(
+        one, 0.0, 1.0, goalie_bonus_max=1
+    )
+    assert blind == pytest.approx(0.0)
+    # The -1g policies only change the lineup; their valuation still has the bonus.
+    assert planner.policy_factory("contend-1g")().goalie_bonus_max == planner.GOALIE_BONUS_MAX
+    agent = planner.policy_factory("contend-blind")()
+    assert agent.goalie_bonus_max == 1 and not agent.two_goalies
+
+
+def test_blind_policies_play_legally_and_stay_off_the_menus():
+    league = ceiling_search.new_league(11, "2.1")
+    ceiling_search.rollout(league, 0, "contend-preseason-blind")
+    own = [t for t in league.transactions if t.team_id == 0 and t.accepted]
+    assert sum(t.action.get("type") == "extend_contract" for t in own) >= 10
+    for two_goalies in (True, False):
+        menu = ceiling_search.candidate_moves(hindsight=False, menu="extended", two_goalies=two_goalies)
+        assert not any(name.endswith("-blind") for name in menu)
+
+
 def test_default_menu_is_unchanged():
     league = _v21_at(11, 4)
     menu = ceiling_search.fair_menu(league, 4, True)

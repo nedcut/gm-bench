@@ -49,14 +49,21 @@ SEASONS = 5
 FINAL_SEASON = SEASONS
 
 
-def strength_of(players: list[dict[str, Any]], payroll: float, cap: float) -> float:
-    """``League._team_strength`` (no injury noise) for a dressed lineup."""
+def strength_of(
+    players: list[dict[str, Any]], payroll: float, cap: float, *, goalie_bonus_max: int = GOALIE_BONUS_MAX
+) -> float:
+    """``League._team_strength`` (no injury noise) for a dressed lineup.
+
+    ``goalie_bonus_max=1`` is the valuation of a GM who does not know the
+    unpublished second-goalie bonus: a second dressed goalie counts only for
+    its overall.
+    """
     lineup = sorted(players, key=lambda player: player["overall"], reverse=True)
     if not lineup:
         return 20.0
     goalies = sum(1 for player in lineup if player["position"] == "G")
     centers = sum(1 for player in lineup if player["position"] == "F" and player.get("sub_position") == "C")
-    bonus = min(goalies, GOALIE_BONUS_MAX) * GOALIE_BONUS + min(centers, CENTER_TARGET) * CENTER_BONUS
+    bonus = min(goalies, goalie_bonus_max) * GOALIE_BONUS + min(centers, CENTER_TARGET) * CENTER_BONUS
     weighted = total = 0.0
     for index, player in enumerate(lineup):
         weight = 1.0 if index < 6 else 0.74 if index < 12 else 0.48
@@ -77,7 +84,9 @@ def roster_has_positions(roster: list[dict[str, Any]]) -> bool:
     return all(sum(p["position"] == pos for p in roster) >= need for pos, need in LINEUP_MIN_POSITIONS.items())
 
 
-def best_lineup(roster: list[dict[str, Any]], *, two_goalies: bool = True) -> list[dict[str, Any]]:
+def best_lineup(
+    roster: list[dict[str, Any]], *, two_goalies: bool = True, goalie_bonus_max: int = GOALIE_BONUS_MAX
+) -> list[dict[str, Any]]:
     """The strongest legal 18 among a few constructions ([] if none is legal).
 
     A roster of 18 or fewer dresses whole, as ``League._effective_lineup``
@@ -110,17 +119,28 @@ def best_lineup(roster: list[dict[str, Any]], *, two_goalies: bool = True) -> li
                 options.append(chosen)
     if not options:
         return []
-    return max(options, key=lambda lineup: strength_of(lineup, 0.0, 1.0))
+    return max(options, key=lambda lineup: strength_of(lineup, 0.0, 1.0, goalie_bonus_max=goalie_bonus_max))
 
 
-def dressed(players: list[dict[str, Any]], *, two_goalies: bool) -> list[dict[str, Any]]:
+def dressed(
+    players: list[dict[str, Any]], *, two_goalies: bool, goalie_bonus_max: int = GOALIE_BONUS_MAX
+) -> list[dict[str, Any]]:
     """The best lineup, or the top 18 by overall when no legal lineup exists."""
-    return best_lineup(players, two_goalies=two_goalies) or sorted(players, key=lambda p: -p["overall"])[:LINEUP_SIZE]
+    lineup = best_lineup(players, two_goalies=two_goalies, goalie_bonus_max=goalie_bonus_max)
+    return lineup or sorted(players, key=lambda p: -p["overall"])[:LINEUP_SIZE]
 
 
-def lineup_strength(players: list[dict[str, Any]], payroll: float, cap: float, *, two_goalies: bool) -> float:
+def lineup_strength(
+    players: list[dict[str, Any]],
+    payroll: float,
+    cap: float,
+    *,
+    two_goalies: bool,
+    goalie_bonus_max: int = GOALIE_BONUS_MAX,
+) -> float:
     """Strength of the lineup ``dressed`` picks, after the cap penalty."""
-    return strength_of(dressed(players, two_goalies=two_goalies), payroll, cap)
+    lineup = dressed(players, two_goalies=two_goalies, goalie_bonus_max=goalie_bonus_max)
+    return strength_of(lineup, payroll, cap, goalie_bonus_max=goalie_bonus_max)
 
 
 def asset_value(player: dict[str, Any]) -> float:
@@ -193,6 +213,7 @@ def plan_buys(
     min_gain: float,
     spend_youth: bool,
     exclude_ids: frozenset[int] = frozenset(),
+    goalie_bonus_max: int = GOALIE_BONUS_MAX,
 ) -> list[dict[str, Any]]:
     """Trades that buy strength now with picks and players who don't dress.
 
@@ -221,11 +242,14 @@ def plan_buys(
     }
 
     def gain_with(players: list[dict[str, Any]], pay: float) -> float:
-        return lineup_strength(players, pay, cap, two_goalies=two_goalies)
+        return lineup_strength(players, pay, cap, two_goalies=two_goalies, goalie_bonus_max=goalie_bonus_max)
+
+    def lineup_now(players: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return dressed(players, two_goalies=two_goalies, goalie_bonus_max=goalie_bonus_max)
 
     base = gain_with(current, payroll)
     targets: list[tuple[float, int, dict[str, Any]]] = []
-    floor = min((p["overall"] for p in dressed(current, two_goalies=two_goalies)), default=0.0)
+    floor = min((p["overall"] for p in lineup_now(current)), default=0.0)
     for team_id, players in rosters.items():
         if used_with.get(team_id, 0) >= limit or team_id not in partners:
             continue
@@ -243,7 +267,7 @@ def plan_buys(
             continue
         partner_roster = rosters[team_id]
         partner_payroll = sum(p["salary"] for p in partner_roster)
-        lineup_ids = {p["id"] for p in dressed([*current, target], two_goalies=two_goalies)}
+        lineup_ids = {p["id"] for p in lineup_now([*current, target])}
         bench = [
             p for p in current if p["id"] not in lineup_ids and p["id"] not in given and (spend_youth or p["age"] > 24)
         ]
@@ -326,6 +350,12 @@ class Contender(Agent):
     6. Draft the best prospect by public asset value with every pick held.
     7. Next round, dress the strongest legal lineup on the roster that
        actually resulted (two goalies when ``two_goalies``).
+
+    ``two_goalies=False`` (the ``-1g`` policies) only stops the lineup from
+    dressing a second goalie on purpose; signings, claims and buys are still
+    valued with the engine's second-goalie bonus. ``blind_goalie=True`` (the
+    ``-blind`` policies) also removes the bonus from every valuation, which
+    is what a GM who has only read ``get_rules`` can compute.
     """
 
     name = "contend"
@@ -337,6 +367,7 @@ class Contender(Agent):
         sign: bool = True,
         buy: bool = True,
         two_goalies: bool = True,
+        blind_goalie: bool = False,
         over_cap: float = 0.0,
         margin: float = 1.0,
         max_trades: int = 3,
@@ -347,7 +378,8 @@ class Contender(Agent):
         self.extend = extend
         self.sign = sign
         self.buy = buy
-        self.two_goalies = two_goalies
+        self.two_goalies = two_goalies and not blind_goalie
+        self.goalie_bonus_max = 1 if blind_goalie else GOALIE_BONUS_MAX
         self.over_cap = over_cap
         self.margin = margin
         self.max_trades = max_trades
@@ -384,7 +416,7 @@ class Contender(Agent):
             if moves:
                 return [*moves, {"type": "inspect_team", "team_id": team["id"]}]
         self._stage = 3
-        lineup = best_lineup(team["roster"], two_goalies=self.two_goalies)
+        lineup = best_lineup(team["roster"], two_goalies=self.two_goalies, goalie_bonus_max=self.goalie_bonus_max)
         if lineup_is_legal(lineup):
             return [{"type": "set_lineup", "player_ids": [p["id"] for p in lineup]}]
         return []
@@ -402,10 +434,14 @@ class Contender(Agent):
         actions: list[dict[str, Any]] = []
 
         def strength(players: list[dict[str, Any]], pay: float) -> float:
-            return lineup_strength(players, pay, cap, two_goalies=self.two_goalies)
+            return lineup_strength(
+                players, pay, cap, two_goalies=self.two_goalies, goalie_bonus_max=self.goalie_bonus_max
+            )
 
         if phase == "preseason" and self.extend:
-            core = {p["id"] for p in dressed(roster, two_goalies=self.two_goalies)}
+            core = {
+                p["id"] for p in dressed(roster, two_goalies=self.two_goalies, goalie_bonus_max=self.goalie_bonus_max)
+            }
             years = contract_years_to_end(season, extension=True)
             for player in sorted(roster, key=lambda p: -p["overall"]):
                 quotes = player.get("extension_quotes")
@@ -459,6 +495,7 @@ class Contender(Agent):
                 roster,
                 payroll,
                 two_goalies=self.two_goalies,
+                goalie_bonus_max=self.goalie_bonus_max,
                 over_cap=self.over_cap,
                 margin=self.margin,
                 max_trades=self.max_trades,
@@ -546,9 +583,9 @@ def buy_moves(
     return moves
 
 
-def win_now_policies(*, two_goalies: bool = True) -> dict[str, Any]:
+def win_now_policies(*, two_goalies: bool = True, blind_goalie: bool = False) -> dict[str, Any]:
     """The win-now family as fresh-agent factories, keyed by menu name."""
-    suffix = "" if two_goalies else "-1g"
+    suffix = "-blind" if blind_goalie else "" if two_goalies else "-1g"
     variants: dict[str, dict[str, Any]] = {
         "contend": {},
         "contend-nobuy": {"buy": False},
@@ -556,13 +593,20 @@ def win_now_policies(*, two_goalies: bool = True) -> dict[str, Any]:
     }
     return {
         f"{name}{suffix}": (
-            lambda kwargs=kwargs, label=f"{name}{suffix}": Contender(two_goalies=two_goalies, label=label, **kwargs)
+            lambda kwargs=kwargs, label=f"{name}{suffix}": Contender(
+                two_goalies=two_goalies, blind_goalie=blind_goalie, label=label, **kwargs
+            )
         )
         for name, kwargs in variants.items()
     }
 
 
-WIN_NOW_POLICIES: dict[str, Any] = {**win_now_policies(two_goalies=True), **win_now_policies(two_goalies=False)}
+# The ``-blind`` family is for the policy mode only; no search menu offers it.
+WIN_NOW_POLICIES: dict[str, Any] = {
+    **win_now_policies(two_goalies=True),
+    **win_now_policies(two_goalies=False),
+    **win_now_policies(blind_goalie=True),
+}
 
 
 class PhaseMix(Agent):
@@ -591,7 +635,7 @@ MIXED_POLICIES: dict[str, Any] = {
         )
     )
     for policy in ("contend", "contend-nobuy")
-    for suffix in ("", "-1g")
+    for suffix in ("", "-1g", "-blind")
 }
 
 

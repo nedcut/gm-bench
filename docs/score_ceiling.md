@@ -242,9 +242,9 @@ of the 1.0 `--luck-neutral` hindsight row, and the fair planner's rollout
 objective is score-v2 itself. On seeds 101-124 `pick-trader` scores 243.3
 luck-neutral under 1.0 and 249.1 under 2.1, with 0.49 and 0.51 expected
 titles per five seasons. The "realized playoffs" column below puts the
-single-game playoff results back into score-v2. It moves each lift by a few
-points with a standard error two to four times larger, as the 1.0 "real"
-column did.
+single-game playoff results back into score-v2. It moves the lifts by 4 to
+11 points (fair +3.7 and +10.4, hindsight -11.0) with a standard error two
+to four times larger, as the 1.0 "real" column did.
 
 ### Results
 
@@ -267,8 +267,8 @@ seed sets, not paired. `pick-trader` averages 249.6 on the panel against
 |---|---|---|
 | Codex `gpt-6-astra` | +46.9 (5.2) | 32 / 32 |
 | OpenCode `minimax-m3.1-flash-free` | +23.0 (5.6) | 25 / 32 |
-| OpenCode `mimo-v2.6-pro` | +20.7 (6.0) | 25 / 32 |
-| Codex `gpt-6.1-sol` | +19.1 (4.4) | 24 / 32 |
+| OpenCode `mimo-v2.6-pro` | +20.7 (5.9) | 25 / 32 |
+| Codex `gpt-6.1-sol` | +19.1 (4.5) | 24 / 32 |
 | OpenCode `mimo-v2.6-flash` | +18.7 (6.1) | 24 / 32 |
 | The other seven rows | -53.1 to +1.9 | 2 to 21 / 32 |
 
@@ -282,12 +282,13 @@ seed sets, not paired. `pick-trader` averages 249.6 on the panel against
    planner's level.
 2. **So the searches are weak lower bounds, not a ceiling.** The
    hindsight search sees the dice, yet a model that plays fair and can't
-   see them beats it on every one of its 32 seeds. The search is bounded
+   see them has the higher mean lift (on a different seed set; the two
+   were never paired on the same seeds). The search is bounded
    by its move menu, not by information. These numbers don't show the top
    of the scale near saturation. The best measured result is +47, and
    nothing here bounds the reachable score from above.
 3. **The gap is winning games.** Astra's row averages 106.3 wins and 1.38
-   titles per five-season game. On the public seeds `pick-trader` wins
+   realized titles per five-season game. On the public seeds `pick-trader` wins
    85.0 (101-124) and 87.4 (125-172) with 0.51 and 0.59 expected titles.
    That gap of about 20 wins is worth about 20 points from the wins term
    alone, before the playoff value of a stronger team. The searches add
@@ -310,7 +311,8 @@ seed sets, not paired. `pick-trader` averages 249.6 on the panel against
    no contract extension. Astra extends 25 contracts a game
    (`results/diagnostics/v21_behavior/behavior.json`), where the scripted
    policies extend at most two players a preseason. It also makes about
-   155 tool calls a game, so many moves land in each window.
+   154 tool calls a game (`mean_tool_calls_per_episode` in its row), so
+   many moves land in each window.
 5. **2.1 leaves a little less for these searches than 1.0 did.** Paired
    by seed against the 1.0 luck-neutral rows: fair -6.1 (se 4.7) on
    101-124 and -2.4 (se 3.4) on 125-172, hindsight -8.1 (se 4.4). The
@@ -369,11 +371,14 @@ and `v21_hindsight_policies_commit.json` in
 `results/diagnostics/score_ceiling/` (names below).
 
 **Finding.** (b) explains most of the gap and (c) some of it; (a) explains
-none of it. A single scripted win-now policy that reads only public
-information beats Astra's lift, and the fair planner with the fixed menu
-beats `pick-trader` by about +150, three times Astra's +46.9. Plan
+none of it. The fair planner with the fixed menu beats `pick-trader` by
+about +150, three times Astra's +46.9. A fixed scripted mix that reads
+only public information and values no player by the unpublished
+second-goalie bonus (`contend-preseason-blind`) scores +72.8 and +66.2,
+above Astra's lift; the plain win-now policy without the bonus
+(`contend-blind`, +39.7 and +35.5) falls below it. Plan
 commitment adds nothing measurable, alone or on top of the fixed menu.
-About a third of the planner's lift is end-state credit that a
+A quarter to a third of the planner's lift is end-state credit that a
 five-season continuation does not confirm (see "Explaining the numbers"),
 but its winning terms alone (+101 to +108) are still more than twice
 Astra's whole lift.
@@ -397,7 +402,11 @@ time.
   drafts with every pick it holds, then dresses the strongest legal
   lineup. Its lineup and strength arithmetic copies
   `League._team_strength` from public fields (a test checks it against
-  the engine). Variants: `contend-nobuy` (no buying) and `contend-extend`
+  the engine). The inputs are public, but three of the function's
+  constants are not in `get_rules`: the second-goalie bonus (below), the
+  lineup slot weights (1.0, 0.74, 0.48) and the 0.25 strength lost per
+  unit of payroll over the cap. A model can only estimate them from the
+  `public_strength` figures in the standings. Variants: `contend-nobuy` (no buying) and `contend-extend`
   (extensions and lineup only). `--menu policies` adds the three to the
   menu as one-window macro moves and, with `--commit`, as plans.
 - **Extensions (c).** `--menu extensions` adds generated preseason moves:
@@ -414,7 +423,14 @@ time.
   goalie up to two, and `get_rules` does not publish it (queue item 26).
   The win-now policies dress two by default. `--one-goalie` and the `-1g`
   policies dress a second goalie only when he ranks in by overall, as the
-  existing scripted policies do.
+  existing scripted policies do. That changes the lineup only: the `-1g`
+  policies still value every signing, waiver claim and buy with the
+  bonus, so they are not blind to it. The `-blind` policies (policy mode
+  only, added 2026-11-17 after review) also take the bonus out of every
+  valuation, so a second goalie counts only for his overall. They are the
+  rows to quote for "without the unpublished bonus". `--one-goalie` on the
+  planner reaches the bonus the same way as `-1g`, and through the engine
+  rollouts, so its row is an upper estimate for a bonus-blind planner.
 - **Fairness.** The planner still reads no seed or hidden value. The
   hidden-state test now also covers the extended menu, the buy moves and
   plan commitment (season 5 preseason, seed 12): every candidate's rollout
@@ -423,7 +439,9 @@ time.
 - **`policy` mode** plays one scripted or win-now policy for a whole
   game, for reference rows. `contend-preseason` plays `contend` in the
   preseason and `pick-trader` in the other three windows, the mix the
-  planner's paths kept choosing, written as a fixed policy.
+  planner's paths kept choosing on seeds 101-124, written as a fixed
+  policy. It was designed from those paths, so only its 125-172 rows are
+  out of sample.
 
 #### Results
 
@@ -452,13 +470,19 @@ on 125-172.
 | `contend` | 101-124 | +59.7 (4.0) | 24/24 | 111.5 | 1.60 | +85.5 | -26.0 |
 | `contend-1g` | 101-124 | +54.3 (4.5) | 24/24 | 110.2 | 1.56 | +82.8 | -28.6 |
 | `contend-1g` | 125-172 | +50.9 (3.8) | 47/48 | 111.0 | 1.60 | +80.1 | -29.0 |
+| `contend-blind` | 101-124 | +39.7 (4.6) | 23/24 | 106.2 | 1.35 | +67.8 | -28.2 |
+| `contend-blind` | 125-172 | +35.5 (5.1) | 38/48 | 106.6 | 1.38 | +63.1 | -27.6 |
 | `contend-nobuy` | 101-124 | +61.0 (4.4) | 24/24 | 101.0 | 1.10 | +51.0 | +9.9 |
 | `contend-nobuy-1g` | 101-124 | +47.6 (5.7) | 22/24 | 97.0 | 0.93 | +37.1 | +10.3 |
+| `contend-nobuy-blind` | 101-124 | +45.7 (4.9) | 23/24 | 94.3 | 0.89 | +32.3 | +13.3 |
+| `contend-nobuy-blind` | 125-172 | +37.6 (4.7) | 43/48 | 95.8 | 0.88 | +26.8 | +10.8 |
 | `contend-extend` | 101-124 | +27.1 (6.9) | 19/24 | 88.4 | 0.65 | +12.7 | +14.3 |
 | `contend-extend-1g` | 101-124 | +18.2 (6.2) | 18/24 | 84.6 | 0.52 | +2.5 | +15.6 |
 | `contend-preseason` | 101-124 | +93.3 (7.8) | 24/24 | 111.0 | 1.56 | +86.8 | +6.7 |
 | `contend-preseason-1g` | 101-124 | +83.1 (6.6) | 24/24 | 110.1 | 1.46 | +81.6 | +1.6 |
 | `contend-preseason-1g` | 125-172 | +85.1 (3.7) | 48/48 | 111.1 | 1.51 | +78.0 | +7.0 |
+| `contend-preseason-blind` | 101-124 | +72.8 (7.6) | 24/24 | 106.3 | 1.28 | +66.3 | +6.6 |
+| `contend-preseason-blind` | 125-172 | +66.2 (5.3) | 47/48 | 105.0 | 1.26 | +59.2 | +7.0 |
 | `strategic` (reference) | 101-124 | -2.9 (3.6) | 12/24 | 85.7 | 0.52 | +1.3 | -4.2 |
 
 The two-goalie `contend` and `contend-preseason` replicate on 125-172 at
@@ -466,9 +490,12 @@ The two-goalie `contend` and `contend-preseason` replicate on 125-172 at
 so not paired with these seeds): +46.9 (5.2), 106.3 wins and 1.38 titles
 (realized) per game, 25 extensions per game of which 11 in season 5, and
 16.5 players under contract at the end
-(`results/diagnostics/v21_behavior/behavior.json`). `contend-1g` has
-almost the same profile: 110 wins, 1.56 expected and 1.75 realized
-titles, 22 extensions and 17.7 players at the end.
+(`results/diagnostics/v21_behavior/behavior.json`). `contend-blind` has
+almost the same profile on 101-124: 106.2 wins, 1.35 expected and 1.58
+realized titles, 21.9 extensions and 17.6 players at the end, for a lift
+of +39.7. Astra dressed two goalies at 132 of its 301 phase closes with
+two healthy goalies (`lineups.of_which_2_goalies_dressed`), so its row
+has part of the bonus too.
 
 #### Which hypothesis held
 
@@ -481,7 +508,10 @@ titles, 22 extensions and 17.7 players at the end.
   win-now policies to the menu, with nothing else changed, takes the
   planner from +20.1 to +141.4 (paired +121.3, se 7.2), with winning terms
   of +102.0. The policies extend contracts themselves, so (b) includes
-  part of (c). On its own, `contend-1g` already beats Astra's lift.
+  part of (c). On their own, the scripted policies reach Astra's level
+  only with the goalie bonus in their valuation (`contend-1g` +54.3 and
+  +50.9) or with the preseason mix (`contend-preseason-blind` +72.8 and
+  +66.2); `contend-blind` is at +39.7 and +35.5.
 - **(c) No extensions: partly.** Extension moves alone take the planner
   to +50.6 (paired +30.5, se 3.6), past Astra's number, but less than
   half of that is winning (+28.0 winning, +22.7 end state; 93.1 wins
@@ -496,17 +526,36 @@ titles, 22 extensions and 17.7 players at the end.
 
 #### Explaining the numbers
 
-- **No penalized moves.** The win-now policies make no illegal action on
-  101-124. The planner runs make 1 or 2 in 24 games, as `pick-trader`
-  makes 1. Rejected trade bids (a partner's hidden valuation says no, with
-  no penalty) run 27 to 43 per 24 games.
-- **The second goalie is worth 5 to 15 points, not the lift.** `contend`
-  over `contend-1g` +5.4, `contend-nobuy` over `contend-nobuy-1g` +13.4,
-  `contend-preseason` over `contend-preseason-1g` +10.2, and +14.5 (se 8.7)
-  for the full planner, which still gains +141.2 without it.
+- **A few penalized moves, from one bug in the buy bids.** The `contend`
+  family makes no illegal action on 101-124 and `pick-trader` makes 1 (and
+  0 on 125-172). The runs that buy make a few more
+  (`illegal_actions_total` against `baseline_illegal_actions_total` in
+  each file): the `-preseason` policies 2 on 101-124, `contend-1g` 3 on
+  125-172, the planner runs 1 to 3, and the hindsight run with policies
+  12. The ones traced (seed 151, `contend-1g`, three bids in season 2)
+  are "trade would exceed hard cap buffer": `plan_buys` checks the
+  partner's payroll from roster salaries and leaves out its dead cap,
+  which `inspect_team` does publish. Each costs about 2.5 points, so the
+  lifts are slightly understated, not inflated. The bug is left in so the
+  committed rows still reproduce. Rejected trade bids (a partner's hidden
+  valuation says no, with no penalty) run 27 to 103 per 24 games
+  (`rejected_offers_total`).
+- **The second goalie is worth 20 to 35 points to the scripted policies,
+  not the whole lift.** Dressing him on purpose: `contend` over
+  `contend-1g` +5.4, `contend-nobuy` over `contend-nobuy-1g` +13.4,
+  `contend-preseason` over `contend-preseason-1g` +10.2. Valuing him with
+  the bonus, paired by seed: `contend-1g` over `contend-blind` +14.5 (se
+  4.5) and +15.5 (se 4.9) on 125-172; `contend-preseason-1g` over
+  `contend-preseason-blind` +10.3 (se 5.9) and +18.9 (se 3.7). Both
+  together: `contend` over `contend-blind` +19.9 (se 4.8) and +18.9 (se
+  3.8); `contend-preseason` over `contend-preseason-blind` +20.6 (se 6.8)
+  and +21.4 (se 4.3). For the full planner, `--one-goalie` costs 14.5 (se
+  8.7) and still leaves +141.2, but that run is not bonus-blind (see "What
+  changed"); a bonus-blind planner was not run.
 - **The winning terms carry most of the lift.** `contend-1g` wins 25 more
-  games a game and triples expected titles. It pays in young assets
-  (-24.5), as Astra's 2.0 row did (winning +67.4, end state -18.8,
+  games a game and triples expected titles; `contend-blind` wins 21 more
+  and has 2.6 times the expected titles. Both pay in young assets
+  (-24.5 and -24.3), as Astra's 2.0 row did (winning +67.4, end state -18.8,
   [score_deep_dive.md](score_deep_dive.md) section 1).
 - **The end-state terms over-credit extensions.** Every new row also hands
   both final leagues to `pick-trader` for five more seasons on the same
@@ -521,8 +570,18 @@ titles, 22 extensions and 17.7 players at the end.
   just left. `pick-trader` ends with 11.4 players under contract, the
   extension-heavy runs with 18 to 21, and the gap closes once
   `pick-trader` refills its roster the next season. Astra makes 11
-  season-5 extensions a game. So about 30 to 50 points of the planner's
-  lift is end-state credit, not future wins. Its winning terms (+92 to
+  season-5 extensions a game. The size depends on what counts as the
+  usual residual. The over-credit is the end-state gap minus the later
+  winning gap: 48.0, 54.9 and 57.3 for the three planner runs, against
+  9.0 for `strategic` and 21.7 for `shrewd` (-3.3 end state, -25.0
+  later), neither of which makes extra extensions. Taking `strategic` as
+  the residual leaves 39 to 48 points of the planner's lift as end-state
+  credit, not future wins; taking `shrewd` leaves 26 to 36. Two things
+  push the check toward over-credit: the manager for the extra seasons is
+  `pick-trader`, which sells veterans at every deadline, and only wins in
+  seasons 6-10 are counted, not the picks and young players it turns them
+  into. And every `contend` variant makes about 22 extensions, so there
+  is no win-now row without them to isolate extensions from the rest. Its winning terms (+92 to
   +108) and its later winning gap (about 0, where `strategic` is at -13)
   are the part that is real play.
 
@@ -531,12 +590,13 @@ titles, 22 extensions and 17.7 players at the end.
 - **The 2.1 scale has far more headroom than the leaderboard shows.** A
   fair, public-information planner gains about +150 over `pick-trader`,
   and a fixed scripted mix (extend the lineup and buy now in the
-  preseason, `pick-trader` otherwise) gains +85 on 48 fresh seeds without
-  the unpublished goalie bonus. Astra's +46.9 is well below what the rules
+  preseason, `pick-trader` otherwise) gains +66 on 48 fresh seeds without
+  the unpublished goalie bonus (`contend-preseason-blind`), and +85 with
+  it in its valuation. Astra's +46.9 is well below what the rules
   allow. `pick-trader` is a weak reference under 2.1: it lets its lineup
   expire and sells veterans every deadline.
 - **The end-state terms can be gamed by extending through the final
-  rollover**, by roughly 30 to 50 points at the top. The published rows
+  rollover**, by roughly 25 to 50 points at the top. The published rows
   get this credit to the extent they do it: Astra and Sol make 11 to 12
   season-5 extensions a game, the Claude rows 1 to 3. Fixing it is a
   scoring change, so it belongs in the next contract, with this
@@ -556,6 +616,9 @@ titles, 22 extensions and 17.7 players at the end.
 - The continuation check uses one manager (`pick-trader`) and five more
   seasons. It shows that the end-state gap is over-credited, not exactly
   by how much in the long run.
+- The planner rows all have the second-goalie bonus available, in the
+  policies' valuations and in the engine rollouts. Only the `-blind`
+  policy rows are free of it.
 - Astra's row is on the private panel and is not paired with these runs.
 - Every planned run finished; none was cut short.
 
@@ -567,6 +630,7 @@ about 1.5 hours, and a policy row under a minute.
 
 ```bash
 python scripts/ceiling_search.py policy --contract 2.1 --policy contend-1g --seeds 101-124 --jobs 10 --out v21_policy_contend-1g.json
+python scripts/ceiling_search.py policy --contract 2.1 --policy contend-preseason-blind --seeds 125-172 --jobs 10 --out v21_policy_contend-preseason-blind_125_172.json
 python scripts/ceiling_search.py fair --contract 2.1 --generated --worlds 6 --seeds 101-124 --jobs 10 --commit --out v21_fair_commit.json
 python scripts/ceiling_search.py fair --contract 2.1 --generated --worlds 6 --seeds 101-124 --jobs 10 --menu policies --out v21_fair_menu_policies.json
 python scripts/ceiling_search.py fair --contract 2.1 --generated --worlds 6 --seeds 101-124 --jobs 10 --menu extensions --out v21_fair_menu_extensions.json
