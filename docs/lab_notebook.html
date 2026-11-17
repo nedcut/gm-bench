@@ -621,7 +621,7 @@ function drawIntervals(){const s=svg('c-ci');
 
 // --- 2026-10-26 ceiling under 2.1: searches (public seeds) vs published rows (private panel) ---
 function drawCeiling21(){const s=svg('c-ceiling21');
- const rows=[["gpt-6-astra (private panel)",46.9,5.2,'--chart-4'],["Clairvoyant search, 101–124",33.1,2.7,'--chart-3'],["Fair planner, 125–172",23.1,2.9,'--chart-1'],["Fair planner, 101–124",20.1,4.1,'--chart-1'],["gpt-6.1-sol (private panel)",19.1,4.4,'--chart-4']];
+ const rows=[["gpt-6-astra (private panel)",46.9,5.2,'--chart-4'],["Clairvoyant search, 101–124",33.1,2.7,'--chart-3'],["Fair planner, 125–172",23.1,2.9,'--chart-1'],["Fair planner, 101–124",20.1,4.1,'--chart-1'],["gpt-6.1-sol (private panel)",19.1,4.5,'--chart-4']];
  const W=s.clientWidth,L=Math.min(210,W*.42),R=40,T=4,rh=34,x=v=>L+v/60*(W-L-R),H=T+rows.length*rh;
  for(let t=0;t<=60;t+=10){mk(s,'line',{x1:x(t),x2:x(t),y1:T,y2:H,stroke:css('--border'),'stroke-width':t==0?1.5:.6});mk(s,'text',{x:x(t),y:H+15,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},'+'+t)}
  rows.forEach(([n,v,se,c],i)=>{const y=T+i*rh+rh/2;mk(s,'text',{x:0,y:y+4,'font-size':12,fill:css('--foreground')},n);

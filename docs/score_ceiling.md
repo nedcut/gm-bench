@@ -238,9 +238,9 @@ of the 1.0 `--luck-neutral` hindsight row, and the fair planner's rollout
 objective is score-v2 itself. On seeds 101-124 `pick-trader` scores 243.3
 luck-neutral under 1.0 and 249.1 under 2.1, with 0.49 and 0.51 expected
 titles per five seasons. The "realized playoffs" column below puts the
-single-game playoff results back into score-v2. It moves each lift by a few
-points with a standard error two to four times larger, as the 1.0 "real"
-column did.
+single-game playoff results back into score-v2. It moves the lifts by 4 to
+11 points (fair +3.7 and +10.4, hindsight -11.0) with a standard error two
+to four times larger, as the 1.0 "real" column did.
 
 ### Results
 
@@ -263,8 +263,8 @@ seed sets, not paired. `pick-trader` averages 249.6 on the panel against
 |---|---|---|
 | Codex `gpt-6-astra` | +46.9 (5.2) | 32 / 32 |
 | OpenCode `minimax-m3.1-flash-free` | +23.0 (5.6) | 25 / 32 |
-| OpenCode `mimo-v2.6-pro` | +20.7 (6.0) | 25 / 32 |
-| Codex `gpt-6.1-sol` | +19.1 (4.4) | 24 / 32 |
+| OpenCode `mimo-v2.6-pro` | +20.7 (5.9) | 25 / 32 |
+| Codex `gpt-6.1-sol` | +19.1 (4.5) | 24 / 32 |
 | OpenCode `mimo-v2.6-flash` | +18.7 (6.1) | 24 / 32 |
 | The other seven rows | -53.1 to +1.9 | 2 to 21 / 32 |
 
@@ -278,12 +278,13 @@ seed sets, not paired. `pick-trader` averages 249.6 on the panel against
    planner's level.
 2. **So the searches are weak lower bounds, not a ceiling.** The
    hindsight search sees the dice, yet a model that plays fair and can't
-   see them beats it on every one of its 32 seeds. The search is bounded
+   see them has the higher mean lift (on a different seed set; the two
+   were never paired on the same seeds). The search is bounded
    by its move menu, not by information. These numbers don't show the top
    of the scale near saturation. The best measured result is +47, and
    nothing here bounds the reachable score from above.
 3. **The gap is winning games.** Astra's row averages 106.3 wins and 1.38
-   titles per five-season game. On the public seeds `pick-trader` wins
+   realized titles per five-season game. On the public seeds `pick-trader` wins
    85.0 (101-124) and 87.4 (125-172) with 0.51 and 0.59 expected titles.
    That gap of about 20 wins is worth about 20 points from the wins term
    alone, before the playoff value of a stronger team. The searches add
@@ -306,7 +307,8 @@ seed sets, not paired. `pick-trader` averages 249.6 on the panel against
    no contract extension. Astra extends 25 contracts a game
    (`results/diagnostics/v21_behavior/behavior.json`), where the scripted
    policies extend at most two players a preseason. It also makes about
-   155 tool calls a game, so many moves land in each window.
+   154 tool calls a game (`mean_tool_calls_per_episode` in its row), so
+   many moves land in each window.
 5. **2.1 leaves a little less for these searches than 1.0 did.** Paired
    by seed against the 1.0 luck-neutral rows: fair -6.1 (se 4.7) on
    101-124 and -2.4 (se 3.4) on 125-172, hindsight -8.1 (se 4.4). The
