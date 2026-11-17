@@ -252,7 +252,7 @@ def test_buy_moves_are_legal_trades_for_picks_and_bench_players():
         assert trial.illegal_actions == 0
 
 
-@pytest.mark.parametrize("label", ["contend", "contend-nobuy", "contend-extend", "contend-1g"])
+@pytest.mark.parametrize("label", ["contend", "contend-nobuy", "contend-extend", "contend-1g", "contend-blind"])
 def test_win_now_policies_play_legally(label):
     league = ceiling_search.new_league(11, "2.1")
     ceiling_search.rollout(league, 0, label)
@@ -260,7 +260,7 @@ def test_win_now_policies_play_legally(label):
     own = [t for t in league.transactions if t.team_id == 0 and t.accepted]
     count = {kind: sum(t.action.get("type") == kind for t in own) for kind in ("extend_contract", "trade")}
     assert count["extend_contract"] >= 10
-    assert (count["trade"] > 0) == (label in ("contend", "contend-1g"))
+    assert (count["trade"] > 0) == (label in ("contend", "contend-1g", "contend-blind"))
     signings = sum(t.action.get("type") == "sign_free_agent" for t in own)
     assert (signings == 0) == (label == "contend-extend")
 
@@ -289,20 +289,39 @@ def test_blind_valuation_ignores_the_second_goalie_bonus():
         one, 0.0, 1.0, goalie_bonus_max=1
     )
     assert blind == pytest.approx(0.0)
-    # The -1g policies only change the lineup; their valuation still has the bonus.
-    assert planner.policy_factory("contend-1g")().goalie_bonus_max == planner.GOALIE_BONUS_MAX
-    agent = planner.policy_factory("contend-blind")()
-    assert agent.goalie_bonus_max == 1 and not agent.two_goalies
+
+
+@pytest.mark.parametrize(
+    ("label", "expected"), [("contend-1g", 2), ("contend-blind", 1), ("contend-preseason-blind", 1)]
+)
+def test_policy_valuations_use_their_goalie_bonus_cap(label, expected, monkeypatch):
+    # Every strength a policy computes, for lineups, signings, claims and buys,
+    # goes through strength_of. The -1g policies only change the lineup and
+    # keep the bonus in their valuation; the -blind policies never value it.
+    seen: list[int] = []
+    real = planner.strength_of
+
+    def spy(players, payroll, cap, *, goalie_bonus_max=planner.GOALIE_BONUS_MAX):
+        seen.append(goalie_bonus_max)
+        return real(players, payroll, cap, goalie_bonus_max=goalie_bonus_max)
+
+    monkeypatch.setattr(planner, "strength_of", spy)
+    league = ceiling_search.new_league(11, "2.1")
+    ceiling_search.rollout(league, 0, label)
+    assert len(seen) > 100
+    assert set(seen) == {expected}
 
 
 def test_blind_policies_play_legally_and_stay_off_the_menus():
     league = ceiling_search.new_league(11, "2.1")
     ceiling_search.rollout(league, 0, "contend-preseason-blind")
+    assert league.illegal_actions == 0
     own = [t for t in league.transactions if t.team_id == 0 and t.accepted]
     assert sum(t.action.get("type") == "extend_contract" for t in own) >= 10
-    for two_goalies in (True, False):
-        menu = ceiling_search.candidate_moves(hindsight=False, menu="extended", two_goalies=two_goalies)
-        assert not any(name.endswith("-blind") for name in menu)
+    for menu_name in ("base", "policies", "extensions", "extended"):
+        for two_goalies in (True, False):
+            menu = ceiling_search.candidate_moves(hindsight=False, menu=menu_name, two_goalies=two_goalies)
+            assert not any(name.endswith("-blind") for name in menu)
 
 
 def test_default_menu_is_unchanged():

@@ -17,7 +17,9 @@ policies use are worth naming:
 - ``League._team_strength`` adds 2.5 per dressed goalie, up to two
   (``GOALIE_BONUS``). ``get_rules`` does not publish it
   (``docs/bench_v2_1_queue.md`` item 26), so the policies take it as an
-  option (``two_goalies``) and the search reports runs with and without it.
+  option: ``two_goalies`` decides whether the lineup dresses a second goalie
+  on purpose, and the ``-blind`` policies (``goalie_bonus_max=1``) also leave
+  the bonus out of every valuation.
 - A partner accepts a trade when the public asset value it gives up, times a
   hidden per-season bias in [0.9, 1.1], is at most the value it receives
   over 0.95. ``Player.asset_value`` reads only public fields, so a bid can be
@@ -221,8 +223,12 @@ def plan_buys(
     value, largest first) until it reaches ``margin`` times the target's
     value, then drops any item it can do without, and must raise lineup strength by ``min_gain`` after the cap
     penalty. Hard-cap and roster-floor checks assume every earlier bid in the
-    batch is accepted on the payroll side and rejected on the roster side, so
-    no bid can turn into a penalized move whatever the partners decide.
+    batch is accepted on the payroll side and rejected on the roster side.
+
+    Known gap: the partner's payroll is summed from its roster salaries and
+    leaves out its dead cap, so a bid can still be penalized with "trade
+    would exceed hard cap buffer" (seed 151, ``contend-1g``). It is left as
+    is so the committed diagnostic rows reproduce.
     """
     rules = observation["rules"]
     cap = float(rules["salary_cap"])

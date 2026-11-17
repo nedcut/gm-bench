@@ -378,7 +378,7 @@ second-goalie bonus (`contend-preseason-blind`) scores +72.8 and +66.2,
 above Astra's lift; the plain win-now policy without the bonus
 (`contend-blind`, +39.7 and +35.5) falls below it. Plan
 commitment adds nothing measurable, alone or on top of the fixed menu.
-A quarter to a third of the planner's lift is end-state credit that a
+Roughly a sixth to a third of the planner's lift is end-state credit that a
 five-season continuation does not confirm (see "Explaining the numbers"),
 but its winning terms alone (+101 to +108) are still more than twice
 Astra's whole lift.
@@ -428,7 +428,9 @@ time.
   bonus, so they are not blind to it. The `-blind` policies (policy mode
   only, added 2026-11-17 after review) also take the bonus out of every
   valuation, so a second goalie counts only for his overall. They are the
-  rows to quote for "without the unpublished bonus". `--one-goalie` on the
+  rows to quote for a policy that does not know the bonus. Their score
+  still includes it whenever a second goalie dresses on overall, as any
+  agent's does, Astra's included. `--one-goalie` on the
   planner reaches the bonus the same way as `-1g`, and through the engine
   rollouts, so its row is an upper estimate for a bonus-blind planner.
 - **Fairness.** The planner still reads no seed or hidden value. The
@@ -526,21 +528,28 @@ has part of the bonus too.
 
 #### Explaining the numbers
 
-- **A few penalized moves, from one bug in the buy bids.** The `contend`
+- **A few penalized moves, with two known causes.** The `contend`
   family makes no illegal action on 101-124 and `pick-trader` makes 1 (and
-  0 on 125-172). The runs that buy make a few more
-  (`illegal_actions_total` against `baseline_illegal_actions_total` in
-  each file): the `-preseason` policies 2 on 101-124, `contend-1g` 3 on
-  125-172, the planner runs 1 to 3, and the hindsight run with policies
-  12. The ones traced (seed 151, `contend-1g`, three bids in season 2)
-  are "trade would exceed hard cap buffer": `plan_buys` checks the
-  partner's payroll from roster salaries and leaves out its dead cap,
-  which `inspect_team` does publish. Each costs about 2.5 points, so the
-  lifts are slightly understated, not inflated. The bug is left in so the
-  committed rows still reproduce. Rejected trade bids (a partner's hidden
-  valuation says no, with no penalty) run 27 to 103 per 24 games
-  (`rejected_offers_total`).
-- **The second goalie is worth 20 to 35 points to the scripted policies,
+  0 on 125-172). Some runs make a few more (`illegal_actions_total`
+  against `baseline_illegal_actions_total` in each file): the
+  `-preseason` policies 2 on 101-124, `contend-1g` 3 on 125-172, the
+  planner runs 1 to 3, and the hindsight run with policies 12. Two causes
+  were traced by replaying policy rows. `contend-1g` on seed 151 makes
+  three bids in season 2 that fail with "trade would exceed hard cap
+  buffer": `plan_buys` checks the partner's payroll from roster salaries
+  and leaves out its dead cap, which `inspect_team` does publish. The
+  `-preseason` policies' 2 on 101-124 are both `pick-trader`'s own play in
+  the in-season windows: it accepts a listed offer that is stale because a
+  player in it has changed teams (queue item 27). The extra moves in the
+  planner and hindsight rows were not traced; two of those runs
+  (`v21_fair_commit.json`, 3, and `v21_fair_menu_extensions.json`, 2) have
+  no buy moves on their menu, so the dead-cap bug cannot be their cause.
+  Each penalized move costs about 2.5 points, so the lifts are slightly
+  understated, not inflated. The dead-cap bug is left in so the committed
+  rows still reproduce. Rejected trade bids (a partner's hidden valuation
+  says no, with no penalty) run 0.6 to 4.3 a game in the files that make
+  bids (`rejected_offers_total` over the file's seed count).
+- **The second goalie is worth 15 to 21 points to the scripted policies,
   not the whole lift.** Dressing him on purpose: `contend` over
   `contend-1g` +5.4, `contend-nobuy` over `contend-nobuy-1g` +13.4,
   `contend-preseason` over `contend-preseason-1g` +10.2. Valuing him with
@@ -549,7 +558,8 @@ has part of the bonus too.
   `contend-preseason-blind` +10.3 (se 5.9) and +18.9 (se 3.7). Both
   together: `contend` over `contend-blind` +19.9 (se 4.8) and +18.9 (se
   3.8); `contend-preseason` over `contend-preseason-blind` +20.6 (se 6.8)
-  and +21.4 (se 4.3). For the full planner, `--one-goalie` costs 14.5 (se
+  and +21.4 (se 4.3); `contend-nobuy` over `contend-nobuy-blind` +15.2
+  (se 4.3). For the full planner, `--one-goalie` costs 14.5 (se
   8.7) and still leaves +141.2, but that run is not bonus-blind (see "What
   changed"); a bonus-blind planner was not run.
 - **The winning terms carry most of the lift.** `contend-1g` wins 25 more
@@ -576,7 +586,8 @@ has part of the bonus too.
   9.0 for `strategic` and 21.7 for `shrewd` (-3.3 end state, -25.0
   later), neither of which makes extra extensions. Taking `strategic` as
   the residual leaves 39 to 48 points of the planner's lift as end-state
-  credit, not future wins; taking `shrewd` leaves 26 to 36. Two things
+  credit, not future wins (26 to 32% of the lift); taking `shrewd` leaves
+  26 to 36 (17 to 23%). Two things
   push the check toward over-credit: the manager for the extra seasons is
   `pick-trader`, which sells veterans at every deadline, and only wins in
   seasons 6-10 are counted, not the picks and young players it turns them
@@ -610,15 +621,17 @@ has part of the bonus too.
 #### Caveats
 
 - One planner seed, 6 worlds and the 1.5-se rule, as before. The
-  win-now policies were written and debugged against `pick-trader` on
+  `contend` family was written and debugged against `pick-trader` on
   seeds 101-124 (policy rows only, no planner runs) and frozen before any
-  planner run. The 125-172 rows are out of sample for both.
+  planner run. The `-preseason` mixes came later, from the planner's paths
+  on 101-124. The 125-172 rows are out of sample for all of them.
 - The continuation check uses one manager (`pick-trader`) and five more
   seasons. It shows that the end-state gap is over-credited, not exactly
   by how much in the long run.
 - The planner rows all have the second-goalie bonus available, in the
-  policies' valuations and in the engine rollouts. Only the `-blind`
-  policy rows are free of it.
+  policies' valuations and in the engine rollouts. The `-blind` policies
+  never value it, but the engine still pays it when a second goalie
+  dresses on overall, so no row's score is free of it.
 - Astra's row is on the private panel and is not paired with these runs.
 - Every planned run finished; none was cut short.
 
