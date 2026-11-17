@@ -541,9 +541,12 @@ has part of the bonus too.
   `-preseason` policies' 2 on 101-124 are both `pick-trader`'s own play in
   the in-season windows: it accepts a listed offer that is stale because a
   player in it has changed teams (queue item 27). The extra moves in the
-  planner and hindsight rows were not traced; two of those runs
+  planner and hindsight rows were not traced. Two of those runs
   (`v21_fair_commit.json`, 3, and `v21_fair_menu_extensions.json`, 2) have
-  no buy moves on their menu, so the dead-cap bug cannot be their cause.
+  no `plan_buys` bids on their menu (no win-now policy and no `buy-now`
+  moves). Their generated `buy:` bids pay only picks, so the partner's
+  payroll can only fall, and the dead-cap bug cannot be their cause. The
+  stale-offer cause is possible there: `accept:` moves are on those menus.
   Each penalized move costs about 2.5 points, so the lifts are slightly
   understated, not inflated. The dead-cap bug is left in so the committed
   rows still reproduce. Rejected trade bids (a partner's hidden valuation
@@ -602,8 +605,8 @@ has part of the bonus too.
   fair, public-information planner gains about +150 over `pick-trader`,
   and a fixed scripted mix (extend the lineup and buy now in the
   preseason, `pick-trader` otherwise) gains +66 on 48 fresh seeds without
-  the unpublished goalie bonus (`contend-preseason-blind`), and +85 with
-  it in its valuation. Astra's +46.9 is well below what the rules
+  valuing the unpublished goalie bonus (`contend-preseason-blind`), and
+  +85 with it in its valuation. Astra's +46.9 is well below what the rules
   allow. `pick-trader` is a weak reference under 2.1: it lets its lineup
   expire and sells veterans every deadline.
 - **The end-state terms can be gamed by extending through the final
