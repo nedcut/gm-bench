@@ -39,9 +39,20 @@ simulator used. The luck-neutral score swaps the realized playoff terms for
 those expectations. Its expectation equals the real score's, so the fair
 planner also uses it as a lower-variance rollout objective.
 
+Contracts: the default, ``--contract 1.0``, plays the 1.0 simulator and
+scores score-v1 (the 2026-10-14 diagnostics). ``--contract 2.1`` plays
+``League21`` (records reset each season, the opponent-draft fix) and scores
+score-v2 (``gm_bench.v21``), the contract the 2.1 lane's rows are scored
+under. score-v2 already scores the expected playoff terms, with the same
+bracket odds, weights and season windows as the luck-neutral score above, so
+under 2.1 it is both the search objective and the reported score, and
+``--luck-neutral`` is not needed. Rows also report the score with realized
+playoff results put back, to show how much of a lift the playoff dice add.
+
     python scripts/ceiling_search.py hindsight --seeds 101-108 --beam 4
     python scripts/ceiling_search.py hindsight --seeds 101-108 --beam 4 --luck-neutral
     python scripts/ceiling_search.py fair --seeds 101-108 --worlds 6 --generated
+    python scripts/ceiling_search.py fair --contract 2.1 --seeds 101-108 --worlds 6 --generated
 """
 
 from __future__ import annotations
@@ -69,11 +80,14 @@ from gm_bench.protocol import PHASES, EpisodeConfig  # noqa: E402
 from gm_bench.runner import run_decision_point  # noqa: E402
 from gm_bench.scoring import ACTIVE_SCORE_SCALE, score_components, score_team  # noqa: E402
 from gm_bench.simulator import HARD_CAP_BUFFER, INJURY_GAMES_DEFAULT, SCOUT_REPORT_NOISE, League, Team  # noqa: E402
+from gm_bench.v21 import scoring as scoring_v2  # noqa: E402
+from gm_bench.v21.rules import League21  # noqa: E402
 
 CONFIG = EpisodeConfig()
 SEASONS = 5
 STEPS: list[tuple[int, str]] = [(season, phase) for season in range(1, SEASONS + 1) for phase in PHASES]
 BASE_POLICY = "pick-trader"
+CONTRACTS = ("1.0", "2.1")
 
 # Public-information scripted policies. `random` is excluded because it seeds
 # itself from the observation's seed, which a fair planner may not read.
@@ -149,8 +163,50 @@ class TrackedLeague(League):
         return super()._simulate_playoffs(teams, ratings, rng)
 
 
-def new_league(seed: int) -> TrackedLeague:
+def new_league(seed: int, contract: str = "1.0") -> League:
+    """A fresh league under ``contract``'s rules; both record expected playoffs."""
+    if contract == "2.1":
+        return League21.new(seed=seed)
+    if contract != "1.0":
+        raise ValueError(f"unknown contract {contract!r}; expected one of {CONTRACTS}")
     return TrackedLeague.new(seed=seed)
+
+
+def user_expected_playoffs(league: League) -> dict[int, tuple[float, float]]:
+    """Season -> the user's (expected rounds won, title probability).
+
+    ``TrackedLeague`` keeps the user's odds only; ``League21`` keeps every
+    playoff team's, keyed by season and then team.
+    """
+    if isinstance(league, League21):
+        user = league.user_team_id
+        return {season: odds.get(user, (0.0, 0.0)) for season, odds in league.expected_playoffs.items()}
+    return getattr(league, "expected_playoffs", {})
+
+
+def contract_score(league: League) -> float:
+    """The score the league's contract publishes: score-v1 on 1.0, score-v2 on 2.1."""
+    if isinstance(league, League21):
+        return scoring_v2.score_team(league, league.user_team_id)
+    return score_team(league, league.user_team_id)
+
+
+def realized_playoff_score(league: League21) -> float:
+    """score-v2 with the expected playoff terms swapped back for the realized ones.
+
+    The 2.1 counterpart of the 1.0 "real" score: it shows how much of a lift
+    is playoff dice. Same windows as score-v2: rounds over the last three
+    seasons, titles over all of them.
+    """
+    scale = scoring_v2.SCALE
+    components = scoring_v2.score_components(league, league.user_team_id)
+    recent = league.summaries[-scoring_v2.RECENT_PLAYOFF_SEASONS :]
+    realized = (
+        sum(summary.playoff_rounds for summary in recent) * scale.playoff_round
+        + league.user_team.championships * scale.championship
+    )
+    expected = components["expected_playoff_rounds_contribution"] + components["expected_championships_contribution"]
+    return contract_score(league) - expected + realized
 
 
 def luck_neutral_score(league: League) -> float:
@@ -170,6 +226,9 @@ def luck_neutral_score(league: League) -> float:
 
 
 def objective(league: League, luck_neutral: bool) -> float:
+    if isinstance(league, League21):
+        # score-v2 already scores expected playoffs; `luck_neutral` is moot.
+        return contract_score(league)
     return luck_neutral_score(league) if luck_neutral else score_team(league, league.user_team_id)
 
 
@@ -356,9 +415,9 @@ def rollout(league: League, start: int, policy: str = BASE_POLICY, *, luck_neutr
 # --------------------------------------------------------------------------
 
 
-def hindsight_search(seed: int, beam: int, luck_neutral: bool = False) -> dict[str, Any]:
+def hindsight_search(seed: int, beam: int, luck_neutral: bool = False, contract: str = "1.0") -> dict[str, Any]:
     moves = candidate_moves(hindsight=True)
-    frontier: list[tuple[float, list[str], League]] = [(0.0, [], new_league(seed))]
+    frontier: list[tuple[float, list[str], League]] = [(0.0, [], new_league(seed, contract))]
     for index in range(len(STEPS)):
         expanded: list[tuple[float, list[str], League]] = []
         for _value, path, league in frontier:
@@ -481,9 +540,15 @@ def fair_choose(
 
 
 def fair_search(
-    seed: int, worlds: int, planner_seed: int, margin_z: float = 1.5, *, generated: bool = False
+    seed: int,
+    worlds: int,
+    planner_seed: int,
+    margin_z: float = 1.5,
+    *,
+    generated: bool = False,
+    contract: str = "1.0",
 ) -> dict[str, Any]:
-    league = new_league(seed)
+    league = new_league(seed, contract)
     path = []
     for index in range(len(STEPS)):
         _pre_step(league, index)
@@ -511,7 +576,8 @@ def _parse_seeds(text: str) -> list[int]:
 
 
 def _components(league: League) -> dict[str, float]:
-    components = score_components(league, league.user_team_id)
+    scorer = scoring_v2.score_components if isinstance(league, League21) else score_components
+    components = scorer(league, league.user_team_id)
     return {
         key.removesuffix("_contribution"): round(value, 3)
         for key, value in components.items()
@@ -521,16 +587,24 @@ def _components(league: League) -> dict[str, float]:
 
 def _run_seed(job: tuple[str, int, dict[str, Any]]) -> dict[str, Any]:
     mode, seed, options = job
+    contract = options.get("contract", "1.0")
     started = time.perf_counter()
-    baseline = new_league(seed)
+    baseline = new_league(seed, contract)
     rollout(baseline, 0)
     if mode == "hindsight":
-        found = hindsight_search(seed, options["beam"], options["luck_neutral"])
+        found = hindsight_search(seed, options["beam"], options["luck_neutral"], contract)
     else:
         found = fair_search(
-            seed, options["worlds"], options["planner_seed"], options["margin_z"], generated=options["generated"]
+            seed,
+            options["worlds"],
+            options["planner_seed"],
+            options["margin_z"],
+            generated=options["generated"],
+            contract=contract,
         )
     league = found["league"]
+    if contract == "2.1":
+        return _row_v21(seed, baseline, league, found["path"], started)
     base_score, score = score_team(baseline, 0), score_team(league, 0)
     base_neutral, neutral = luck_neutral_score(baseline), luck_neutral_score(league)
     return {
@@ -551,50 +625,73 @@ def _run_seed(job: tuple[str, int, dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _row_v21(seed: int, baseline: League, league: League, path: list[str], started: float) -> dict[str, Any]:
+    """A 2.1 row: ``score`` is score-v2; ``realized_playoffs`` puts the playoff dice back."""
+    base_score, score = contract_score(baseline), contract_score(league)
+    base_real, real = realized_playoff_score(baseline), realized_playoff_score(league)
+    return {
+        "seed": seed,
+        "baseline": round(base_score, 3),
+        "score": round(score, 3),
+        "lift": round(score - base_score, 3),
+        "baseline_realized_playoffs": round(base_real, 3),
+        "realized_playoffs": round(real, 3),
+        "realized_playoffs_lift": round(real - base_real, 3),
+        "championships": league.user_team.championships,
+        "baseline_championships": baseline.user_team.championships,
+        "expected_championships": round(sum(t for _r, t in user_expected_playoffs(league).values()), 3),
+        "baseline_expected_championships": round(sum(t for _r, t in user_expected_playoffs(baseline).values()), 3),
+        "baseline_components": _components(baseline),
+        "components": _components(league),
+        "path": path,
+        "seconds": round(time.perf_counter() - started, 1),
+    }
+
+
 def _mean_se(values: list[float]) -> tuple[float, float | None]:
     se = statistics.stdev(values) / math.sqrt(len(values)) if len(values) > 1 else None
     return round(statistics.mean(values), 3), (round(se, 3) if se is not None else None)
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("mode", choices=("hindsight", "fair"))
-    parser.add_argument("--seeds", default="101-108", help="e.g. 101-108 or 101,105 (public seeds only)")
-    parser.add_argument("--beam", type=int, default=4, help="hindsight beam width")
-    parser.add_argument(
-        "--luck-neutral", action="store_true", help="hindsight: optimize expected, not realized, playoffs"
-    )
-    parser.add_argument("--worlds", type=int, default=4, help="fair: sampled hidden worlds per decision")
-    parser.add_argument("--generated", action="store_true", help="fair: add generated single moves to the menu")
-    parser.add_argument("--margin-z", type=float, default=1.5, help="fair: paired-gain z needed to leave the base")
-    parser.add_argument("--planner-seed", type=int, default=0, help="fair: the planner's own randomness")
-    parser.add_argument("--jobs", type=int, default=1, help="seeds to search in parallel (local CPU only)")
-    parser.add_argument("--out", type=Path, help="write per-seed JSON here")
-    args = parser.parse_args(argv)
-
-    options = {
-        "beam": args.beam,
-        "luck_neutral": args.luck_neutral,
-        "worlds": args.worlds,
-        "generated": args.generated,
-        "planner_seed": args.planner_seed,
-        "margin_z": args.margin_z,
+def _summary_v21(mode: str, options: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str, Any]:
+    lift, lift_se = _mean_se([row["lift"] for row in rows])
+    real_lift, real_se = _mean_se([row["realized_playoffs_lift"] for row in rows])
+    component_lifts = {
+        term: _mean_se([row["components"][term] - row["baseline_components"][term] for row in rows])
+        for term in rows[0]["components"]
     }
-    jobs = [(args.mode, seed, options) for seed in _parse_seeds(args.seeds)]
-    rows: list[dict[str, Any]] = []
-    with ProcessPoolExecutor(max_workers=max(1, args.jobs)) as pool:
-        for row in pool.map(_run_seed, jobs):
-            rows.append(row)
-            print(
-                f"seed {row['seed']}: {BASE_POLICY} {row['baseline']:7.1f}  {args.mode} {row['score']:7.1f}"
-                f"  ({row['lift']:+.1f}; luck-neutral {row['luck_neutral_lift']:+.1f};"
-                f" {row['championships']} titles; {row['seconds']}s)",
-                flush=True,
-            )
+
+    def mean(key: str) -> float:
+        return round(statistics.mean(row[key] for row in rows), 3)
+
+    return {
+        "mode": mode,
+        "contract": "2.1",
+        "scoring_version": scoring_v2.SCORING_VERSION,
+        "options": options,
+        "seeds": [row["seed"] for row in rows],
+        "baseline_mean": mean("baseline"),
+        "score_mean": mean("score"),
+        "lift_mean": lift,
+        "lift_se": lift_se,
+        "seeds_ahead": sum(row["lift"] > 0 for row in rows),
+        "baseline_realized_playoffs_mean": mean("baseline_realized_playoffs"),
+        "realized_playoffs_mean": mean("realized_playoffs"),
+        "realized_playoffs_lift_mean": real_lift,
+        "realized_playoffs_lift_se": real_se,
+        "realized_playoffs_seeds_ahead": sum(row["realized_playoffs_lift"] > 0 for row in rows),
+        "baseline_expected_championships_mean": mean("baseline_expected_championships"),
+        "expected_championships_mean": mean("expected_championships"),
+        "component_lift_means": {term: {"mean": m, "se": se} for term, (m, se) in component_lifts.items()},
+        "rows": rows,
+    }
+
+
+def _summary_v1(mode: str, options: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str, Any]:
     lift, lift_se = _mean_se([row["lift"] for row in rows])
     neutral_lift, neutral_se = _mean_se([row["luck_neutral_lift"] for row in rows])
-    summary = {
-        "mode": args.mode,
+    return {
+        "mode": mode,
         "options": options,
         "seeds": [row["seed"] for row in rows],
         "baseline_mean": round(statistics.mean(row["baseline"] for row in rows), 3),
@@ -607,11 +704,76 @@ def main(argv: list[str] | None = None) -> int:
         "luck_neutral_lift_se": neutral_se,
         "rows": rows,
     }
-    print(
-        f"mean {BASE_POLICY} {summary['baseline_mean']:.1f}  {args.mode} {summary['score_mean']:.1f}"
-        f"  lift {lift:+.1f} (se {lift_se}); luck-neutral {summary['baseline_luck_neutral_mean']:.1f}"
-        f" -> {summary['luck_neutral_mean']:.1f}, lift {neutral_lift:+.1f} (se {neutral_se})"
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("mode", choices=("hindsight", "fair"))
+    parser.add_argument("--seeds", default="101-108", help="e.g. 101-108 or 101,105 (public seeds only)")
+    parser.add_argument(
+        "--contract",
+        choices=CONTRACTS,
+        default="1.0",
+        help="1.0: 1.0 simulator and score-v1 (default); 2.1: League21 and score-v2",
     )
+    parser.add_argument("--beam", type=int, default=4, help="hindsight beam width")
+    parser.add_argument(
+        "--luck-neutral", action="store_true", help="hindsight: optimize expected, not realized, playoffs"
+    )
+    parser.add_argument("--worlds", type=int, default=4, help="fair: sampled hidden worlds per decision")
+    parser.add_argument("--generated", action="store_true", help="fair: add generated single moves to the menu")
+    parser.add_argument("--margin-z", type=float, default=1.5, help="fair: paired-gain z needed to leave the base")
+    parser.add_argument("--planner-seed", type=int, default=0, help="fair: the planner's own randomness")
+    parser.add_argument("--jobs", type=int, default=1, help="seeds to search in parallel (local CPU only)")
+    parser.add_argument("--out", type=Path, help="write per-seed JSON here")
+    args = parser.parse_args(argv)
+    v21 = args.contract == "2.1"
+    if v21 and args.luck_neutral:
+        parser.error("--luck-neutral is 1.0 only: score-v2 already scores expected playoffs")
+
+    options = {
+        "beam": args.beam,
+        "luck_neutral": args.luck_neutral,
+        "worlds": args.worlds,
+        "generated": args.generated,
+        "planner_seed": args.planner_seed,
+        "margin_z": args.margin_z,
+    }
+    if v21:
+        # Only set off the default, so 1.0 output stays byte for byte as before.
+        options["contract"] = args.contract
+    jobs = [(args.mode, seed, options) for seed in _parse_seeds(args.seeds)]
+    rows: list[dict[str, Any]] = []
+    with ProcessPoolExecutor(max_workers=max(1, args.jobs)) as pool:
+        for row in pool.map(_run_seed, jobs):
+            rows.append(row)
+            other = (
+                f"realized playoffs {row['realized_playoffs_lift']:+.1f}"
+                if v21
+                else f"luck-neutral {row['luck_neutral_lift']:+.1f}"
+            )
+            print(
+                f"seed {row['seed']}: {BASE_POLICY} {row['baseline']:7.1f}  {args.mode} {row['score']:7.1f}"
+                f"  ({row['lift']:+.1f}; {other}; {row['championships']} titles; {row['seconds']}s)",
+                flush=True,
+            )
+    if v21:
+        summary = _summary_v21(args.mode, options, rows)
+        print(
+            f"mean {BASE_POLICY} {summary['baseline_mean']:.1f}  {args.mode} {summary['score_mean']:.1f}"
+            f"  score-v2 lift {summary['lift_mean']:+.1f} (se {summary['lift_se']}),"
+            f" ahead on {summary['seeds_ahead']}/{len(rows)}; realized-playoffs lift"
+            f" {summary['realized_playoffs_lift_mean']:+.1f} (se {summary['realized_playoffs_lift_se']})"
+        )
+    else:
+        summary = _summary_v1(args.mode, options, rows)
+        print(
+            f"mean {BASE_POLICY} {summary['baseline_mean']:.1f}  {args.mode} {summary['score_mean']:.1f}"
+            f"  lift {summary['lift_mean']:+.1f} (se {summary['lift_se']});"
+            f" luck-neutral {summary['baseline_luck_neutral_mean']:.1f}"
+            f" -> {summary['luck_neutral_mean']:.1f}, lift {summary['luck_neutral_lift_mean']:+.1f}"
+            f" (se {summary['luck_neutral_lift_se']})"
+        )
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(json.dumps(summary, indent=2) + "\n")
