@@ -789,6 +789,7 @@ class CursorDriver(HarnessDriver):
         variant: str | None,
         image: dict[str, Any] | None = None,
         docker: str = "docker",
+        contract_version: str | None = None,
     ) -> dict[str, Any]:
         """Cursor builds its prompt on its servers, so no loopback capture: audit a one-word chat instead.
 

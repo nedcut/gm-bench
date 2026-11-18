@@ -87,6 +87,24 @@ This repo has two products:
   launcher passes it through). Paid runs follow the 2.0 rules (serial
   within a provider, smoke first, price checked first).
 
+### GM-Bench 2.2 draft (`gm_bench/v22/`, `--contract 2.2-draft`)
+
+- Not frozen: version `gm-bench-2.2-draft`, no pinned fingerprint, no lane,
+  so no row can be published under it. Its sources may change until the
+  freeze. Spec and status: `docs/bench_v2_2_spec.md`.
+- 2.2 changes what the agent is told. The frozen engine and server read the
+  2.0 tools and brief as module globals, so `gm_bench/v22/` has its own
+  `tools.py` and `brief.py` and subclasses the rest (`League22`, score-v3,
+  `AgenticEpisode22`, `SocketMcpServer22`). Never put a 2.2 change into a
+  1.0, 2.0 or 2.1 contract source.
+- Agent-facing text states mechanics and never gives strategy advice.
+- `gm_bench/cli.py` is in the trajectory demo's pinned source manifest. Any
+  edit to it fails `tests/test_trajectory_export.py` until
+  `SOURCE_PACKAGE_SHA256` in `scripts/build_trajectory_demo.py` is re-pinned
+  and the demo regenerated.
+- The pilot and the first panel are paid runs and are not authorized by this
+  file.
+
 ### Web (`web/`)
 
 - Managed with **Bun** (installed at `~/.bun/bin`, added to `PATH` via `~/.bashrc`).

@@ -139,6 +139,7 @@ class HarnessDriver:
         variant: str | None,
         image: dict[str, Any] | None = None,
         docker: str = "docker",
+        contract_version: str | None = None,
     ) -> dict[str, Any]:
         """Before a panel: what this harness would send the model, searched for the operator's content.
 
@@ -155,7 +156,7 @@ class HarnessDriver:
             return not_checked(CONTAINER_NOT_CHECKED)
         if self.prompt_capture_unavailable:
             return not_checked(self.prompt_capture_unavailable)
-        return run_prompt_check(self, binary=binary, model=model, variant=variant)
+        return run_prompt_check(self, binary=binary, model=model, variant=variant, contract_version=contract_version)
 
     def capture_overrides(self, args: list[str], *, model: str, base_url: str) -> tuple[list[str], dict[str, str]]:
         """The one change the prompt check makes to a first invocation: its model endpoint is ``base_url``.

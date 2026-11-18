@@ -9,6 +9,10 @@ driver change that can alter future measurements without a version bump
 (disclosed per the spec's freeze rules). None of them is fixed in 2.0. The spec reserves 2.1 for simulator mechanics; these
 items ride on whichever contract version comes next.
 
+**2026-11-18:** the 2.2 draft takes or rejects every contract item below;
+the table is in [bench_v2_2_spec.md](bench_v2_2_spec.md), phase 2. Items 9
+to 12 (driver, audit, publication) stay open.
+
 Recorded 2026-09-28 from the pre-release audit. Line references are to
 `main` at `c19a1b7`.
 

@@ -102,6 +102,8 @@ svg{display:block}
 <p class="lede">Internal log of how scoring and contract decisions get made: what we tried, what it showed, what we decided. Newest first. Every number cites a committed diagnostic or a published row; nothing here is a published result.</p>
 
 <nav class="toc"><b>Entries</b><ol>
+ <li><a href="#e-2026-11-18-v22-candidate">2026-11-18 · 2.2 takes the fallback score, and the rules and text are forked</a></li>
+ <li><a href="#e-2026-11-17-v22-score">2026-11-17 · 2.2 starts: the fork is a no-op, and no end-of-run score passes yet</a></li>
  <li><a href="#e-2026-10-26-planner21">2026-10-26 · What held the 2.1 searches back: the menu, not the horizon</a></li>
  <li><a href="#e-2026-10-26-ceiling21">2026-10-26 · Headroom under 2.1: Astra beats the clairvoyant search, so the search is no ceiling</a></li>
  <li><a href="#e-2026-10-22-free-tier">2026-10-22 · The first free-tier row: list-price estimate, timeouts disclosed the same way</a></li>
@@ -119,6 +121,87 @@ svg{display:block}
  <li><a href="#e-2026-10-15-v2">2026-10-15 · score-v1 vs the proposed score-v2</a></li>
  <li><a href="#e-2026-10-14-ceiling">2026-10-14 · How much headroom is above <code>pick-trader</code>?</a></li>
 </ol></nav>
+
+<!-- ======================================================================= -->
+<article class="entry" id="e-2026-11-18-v22-candidate">
+<header><div class="date">2026-11-18</div><h2>2.2 takes the fallback score, and the rules and text are forked</h2>
+<div class="tags"><span class="tag">docs/bench_v2_2_spec.md</span><span class="tag">results/diagnostics/score_v3/candidates.json</span><span class="tag">results/diagnostics/v22_references/</span><span class="tag">gm_bench/v22/</span><span class="tag decision">decision</span></div></header>
+
+<div class="key"><b>Tried:</b> round 2 of the end-of-run score, against the gate written on 2026-11-17 before it was read. Three additions to <code>scripts/score_v3_candidates.py</code>: (1) the engine fills the roster to a set size with the best free agents at the one-year quote, sizes 8 to 21, then score-v2's terms; (2) score-v2 with a player on a one-year contract counted at a fraction of his asset value, the fraction (0.4 to 0.9) chosen on the fit seeds only; (3) a fourth judge, reported alone, that fills the roster to 21 before <code>pick-trader</code> manages, so the yardstick is not only managers with an eight-signing preseason. Then phase 2 of the spec was built on the outcome: <code>League22</code>, score-v3, the 2.2 brief and tool text, and the engine replies.</div>
+
+<div class="stats">
+ <div class="stat"><div class="k">Candidates that pass the gate, both rounds</div><div class="v">0</div></div>
+ <div class="stat"><div class="k">Kendall tau, score-v3 against the 2.1 order</div><div class="v">0.97</div></div>
+ <div class="stat"><div class="k">Largest lift gained by a scripted policy, 2.1 to 2.2</div><div class="v">+2.3</div></div>
+ <div class="stat"><div class="k">Real 2.1 ledgers the 2.2 engine replays without error</div><div class="v">430 / 430</div></div>
+</div>
+
+<table>
+<thead><tr><th>Round 2 candidate</th><th class="num">Check seeds: slope</th><th class="num">residual</th><th class="num">lift SD</th><th class="num">Model rows: slope</th><th class="num">residual</th><th class="num">lift SD</th></tr></thead>
+<tbody>
+<tr><td>score-v2 (for reference)</td><td class="num">0.86</td><td class="num">13.6</td><td class="num">21.4</td><td class="num">0.75</td><td class="num">8.8</td><td class="num">33.3</td></tr>
+<tr><td><b>score-v2 plus the next draft's picks (adopted as score-v3)</b></td><td class="num">0.87</td><td class="num">12.4</td><td class="num">21.4</td><td class="num">0.74</td><td class="num">8.7</td><td class="num">33.6</td></tr>
+<tr><td>Engine fill to 8 players</td><td class="num">1.05</td><td class="num">14.8</td><td class="num">21.5</td><td class="num">0.95</td><td class="num">8.8</td><td class="num">30.9</td></tr>
+<tr><td>Engine fill to 21 players</td><td class="num">1.15</td><td class="num">14.5</td><td class="num">20.9</td><td class="num">1.12</td><td class="num">9.5</td><td class="num">31.4</td></tr>
+<tr><td>One-year contracts counted at 0.7 (chosen on the fit seeds)</td><td class="num">1.06</td><td class="num">8.8</td><td class="num">20.2</td><td class="num">0.87</td><td class="num">6.9</td><td class="num">32.0</td></tr>
+<tr><td>One-year contracts counted at 0.5</td><td class="num">1.13</td><td class="num">9.3</td><td class="num">19.5</td><td class="num">0.92</td><td class="num">7.3</td><td class="num">31.6</td></tr>
+</tbody></table>
+<div class="sub">Columns as in the 2026-11-17 entry. All from <code>candidates.json</code> (<code>fill-8</code>, <code>fill-21</code>, <code>one-year@0.7</code>, <code>one-year@0.5</code>; <code>one_year_kept_chosen_on_fit</code> is 0.7).</div>
+
+<div class="key"><b>Showed:</b>
+<ul>
+<li><b>An engine fill does not pass.</b> Filling to 8 players brings the slope inside 0.9 to 1.1 on both samples, but its residual on the check seeds is 14.8 against score-v2's 13.6 (criterion 2). Every deeper fill overshoots the slope (1.13 to 1.24 on the check seeds).</li>
+<li><b>The contract-length discount is the closest miss.</b> At 0.7 it beats score-v2 on residual and noise on both samples and cuts the over-payment of <code>extend-all:pick-trader</code> from 7.4 to 4.5 points. It fails criterion 1 twice, narrowly: the slope on the model rows is 0.87 (the gate is 0.9), and judged by <code>contend-1g</code> alone on the model rows its residual is 16.9 against score-v2's 16.7. No fraction passes both samples: 0.6 gives 1.11 on the check seeds and 0.90 on the model rows.</li>
+<li><b>The fourth judge agrees on direction.</b> With the roster filled to 21 first, score-v2's slope is 0.64 on the check seeds and 0.52 on the model rows; the 0.7 discount's is 0.90 and 0.66. score-v2 over-pays end state under every judge.</li>
+<li><b>Under score-v3 the board barely moves.</b> <code>gpt-6-astra</code> +46.9 → +44.5, <code>gpt-6.1-sol</code> +19.1 → +16.7, <code>claude-opus-5-5</code> −29.5 → −31.6, <code>claude-sonnet-5-5</code> −46.8 → −48.1 (<code>v2+next-pick</code> in <code>candidates.json</code>). <code>pick-trader</code> holds more next-draft picks than the model rows do.</li>
+<li><b>No scripted policy gains under 2.2.</b> Fifteen policies on seeds 101–172, each against <code>pick-trader</code> under the same rules (<code>v22_references/policies.json</code>): lifts change by −2.6 to +2.3. The +2.3 is <code>accept-everything</code>, whose illegal moves fall from 3.76 to 2.51 an episode because stale deadline offers are no longer listed in the draft. <code>contend-preseason-1g</code> is +82.7 under 2.2 (+84.4 under 2.1).</li>
+<li><b>The two new canaries pass, one of them closely.</b> On the canary seeds 11–34 (<code>v22_references/validate_contract.json</code>), <code>extend-everything</code> gains 11.2 points over <code>pick-trader</code> against a bound of 13; <code>run-down</code> loses 16.6.</li>
+</ul></div>
+
+<div class="decide"><b>Decided:</b> by the rule set on 2026-11-17, 2.2 takes the fallback: <b>score-v3 is score-v2 plus the next draft's picks</b>, and the brief states that the credit is counted after the final season's contracts expire and that only cap room and roster depth (at 24 players) are capped. Known and accepted: extending everything in the final preseason is over-paid by about 7 points (11 gained, about 4 confirmed by later seasons), under the 13 a 32-seed panel can detect. The 0.7 contract-length discount is recorded as the leading candidate should the operator prefer it; it must be chosen before the first 2.2 row, because the brief would have to state it. The fair planner was not rerun: against 2.1 the game changes only by withdrawing deadline offers after the deadline, and the objective by a linear pick term priced as trades price it. Queue item 21's simulator half (start an extension next season, or drop the extra inflation year from its quote) is rejected for 2.2: the quote the agent is shown is the price charged, the tool text now says what an extension does, and a price change would break the comparison of <code>pick-trader</code> across 2.1 and 2.2. Item 7 (sub-second guard notice) is rejected as test-only. Two things the queue did not list were added after review: roster cards now show <code>injured_games</code> (an injured player does not dress, and nothing showed who was injured), and three inherited <code>get_rules</code> descriptions that gave advice or said a quote "always succeeds" are restated as mechanics. The contract stays <code>gm-bench-2.2-draft</code>, unpinned, until the paid pilot (phase 4) has run.</div>
+</article>
+
+<!-- ======================================================================= -->
+<article class="entry" id="e-2026-11-17-v22-score">
+<header><div class="date">2026-11-17</div><h2>2.2 starts: the fork is a no-op, and no end-of-run score passes yet</h2>
+<div class="tags"><span class="tag">docs/bench_v2_2_spec.md</span><span class="tag">results/diagnostics/score_v3/candidates.json</span><span class="tag">scripts/score_v3_candidates.py</span><span class="tag">gm_bench/v22/</span><span class="tag decision">decision</span></div></header>
+
+<div class="key"><b>Tried:</b> two free steps of the 2.2 plan (<code>docs/bench_v2_2_spec.md</code>). <b>Phase 0:</b> the frozen engine and server read the 2.0 tool list and brief as module globals, so 2.2 cannot be a thin layer like 2.1. <code>gm_bench/v22/</code> carries its own copies of the tools and brief and subclasses the engine and server, with nothing the agent sees changed yet. <b>Phase 1:</b> the 2.2 brief will say when the end-of-run credit is counted, so the credit was tested first. <code>scripts/score_v3_candidates.py</code> swaps only the end-state terms of score-v2 for each candidate and asks how well the candidate's gap to <code>pick-trader</code> predicts the winning of the next five seasons, played on the same dice by three scripted managers (<code>pick-trader</code>, <code>strategic</code>, <code>contend-1g</code>; the yardstick is their mean). Scripted sample: 15 policies on public seeds 101–172 (fit 101–124, check 125–172), four of them new (<code>extend-all:*</code> extends every eligible player in the final preseason; <code>rundown:*</code> makes no final-season extension). Held-out sample: the final leagues of the 384 episodes behind the twelve published 2.1 rows, replayed with no model call and reported as per-row means only.</div>
+
+<div class="stats">
+ <div class="stat"><div class="k">2.1 ledgers replayed identically under the 2.2 engine</div><div class="v">430 / 430</div></div>
+ <div class="stat"><div class="k">Candidates that pass the gate</div><div class="v">0 of 7</div></div>
+ <div class="stat"><div class="k">Claude rows' gap over the next five seasons</div><div class="v">−41 to −54</div></div>
+ <div class="stat"><div class="k">Value of the next draft's picks at final scoring</div><div class="v">0</div></div>
+</div>
+
+<table>
+<thead><tr><th>Candidate end-state rule</th><th class="num">Check seeds: slope</th><th class="num">residual</th><th class="num">lift SD</th><th class="num">Model rows: slope</th><th class="num">residual</th><th class="num">lift SD</th></tr></thead>
+<tbody>
+<tr><td>score-v2 (after the final rollover)</td><td class="num">0.86</td><td class="num">13.6</td><td class="num">21.4</td><td class="num">0.75</td><td class="num">8.8</td><td class="num">33.3</td></tr>
+<tr><td>score-v2 plus the next draft's picks</td><td class="num">0.87</td><td class="num">12.4</td><td class="num">21.4</td><td class="num">0.74</td><td class="num">8.7</td><td class="num">33.6</td></tr>
+<tr><td>Before contracts expire</td><td class="num">0.72</td><td class="num">14.6</td><td class="num">21.7</td><td class="num">0.68</td><td class="num">14.6</td><td class="num">31.6</td></tr>
+<tr><td><b>Refill by <code>pick-trader</code>'s preseason, then score</b></td><td class="num"><b>1.03</b></td><td class="num"><b>9.5</b></td><td class="num">20.4</td><td class="num"><b>0.99</b></td><td class="num"><b>7.0</b></td><td class="num">31.2</td></tr>
+<tr><td>Refill by the engine's opponent routine (to 21 players)</td><td class="num">1.14</td><td class="num">14.2</td><td class="num">20.9</td><td class="num">1.11</td><td class="num">9.5</td><td class="num">31.2</td></tr>
+<tr><td>Refill by <code>contend-1g</code>'s preseason</td><td class="num">0.86</td><td class="num">12.3</td><td class="num">20.6</td><td class="num">0.75</td><td class="num">8.7</td><td class="num">31.6</td></tr>
+<tr><td>Three more seasons played, as the score</td><td class="num">0.66</td><td class="num">10.5</td><td class="num">37.5</td><td class="num">0.68</td><td class="num">7.4</td><td class="num">49.9</td></tr>
+<tr><td>Weights refitted on the fit seeds</td><td class="num">0.84</td><td class="num">6.8</td><td class="num">26.9</td><td class="num">0.56</td><td class="num">13.4</td><td class="num">45.5</td></tr>
+</tbody></table>
+<div class="sub">Slope: later winning gap regressed on the candidate's end-state gap, pooled over every policy or row and seed (1 = priced right). Residual: root mean square of the per-group mean of later gap minus end-state gap. Lift SD: mean over groups of the paired SD of the full-score lift against <code>pick-trader</code>. A played-seasons candidate is judged by the managers other than its own. All from <code>candidates.json</code>.</div>
+
+<div class="key"><b>Showed:</b>
+<ul>
+<li><b>Phase 0 is clean.</b> Final score, components, wins, illegal actions, season summaries, transactions and per-tool call counts match in all 430 finished 2.1 ledgers on the operator's machine, and each matches its recorded result. Fingerprints <code>a600b7da0c302231</code>, <code>07de948a4f4afbae</code> and <code>282dbf382c4ee56c</code> are unchanged.</li>
+<li><b>Three ideas are out.</b> Scoring before contracts expire over-credits a run-down roster (<code>rundown:pick-trader</code> residual −24.8; the Claude rows −6.7 to −23.8). Playing more seasons as the score raises the lift SD on the model rows from 33.3 to 49.9. Refitted weights fit the scripted policies (residual 6.8) and fail on the model rows (slope 0.56, lift SD 45.5).</li>
+<li><b>Refilling the roster before scoring is better calibrated, but depends on who judges.</b> With <code>pick-trader</code>'s preseason (at most eight signings) the slope is 1.03 and 0.99 against score-v2's 0.86 and 0.75. Judged by <code>contend-1g</code> alone on the model rows, its residual is 18.4 against score-v2's 16.7, and it under-credits <code>gpt-6-astra</code> by 16.6. <code>pick-trader</code> and <code>strategic</code> share a preseason routine (their refills are identical), so two of the three judges favour this candidate by construction. Refilling to 21 players overshoots (slope 1.14 and 1.11).</li>
+<li><b>The board would move, the ends would not.</b> Under the <code>pick-trader</code> refill: <code>gpt-6-astra</code> +46.9 → +30.4, <code>gpt-6.1-sol</code> +19.1 → +4.3, <code>claude-opus-5-5</code> −29.5 → −21.9, <code>claude-sonnet-5-5</code> −46.8 → −38.3; Kendall tau against the 2.1 order 0.91 (0.85 for the full refill).</li>
+<li><b>The Claude run-down is a real cost.</b> Over the next five seasons the three Claude rows trail <code>pick-trader</code> by 40.7 to 53.6 points; score-v2's end-state gap for them is 49.1 to 61.8, so it overstates the cost by 8.1 to 9.5 and no candidate removes it.</li>
+<li><b>Final-season extensions are over-paid by about 7 points, not 25–50.</b> <code>extend-all:pick-trader</code> gains 11.1 of end state and 3.7 of later winning. The win-now family is over-credited whatever it does at the end: <code>rundown:contend-1g</code>, with no final-season extension, by 18.2, and <code>contend-1g</code> by 18.4. That corrects the reading in the 2026-10-26 entry below: the planner's unconfirmed 25–50 points are mostly how a win-now roster is valued, not extensions through the final rollover.</li>
+<li><b>The next draft's picks are skipped.</b> The final score is taken after the season counter advances and the pick term starts one season later, so picks for the draft straight after the episode count for nothing (removing them leaves a <code>pick-trader</code> final score unchanged) while they can be traded for value in seasons 3–5.</li>
+</ul></div>
+
+<div class="decide"><b>Decided:</b> 2.1 intake is closed and <code>gmb-free-queue.service</code> is disabled (operator, 2026-11-17); the hidden strength constants will be published in 2.2 (operator). No end-of-run score is adopted yet: the gate criteria are now written in the spec, fixed before round 2 is read. Round 2, still free: an age- or contract-aware asset term for the win-now over-credit, refill depth as one parameter chosen on the fit seeds, and a judge that refills fully in one preseason. Count the next draft's picks in 2.2 whatever else is chosen. If nothing passes, 2.2 keeps score-v2 with that fix and a brief that says exactly when the credit is taken; the Claude finding says the brief is the larger lever. 2.1 rows stay as scored.</div>
+</article>
 
 <!-- ======================================================================= -->
 <article class="entry" id="e-2026-10-26-planner21">
