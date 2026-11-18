@@ -311,6 +311,8 @@ def test_the_brief_states_what_2_1_models_misread() -> None:
     assert "when the draft phase closes" in brief
     assert "they do not change the score" in brief
     assert "after 2 declines" in brief
+    assert "playoff rounds count in the last 3 seasons only" in brief
+    assert "playoff rounds count in every season too" in brief_v22.task_brief(1, "Harbor Owls", 0)
     assert tools_v22.TOOL_SURFACE_VERSION != tools_v1.TOOL_SURFACE_VERSION
     assert brief_v22.BRIEF_VERSION != brief_v1.BRIEF_VERSION
     # Tool names and the action mapping are unchanged; only text and ranges moved.

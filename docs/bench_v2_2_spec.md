@@ -29,7 +29,7 @@ Each phase has a gate. Nothing paid runs before phase 4.
 | 1 | Choose the end-of-run score (free, CPU only) | Criteria below | **Done 2026-11-18: no candidate passed, fallback taken** |
 | 2 | Rules, published constants, brief and tool text | `validate-contract` and the new canaries pass | **Done 2026-11-18** |
 | 3 | References and a free exploit check | No scripted policy gains under 2.2; real ledgers replay | **Done 2026-11-18** (lane pins wait for the freeze) |
-| 4 | Public-seed pilot with the behaviour diagnostic | Predicted behaviours move; no new misreading | Not started (paid) |
+| 4 | Public-seed pilot with the behaviour diagnostic | Predicted behaviours move; no new misreading | Price checked 2026-11-18; not run (paid, not authorized) |
 | 5 | Freeze, pre-register, smoke, first panel on the 32 private seeds | Prices checked first | Not started (paid) |
 | 6 | Site: 2.1 moves to an archive page; spec and notebook entries | | Not started |
 
@@ -382,8 +382,54 @@ private panel:
 The text can still change after the pilot, which is why the contract is not
 frozen yet. A harness smoke on one episode comes first, as for 2.0 and 2.1.
 
-The other agent's estimate for this was about $13 at API-equivalent prices.
-It has not been checked; check `pricing.json` first.
+### Price check (2026-11-18)
+
+Models: `claude-sonnet-5-5` (the cheaper of the two Claude rows that showed
+the misreadings), `gpt-6.1-sol` (it and Astra made most of the penalized
+lineup and signing calls) and `opencode-go/deepseek-v4.1-flash` (the one
+open-weight row in the 2.1 behaviour diagnostic). All three are first-panel
+rows, so the pilot's numbers set their pre-registered thresholds directly.
+Eight public seeds, five seasons, seeds 201 to 208, which no diagnostic has
+used.
+
+List prices were rechecked against the provider pages that day and none had
+changed; `gm_bench/pricing.json` records it. The OpenCode Go id had no price
+entry (its 2.1 row has no API-equivalent cost), so one was added.
+
+| Model | Route | Per 5-season episode under 2.1 | 8 episodes | Wall time |
+|---|---|---|---|---|
+| `claude-sonnet-5-5` | Claude Code, subscription | $1.23 | $9.87 | about 25 min |
+| `gpt-6.1-sol` | Codex, subscription | $0.48 | $3.87 | about 30 min |
+| `opencode-go/deepseek-v4.1-flash` | OpenCode Go, subscription | $0.11 | $0.89 | about 90 min |
+
+Per-episode figures are each 2.1 row's API-equivalent cost over its 32
+episodes (`results/agentic_v21/`); the DeepSeek row's tokens are priced at
+the new entry. With a one-season smoke per model first (about $0.40
+together), the pilot is about **$15 at API-equivalent prices**. All three
+routes are subscriptions, so the cash cost is quota, not dollars.
+
+What the estimate cannot see:
+
+- 2.2 should make the Claude rows read more. Sonnet called `get_status` 6
+  times an episode under 2.1 against 20 for the OpenAI rows, and Opus, at a
+  similar call count to the others, cost 3.3 times Sonnet per episode at
+  twice the price. If Sonnet's context doubles, its eight episodes are
+  about $20. The budget is $25 for the whole pilot; stop and report past
+  it.
+- The 2.2 brief and tool text are about 2,900 characters longer than 2.0's,
+  resent on every call from cache: under one cent an episode.
+- OpenCode Go meters each model against its own monthly limit, which only
+  the Go console shows. The 32-episode 2.1 row fit inside it; check the
+  console before the run. The fallback is OpenRouter's pinned DeepInfra
+  host at list $0.20, $0.006 and $0.60 per million tokens (about $1.30 for
+  eight episodes at list, half that while its promotion lasts), paid in
+  cash.
+- None of the three has a long-context tier that applies: Sonnet 5.5 has
+  none, Sol's starts at 272K input tokens per request, and DeepSeek lists
+  none.
+
+Order: Claude, then Codex, then OpenCode, one at a time, each after its own
+one-season smoke.
 
 ## Phase 5: freeze and first panel
 
@@ -420,13 +466,21 @@ Made 2026-11-18 (by the gate and in the build; each is in the notebook):
   states the rule; showing the number does part of the manager's job.
 - Queue items 7 and the simulator half of 21 are rejected.
 
+Made 2026-11-18 (operator delegated them; reasons in the notebook):
+
+- The gate stands: no 0.7 contract-length discount. It was written before
+  the results were read, and the three points of over-payment the discount
+  would remove are under what a panel detects.
+- The brief says which seasons' playoff results count (titles in every
+  season, rounds in the last three) and that both are scored as odds from
+  the bracket. No tool publishes either, which aim 3 rules out.
+- A call with `arguments: null` is treated as a call with no arguments, as
+  in 2.0 and 2.1.
+- Pilot: `claude-sonnet-5-5`, `gpt-6.1-sol` and
+  `opencode-go/deepseek-v4.1-flash`, 8 public seeds, 5 seasons, with a
+  budget of $25 at API-equivalent prices (phase 4).
+
 Open, for the operator:
 
-- Whether to override the gate and take the 0.7 contract-length discount
-  (phase 1).
-- Whether the brief should also say that playoff results are scored as
-  their expected value from the bracket (titles over every season, rounds
-  over the last three). It keeps 2.0's wording; no 2.1 panel showed a
-  misreading, and a reviewer asked for it.
-- The pilot's models and budget, after a price check (phase 4).
+- Authorizing the pilot. It is a paid run and nothing here authorizes it.
 - Driver items 9 and 12 and audit item 11, before the first panel.
