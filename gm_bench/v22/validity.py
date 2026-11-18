@@ -46,8 +46,17 @@ class ExtendEverythingAgent(Agent):
             return actions
         team = observation["team"]
         hard_cap = float(observation["rules"]["salary_cap"]) + HARD_CAP_BUFFER
-        taken = {a.get("player_id") for a in actions if a.get("type") == "extend_contract"}
+        # Players the base policy already extends, releases or trades away are left alone,
+        # and its own signings and extensions come off the room first.
+        taken = {a.get("player_id") for a in actions if a.get("type") in ("extend_contract", "release")}
+        taken.update(pid for a in actions if a.get("type") == "trade" for pid in a.get("give_player_ids") or [])
+        salaries = {p["id"]: float(p["salary"]) for p in team.get("roster", [])}
         payroll = float(team["payroll"])
+        for action in actions:
+            if action.get("type") == "sign_free_agent":
+                payroll += float(action.get("salary", 0.0))
+            elif action.get("type") == "extend_contract":
+                payroll += float(action.get("salary", 0.0)) - salaries.get(action.get("player_id"), 0.0)
         extra = []
         for player in sorted(team.get("roster", []), key=lambda p: (-p["overall"], p["id"])):
             quotes = player.get("extension_quotes")

@@ -12,7 +12,7 @@ item numbers):
 - It plays ``League22`` and scores with score-v3.
 - ``list_draft_class`` answers in every phase (item 2), so a prospect can be
   scouted before the draft without guessing an id.
-- The ``end_phase`` reply lists the phase's rejected calls (item 22), and the
+- The ``end_phase`` reply lists every call the phase refused (item 22), and the
   reply that opens the draft says when the season is played (item 19).
 - A call whose arguments are not an object is logged as not executed
   (item 4). Live it is refused; logged as executed with ``{}`` it could run
@@ -83,6 +83,15 @@ class AgenticEpisode22(AgenticEpisode):
         super()._write(record)
 
     def _execute(self, name: str, arguments: Any) -> dict[str, Any]:
+        rejections = self._phase_rejections
+        reply = self._run(name, arguments)
+        # Every refused call of the phase, whatever refused it; ``end_phase`` itself opens the next list.
+        if name != "end_phase" and not reply["ok"]:
+            rejections.append({"tool": name, "message": reply["message"], "penalized": bool(reply.get("penalized"))})
+        return reply
+
+    def _run(self, name: str, arguments: Any) -> dict[str, Any]:
+        # ``AgenticEpisode._execute``, against the 2.2 tools.
         spec = TOOLS_BY_NAME.get(name)
         if spec is None:
             return self._reply(False, f"unknown tool {name!r}")
@@ -99,12 +108,7 @@ class AgenticEpisode22(AgenticEpisode):
         if spec["kind"] == "read":
             return self._read(name)
         action = {"type": ACTION_TYPE_FOR_TOOL[name], **arguments}
-        reply = self._apply(action, is_move=spec["kind"] == "move")
-        if not reply["ok"]:
-            self._phase_rejections.append(
-                {"tool": name, "message": reply["message"], "penalized": bool(reply.get("penalized"))}
-            )
-        return reply
+        return self._apply(action, is_move=spec["kind"] == "move")
 
     def _read(self, name: str) -> dict[str, Any]:
         if name == "list_draft_class":

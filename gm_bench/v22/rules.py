@@ -14,9 +14,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from gm_bench.models import LINEUP_SIZE
+from gm_bench.models import CENTER_SHARE, LINEUP_SIZE
 from gm_bench.protocol import ActionResult
-from gm_bench.simulator import REJECTED_OFFER_LIMIT_PER_WINDOW, TRADE_LIMIT_PER_PARTNER
+from gm_bench.simulator import (
+    CENTER_LINEUP_BONUS_PER,
+    CENTER_LINEUP_TARGET,
+    EXPIRY_SCRAMBLE_CANDIDATES,
+    FA_VETERAN_AGE,
+    HARD_CAP_BUFFER,
+    REJECTED_OFFER_LIMIT_PER_WINDOW,
+    TRADE_LIMIT_PER_PARTNER,
+)
 from gm_bench.v21.rules import League21
 
 # The constants of ``League._team_strength``, which has them as literals.
@@ -36,7 +44,10 @@ class League22(League21):
     - ``get_rules`` publishes the strength formula (item 26), the trade
       limits with their units and penalties (item 24), what an extension
       does (item 21) and the tradable pick seasons; each listed pick says
-      whether it can be traded now (item 14).
+      whether it can be traded now (item 14). Your roster cards carry
+      ``injured_games``, which the strength formula needs and 2.1 never
+      showed. Three inherited descriptions that gave advice or promised a
+      signing unconditionally are restated as mechanics.
     - ``inspect_player`` finds draft prospects, as its description says
       (item 3).
     - A signing refused because the player is not a free agent says where
@@ -62,7 +73,8 @@ class League22(League21):
             "season_injury_overall_loss": [low, high],
             "description": (
                 "Team strength is the weighted average overall of the dressed players who are not "
-                "injured, ranked by overall with the slot weights above, plus "
+                "injured (injured_games is 0 on your roster cards; an injured player sits out that "
+                "many of the team's games), ranked by overall with the slot weights above, plus "
                 f"{GOALIE_BONUS} for each dressed goalie up to {GOALIE_BONUS_MAX_GOALIES}, plus the "
                 f"center bonus, minus {OVER_CAP_STRENGTH_PENALTY} for each unit of payroll above the "
                 "salary cap. Games are simulated twice a season (the first third, then the rest "
@@ -71,6 +83,29 @@ class League22(League21):
                 "probability equal to his injury_risk."
             ),
         }
+        # 2.1's text for these three advised ("often misses this", "not a free
+        # option") or promised that a quote "always succeeds"; 2.2 states the rule.
+        rules["lineup_center_bonus"]["description"] = (
+            "Each forward's sub_position is 'C' (center) or 'W' (wing); roughly "
+            f"{CENTER_SHARE:.0%} of forwards are centers league-wide. A dressed lineup earns "
+            f"+{CENTER_LINEUP_BONUS_PER} team strength per dressed center up to {CENTER_LINEUP_TARGET}."
+        )
+        rules["free_agency_willingness"]["description"] = (
+            "Each free agent's quotes are the market rate times his published "
+            "signing_appeal.quote_multiplier: winning teams and a lineup role earn discounts, "
+            "losing teams and a depth role cost premiums, and veterans "
+            f"(age >= {FA_VETERAN_AGE}) weigh winning twice as heavily as younger players. He "
+            "accepts any offer at or above the quote. The signing must still leave your payroll "
+            f"within the salary cap plus {HARD_CAP_BUFFER:g}, a player you released this season "
+            "will not re-sign until the next, and a player who has declined "
+            f"{REJECTED_OFFER_LIMIT_PER_WINDOW} of your offers in a phase refuses until the next phase."
+        )
+        rules["contracts"]["expiry_risk"] = (
+            "A roster player publishing extension_quotes is in his final contract year. Unless he "
+            "is extended this preseason he becomes a free agent when the season ends. Right after "
+            f"contracts expire, rival teams get one signing look at the {EXPIRY_SCRAMBLE_CANDIDATES} "
+            "best expiring players leaguewide, before your next phase opens."
+        )
         rules["trades"] = {
             "declines_before_talks_end": REJECTED_OFFER_LIMIT_PER_WINDOW,
             "completed_trades_per_partner_per_season": TRADE_LIMIT_PER_PARTNER,
@@ -97,6 +132,8 @@ class League22(League21):
         )
         for pick in payload["team"]["picks"]:
             pick["tradable_now"] = pick["season"] in window
+        for card in payload["team"].get("roster", []):
+            card["injured_games"] = self.players[card["id"]].injured_games
         return payload
 
     def _inspect_player(self, action: dict[str, Any], phase: str) -> ActionResult:

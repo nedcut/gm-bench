@@ -239,6 +239,9 @@ No candidate passes, so 2.2 takes the fallback the gate named:
 **score-v3 is score-v2 plus the next draft's picks** (`gm_bench/v22/scoring.py`),
 and the brief says exactly when the credit is taken.
 
+Every replayed model episode is checked against its recorded score before it
+is used (all 384 match), and the replay runs under the 2.1 engine.
+
 - At final scoring the season counter has advanced, so the picks a team
   holds for that season's draft are counted at the value of a
   current-season pick. While a season is open its draft has been held and
@@ -287,18 +290,20 @@ rejected in writing, because the next fork costs another panel rerun.
 | 5 | A `tools/call` that reaches the dispatch lock after `stop()` began is refused | `mcp_server.py` |
 | 6 | Reviewed with item 5: admission already registers a connection and re-checks `stop()` under one lock. No change | |
 | 7 | **Rejected.** The sub-second guard notice only prints wrongly in tests; fixing it means restating `call_tool` | |
-| 13 | The brief says the credit is counted after the final season's contracts expire and that only cap room is capped | `brief.py` |
+| 13 | The brief says the credit is counted after the final season's contracts expire, that the next draft's picks count, and that only cap room and roster depth (at 24 players) are capped | `brief.py` |
 | 14 | The pick-season arguments name the window; `get_rules` lists `tradable_seasons`; each listed pick carries `tradable_now` | `tools.py`, `rules.py` |
 | 19 | The brief says games are played when the preseason closes (a third) and when the draft closes (the rest and the playoffs), and that moves stay open in the draft; the `end_phase` reply that opens the draft repeats it | `brief.py`, `episode.py` |
 | 20 | `set_lineup` and the brief say a lineup persists and new players dress only into empty slots | `tools.py`, `brief.py` |
 | 21 | `extend_contract` and `get_rules` say what an extension does. The simulator half is rejected (phase 1) | `tools.py`, `rules.py` |
-| 22 | The `end_phase` reply lists the phase's rejected calls and counts the penalized ones | `episode.py` |
+| 22 | The `end_phase` reply lists every call the phase refused (illegal moves, declines, schema failures, refused reads) and counts the penalized ones | `episode.py` |
 | 23 | A signing refused because the player is not a free agent says where he is (another team, the waiver wire, the draft class). Still an illegal move | `rules.py` |
 | 24 | `trade` and `get_rules` state the two-decline limit, the two-trades-per-partner limit and its penalty, and that both teams must give something | `tools.py`, `rules.py`, `brief.py` |
 | 25 | The brief says tool calls are reported and do not change the score; "calling everything every phase is a cost" is gone | `brief.py` |
 | 26 | `get_rules` publishes the strength formula (below) | `rules.py` |
 | 27 | Deadline offers are withdrawn when the deadline closes | `rules.py` |
 | new | The next draft's picks count at final scoring (score-v3) | `scoring.py` |
+| new | Roster cards in `get_team` carry `injured_games`. An injured player does not dress, and nothing showed which players were injured | `rules.py` |
+| new | Three inherited `get_rules` descriptions are restated as mechanics: the center bonus and expiry texts gave advice, and the free-agent text said a quote "always succeeds" (the hard cap, the re-sign block and a walk-away can still refuse it) | `rules.py`, `tools.py` |
 
 The surface versions are `gm-bench-agentic-v2` and
 `gm-bench-agentic-brief-v2`. Tool names and the tool-to-action mapping are

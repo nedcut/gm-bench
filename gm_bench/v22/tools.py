@@ -73,7 +73,7 @@ TOOLS: list[dict[str, Any]] = [
         "name": "get_team",
         "kind": "read",
         "description": (
-            "Your full roster with public ratings, contracts, injuries, dead-cap cost of "
+            "Your full roster with public ratings, contracts, injuries (injured_games), dead-cap cost of "
             "releasing each player, and extension quotes for players in their final year."
         ),
         "inputSchema": _schema(),
@@ -154,8 +154,10 @@ TOOLS: list[dict[str, Any]] = [
         "name": "sign_free_agent",
         "kind": "move",
         "description": (
-            "Offer a free agent a contract. Offering the published quote for that length always "
-            "succeeds; shading below it may be declined, which is not penalized."
+            "Offer a free agent a contract. He accepts any offer at or above his published quote "
+            "for that length; shading below it may be declined, which is not penalized. The "
+            "signing must still fit under the hard cap, and a player you released this season "
+            "will not re-sign until the next."
         ),
         "inputSchema": _schema(
             {
@@ -220,8 +222,8 @@ TOOLS: list[dict[str, Any]] = [
         "name": "set_lineup",
         "kind": "move",
         "description": (
-            "Choose the 18 players who dress. Drives team strength directly; players outside the "
-            "lineup develop at half speed. Must satisfy the position minimums in get_rules. The "
+            "Choose the 18 players who dress. Drives team strength directly; players aged 24 or "
+            "under develop at half speed outside the lineup. Must satisfy the position minimums in get_rules. The "
             "lineup you set stays in force until you set another: a player you add later "
             "dresses only when a slot is empty because someone in the lineup left the roster "
             "or is injured."
@@ -278,7 +280,7 @@ TOOLS: list[dict[str, Any]] = [
             "Finish this decision phase. Opponents then act, the calendar advances, and the "
             "response tells you the next phase or that the episode is complete. There are "
             "four phases per season; you cannot return to a phase once ended. The response also "
-            "lists the calls this phase that were rejected, and which of them were penalized."
+            "lists every call this phase that was refused, and which of them were penalized."
         ),
         "inputSchema": _schema(),
     },

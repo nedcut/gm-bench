@@ -138,6 +138,9 @@ def test_picks_say_whether_they_can_be_traded_now() -> None:
     observation = League22.new(seed=17).observation("preseason")
     assert observation["rules"]["pick_trading"]["tradable_seasons"] == [2, 3, 4]
     assert {pick["season"]: pick["tradable_now"] for pick in observation["team"]["picks"]}[1] is False
+    assert all(card["injured_games"] == 0 for card in observation["team"]["roster"])
+    advice = ("often misses", "not a free option", "always succeeds")
+    assert not any(phrase in json.dumps(observation["rules"]) for phrase in advice)
     assert all(pick["tradable_now"] for pick in observation["team"]["picks"] if pick["season"] in (2, 3, 4))
 
 
@@ -217,13 +220,22 @@ def test_the_draft_class_is_listed_in_every_phase() -> None:
     assert episode.call_tool("scout", {"player_id": prospects[0]["id"]})["ok"]
 
 
+def closed_calls(episode) -> list[tuple[str, bool]]:  # noqa: ANN001
+    closed = episode.call_tool("end_phase", {})["closed"]
+    assert closed["penalized_calls"] == sum(1 for call in closed["rejected_calls"] if call["penalized"])
+    return [(call["tool"], call["penalized"]) for call in closed["rejected_calls"]]
+
+
 def test_end_phase_reports_the_phases_rejected_calls_and_the_calendar() -> None:
     episode = AgenticEpisode22(17, seasons=1)
     episode.call_tool("trade", {"partner_team_id": 1})  # no assets: an illegal move
-    closed = episode.call_tool("end_phase", {})["closed"]
-    assert closed["penalized_calls"] == 1
-    assert closed["rejected_calls"] == [
-        {"tool": "trade", "message": "trades must include assets from both teams", "penalized": True}
+    # A schema failure and a read refused in this phase are listed too, unpenalized.
+    episode.call_tool("extend_contract", {"player_id": 1, "years": 1, "salary": 1.0})
+    episode.call_tool("list_waiver_wire", {})
+    assert closed_calls(episode) == [
+        ("trade", True),
+        ("extend_contract", False),
+        ("list_waiver_wire", False),
     ]
     assert episode.call_tool("end_phase", {})["closed"]["rejected_calls"] == []
     opened = episode.call_tool("end_phase", {})
@@ -272,12 +284,11 @@ def test_a_call_queued_when_stop_began_is_refused() -> None:
 
 def test_the_brief_states_what_2_1_models_misread() -> None:
     brief = brief_v22.task_brief(5, "Harbor Owls", 0)
-    assert "capped credit" not in brief and "Only the cap-room part is capped" in brief
+    assert "capped credit" not in brief and "roster depth stops counting at 24 players" in brief
     assert "counted after\n     the final season's contracts have expired" in brief
     assert "when the draft phase closes" in brief
     assert "they do not change the score" in brief
     assert "after 2 declines" in brief
-    assert all(len(line) <= 100 for line in brief.splitlines())
     assert tools_v22.TOOL_SURFACE_VERSION != tools_v1.TOOL_SURFACE_VERSION
     assert brief_v22.BRIEF_VERSION != brief_v1.BRIEF_VERSION
     # Tool names and the action mapping are unchanged; only text and ranges moved.

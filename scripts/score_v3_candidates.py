@@ -53,10 +53,9 @@ from gm_bench.agents import Agent  # noqa: E402
 from gm_bench.models import pick_value  # noqa: E402
 from gm_bench.protocol import PHASES  # noqa: E402
 from gm_bench.scoring import score_components as score_components_v1  # noqa: E402
-from gm_bench.v21.episode import ledger_benchmark_version  # noqa: E402
+from gm_bench.v21.episode import AgenticEpisode21, ledger_benchmark_version  # noqa: E402
 from gm_bench.v21.rules import League21  # noqa: E402
 from gm_bench.v21.scoring import SCALE, score_components  # noqa: E402
-from gm_bench.v22.episode import AgenticEpisode22  # noqa: E402
 from gm_bench.validity import CANARY_AGENTS  # noqa: E402
 
 SEASONS = 5
@@ -124,8 +123,17 @@ class ExtendAll(Agent):
         rules = observation["rules"]
         hard_cap = float(rules["salary_cap"]) + float(rules.get("hard_cap_buffer", 8.0))
         years = planner.contract_years_to_end(SEASONS, extension=True)
-        taken = {a.get("player_id") for a in actions if a.get("type") == "extend_contract"}
+        # Players the base policy already extends, releases or trades away are left alone,
+        # and its own signings and extensions come off the room first.
+        taken = {a.get("player_id") for a in actions if a.get("type") in ("extend_contract", "release")}
+        taken.update(pid for a in actions if a.get("type") == "trade" for pid in a.get("give_player_ids") or [])
+        salaries = {p["id"]: float(p["salary"]) for p in team["roster"]}
         payroll = float(team["payroll"])
+        for action in actions:
+            if action.get("type") == "sign_free_agent":
+                payroll += float(action.get("salary", 0.0))
+            elif action.get("type") == "extend_contract":
+                payroll += float(action.get("salary", 0.0)) - salaries.get(action.get("player_id"), 0.0)
         extra = []
         for player in sorted(team["roster"], key=lambda p: (-p["overall"], p["id"])):
             quotes = player.get("extension_quotes")
@@ -194,8 +202,13 @@ class ProbeLeague(League21):
         return expired
 
 
-class ProbeEpisode(AgenticEpisode22):
-    league_class = ProbeLeague
+class ProbeEpisode(AgenticEpisode21):
+    """The 2.1 engine on the probe league, so a 2.1 ledger replays under 2.1's own rules."""
+
+    def _open_phase(self) -> None:
+        if not isinstance(self.league, ProbeLeague):
+            self.league = ProbeLeague.new(seed=self.seed, user_team_id=self.user_team_id)
+        super()._open_phase()
 
 
 def _end_terms(league: Any) -> dict[str, float]:
@@ -340,6 +353,10 @@ def _ledger_job(job: tuple[str, str]) -> dict[str, Any] | None:
         episode = ProbeEpisode.from_ledger(clean, reopen=False)
     if not episode.done:
         return None
+    # The replay must be the game that was played: same score as the recorded result.
+    recorded = json.loads((ledger.parent / "result.json").read_text(encoding="utf-8"))["final_score"]
+    if abs(episode.result()["final_score"] - recorded) > 1e-6:
+        raise SystemExit(f"{ledger.parent.name} of {label}: replay does not reproduce the recorded score")
     seed = int(records[0]["seed"])
     return {"group": label, "seed": seed, **side(episode.league), "reference": side(play(REFERENCE, seed))}
 

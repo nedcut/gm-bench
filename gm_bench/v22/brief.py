@@ -52,7 +52,8 @@ What you are scored on, in priority order
   3. Regular-season record
   4. A credit for the roster, prospects, picks and cap room you leave behind. It is counted after
      the final season's contracts have expired, so a player whose contract ends with the final
-     season is not part of it. Only the cap-room part is capped.
+     season is not part of it. Picks for the draft after the final season count. The cap-room
+     part is capped, and roster depth stops counting at 24 players; the rest is not capped.
 Illegal moves (bad ids, cap or roster violations, wrong phase, breaking a trade rule) are rejected
 and cost score. A call whose arguments do not fit the tool's schema is rejected before it reaches
 the game and costs nothing. Declined offers cost nothing: a trade partner or free agent turning you
