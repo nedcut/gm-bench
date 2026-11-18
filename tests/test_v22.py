@@ -250,9 +250,10 @@ def test_a_non_object_call_is_logged_as_not_executed_so_replay_matches(tmp_path:
     assert not live.call_tool("end_phase", ["not", "an", "object"])["ok"]
     assert live.phase == "preseason"
     live.call_tool("trade", {"partner_team_id": 1})
-    # A reopened ledger reports the same refusals, the skipped call included.
+    live.call_tool("no_such_tool", [])
+    # A reopened ledger reports the same refusals, the skipped calls included.
     reopened = replay_ledger(ledger, reopen=False)
-    assert reopened._phase_rejections == live._phase_rejections and len(live._phase_rejections) == 2
+    assert reopened._phase_rejections == live._phase_rejections and len(live._phase_rejections) == 3
     while not live.done:
         live.call_tool("end_phase", {})
     result = live.result()

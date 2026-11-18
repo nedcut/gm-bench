@@ -97,7 +97,8 @@ class AgenticEpisode22(AgenticEpisode):
                 for r in records[opened:]
                 if r.get("event") == "tool_call"
                 and not r.get("ok")
-                and (r.get("executed", True) or r["message"].startswith("invalid arguments"))
+                # Not executed and refused by the tool layer; the guard's own notice is not a refusal.
+                and (r.get("executed", True) or "phase guard" not in r["message"])
             ]
         return episode
 

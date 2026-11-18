@@ -365,10 +365,11 @@ def _ledger_job(job: tuple[str, str]) -> dict[str, Any] | None:
 
 def write_private(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    os.fchmod(descriptor, 0o600)  # the mode above applies only when the file is created
+    # A new 0600 file, then a rename: nobody holding the old file open sees the new contents.
+    descriptor, temporary = tempfile.mkstemp(dir=path.parent, prefix=path.name + ".")
     with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
         json.dump(payload, handle)
+    os.replace(temporary, path)
 
 
 def run_sides(seeds: list[int], run_dirs: list[Path], jobs: int, cache: Path) -> None:
