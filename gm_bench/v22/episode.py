@@ -25,7 +25,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from gm_bench.agentic.episode import ENDED_BY_AGENT, AgenticEpisode
+from gm_bench.agentic.episode import ENDED_BY_AGENT, ENDED_BY_GUARD, AgenticEpisode
 from gm_bench.scoring import breakdown_from_components
 from gm_bench.v22 import scoring as score_v3
 from gm_bench.v22.contract import BENCHMARK_VERSION
@@ -92,13 +92,14 @@ class AgenticEpisode22(AgenticEpisode):
         records = [json.loads(line) for line in Path(path).read_text(encoding="utf-8").splitlines() if line.strip()]
         opened = max((i for i, r in enumerate(records) if r.get("event") == "phase_open"), default=0)
         if not episode.done:
+            # When the guard closed the previous phase, the call that tripped it is logged
+            # first in this one. It was answered with the guard's notice, not refused.
+            guard_closed = opened > 0 and records[opened - 1].get("ended_by") == ENDED_BY_GUARD
+            calls = [r for r in records[opened:] if r.get("event") == "tool_call"][int(guard_closed) :]
             episode._phase_rejections = [
                 {"tool": r["tool"], "message": r["message"], "penalized": bool(r.get("penalized"))}
-                for r in records[opened:]
-                if r.get("event") == "tool_call"
-                and not r.get("ok")
-                # Not executed and refused by the tool layer; the guard's own notice is not a refusal.
-                and (r.get("executed", True) or "phase guard" not in r["message"])
+                for r in calls
+                if not r.get("ok")
             ]
         return episode
 

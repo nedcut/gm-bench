@@ -264,6 +264,21 @@ def test_a_non_object_call_is_logged_as_not_executed_so_replay_matches(tmp_path:
     assert again.done and again.result()["final_score"] == result["final_score"]
 
 
+def test_a_guard_notice_is_not_a_refusal_after_a_reopen(tmp_path: Path) -> None:
+    import time
+
+    ledger = tmp_path / "ledger.jsonl"
+    live = AgenticEpisode22(17, seasons=1, ledger_path=ledger, phase_guard_seconds=0.01)
+    time.sleep(0.05)
+    assert "phase guard" in live.call_tool("get_status", {})["message"]  # the guard closes preseason
+    live.phase_guard_seconds = 0.0
+    live.call_tool("phase guard", [])  # refused by the tool layer, whatever it is called
+    reopened = replay_ledger(ledger, reopen=False)
+    assert reopened._phase_rejections == live._phase_rejections
+    assert [call["tool"] for call in live._phase_rejections] == ["phase guard"]
+    live.close()
+
+
 def test_schema_ranges_are_the_simulators() -> None:
     assert tools_v22.validate_arguments("extend_contract", {"player_id": 1, "years": 1, "salary": 1.0})
     assert tools_v22.validate_arguments("sign_free_agent", {"player_id": 1, "years": 6, "salary": 1.0})
