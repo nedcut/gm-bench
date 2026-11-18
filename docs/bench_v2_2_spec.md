@@ -1,7 +1,7 @@
 # GM-Bench 2.2: specification (draft)
 
 Status: **release candidate, not frozen.** Started 2026-11-17; phases 0 to 3
-done 2026-11-18. What remains needs paid model runs (phase 4 onward). No
+done 2026-11-18. The phase 4 pilot ran the same day and did not meet its gate, so the freeze waits. No
 fingerprint is pinned and no row can be published under it (`gm-bench-2.2-draft` has no lane, and
 `agentic-redact` refuses a contract without one). Decisions are logged in
 `docs/lab_notebook.html`; the evidence behind each queue item is in
@@ -29,7 +29,7 @@ Each phase has a gate. Nothing paid runs before phase 4.
 | 1 | Choose the end-of-run score (free, CPU only) | Criteria below | **Done 2026-11-18: no candidate passed, fallback taken** |
 | 2 | Rules, published constants, brief and tool text | `validate-contract` and the new canaries pass | **Done 2026-11-18** |
 | 3 | References and a free exploit check | No scripted policy gains under 2.2; real ledgers replay | **Done 2026-11-18** (lane pins wait for the freeze) |
-| 4 | Public-seed pilot with the behaviour diagnostic | Predicted behaviours move; no new misreading | Price checked 2026-11-18; not run (paid, not authorized) |
+| 4 | Public-seed pilot with the behaviour diagnostic | Predicted behaviours move; no new misreading | **Run 2026-11-18: gate not met** (a trade exploit, and Sonnet still runs its roster down in half its episodes) |
 | 5 | Freeze, pre-register, smoke, first panel on the 32 private seeds | Prices checked first | Not started (paid) |
 | 6 | Site: 2.1 moves to an archive page; spec and notebook entries | | Not started |
 
@@ -431,6 +431,81 @@ What the estimate cannot see:
 Order: Claude, then Codex, then OpenCode, one at a time, each after its own
 one-season smoke.
 
+### Pilot result (2026-11-18): gate not met
+
+Run on the operator's go-ahead, from `main` at `2bac57d`, in the container,
+on the 2.1 rows' harness versions. Figures are in
+`results/diagnostics/v22_pilot/behavior.json`
+(`scripts/diagnose_v22_pilot.py`, the 2.1 behaviour diagnostic on the 2.2
+engine; every replayed score matches its run). The 2.1 column is each
+model's 32-seed panel, so the two columns share a model, not seeds.
+
+DeepSeek did not run: OpenCode Go reported no active subscription and the
+OpenRouter key had expired. `gpt-6-luna` stood in as the cheap third model.
+Sonnet's smoke cost three times the estimate, so it ran four seeds first and
+the other four once the budget allowed.
+
+| | Sonnet 5.5 | | Sol 6.1 | | Luna 6 | |
+|---|---|---|---|---|---|---|
+| | 2.1 | 2.2 pilot | 2.1 | 2.2 pilot | 2.1 | 2.2 pilot |
+| Lift over `pick-trader`, same seeds | | +22.6 | | +120.7 | | +24.6 |
+| Phases closed with no `get_status` | 71% | 54% | 0% | 0% | 0% | 0% |
+| Roster at final scoring | 4.7 | 9.1 | 16.2 | 18.5 | 15.9 | 19.5 |
+| Episodes ending with 5 or fewer players | 23 of 32 | 4 of 8 | 0 | 0 | 0 | 0 |
+| Final score minus score after season 4 | −23.6 | +3.1 | +16.3 | +47.6 | +17.6 | +28.7 |
+| Lineup gap to the engine default at draft close | −1.61 | +0.20 | −0.11 | +0.06 | −1.11 | +0.82 |
+| Penalized calls per episode | 1.34 | 0.62 | 2.47 | 2.12 | 0.66 | 0.25 |
+| API-equivalent cost per episode | $1.23 | $1.92 | $0.48 | $0.71 | $0.14 | $0.11 |
+
+What moved as predicted:
+
+- No call was refused for a pick season outside the window (45% of 2.1's
+  penalized calls), and no phase offered a stale deadline offer.
+- Lineups at draft close now beat the engine default for all three; under
+  2.1 Sonnet and Luna sat more than a point below it.
+- Roster at final scoring rose for all three.
+
+What did not:
+
+- **Sonnet still lets its roster expire in four of eight episodes**, and
+  still closes more than half its phases without reading the status. The
+  brief now says when the credit is counted; half the time it does not act
+  on it.
+
+What is new, and blocks the freeze:
+
+- **A trade exploit.** In two of Sol's eight episodes (final scores 502 and
+  570; its other six are 317 to 346) it signed minimum-salary free agents
+  in bulk and traded packages of them, up to 13 at once, to a rival for one
+  good player or for that rival's future picks: 31 and 35 accepted trades
+  an episode, 57 signings in one trade deadline. The rival's valuation
+  (`League._trade`) sums the asset value of every player it receives, and
+  no roster maximum stops it taking a twelfth replacement-level body. The scripted contender on the same seeds is +66 over `pick-trader`;
+  these two episodes are +283 and +287. The trade code is 2.1's, untouched
+  by 2.2, so the hole is in 2.1 as well; no 2.1 row was seen to use it at
+  this scale, and that has not been checked ledger by ledger. A first
+  scripted version of it (sign the eight cheapest, trade them for picks)
+  loses 18 points, so it takes choosing partners and targets to work.
+- Sol's empty phases rose from under 1% to 15%, almost all of them drafts
+  where it held no pick because it had traded them.
+
+Costs: $23.03 at API-equivalent prices against the $25 budget (Sonnet
+$16.13 with its smoke, Sol $6.01, Luna $0.89), all on subscriptions. Sol's
+figure may be low: some request may have crossed its 272K long-context
+tier.
+
+Before a freeze:
+
+1. Close the package trade. The options are a rule (a partner refuses a
+   trade that leaves it over a roster limit, or values only the players who
+   would make its lineup) or a cap on players per trade. It is a simulator
+   change, so `pick-trader` and the other references must be replayed, and
+   the 2.1 ledgers checked for the same pattern.
+2. Decide whether Sonnet's run-down is now the model's own choice, given
+   that the brief states the rule, or whether the tools should show it
+   (the status could list the contracts that end with the final season).
+3. Rerun the pilot on the same seeds, with DeepSeek once a key works.
+
 ## Phase 5: freeze and first panel
 
 - **Seeds.** The same 32 private seeds, unless phase 1's chosen score raises
@@ -482,5 +557,8 @@ Made 2026-11-18 (operator delegated them; reasons in the notebook):
 
 Open, for the operator:
 
-- Authorizing the pilot. It is a paid run and nothing here authorizes it.
+- How to close the package trade the pilot found, and whether Sonnet's
+  roster run-down needs more than the brief (phase 4, pilot result).
+- A working key for DeepSeek: the OpenCode Go subscription is inactive and
+  the OpenRouter key has expired.
 - Driver items 9 and 12 and audit item 11, before the first panel.
