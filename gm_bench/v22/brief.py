@@ -10,12 +10,15 @@ What changed from the 2.0 brief, each from a misreading the 2.1 panels
 showed (``docs/bench_v2_2_spec.md``, phase 2): when the season is played,
 when the end-of-run credit is counted and which part of it is capped, that a
 lineup persists, the exact decline limit, that schema failures are free, and
-that tool calls are reported and not scored.
+that tool calls are reported and not scored. One line no panel prompted:
+which seasons' playoff results count and that they are scored as odds, since
+the tools publish neither.
 """
 
 from __future__ import annotations
 
 from gm_bench.protocol import PHASES
+from gm_bench.v21.scoring import RECENT_PLAYOFF_SEASONS
 
 BRIEF_VERSION = "gm-bench-agentic-brief-v2"
 
@@ -30,6 +33,11 @@ _PHASE_NOTES = {
 def task_brief(seasons: int, team_name: str, team_id: int) -> str:
     phases = "\n".join(f"  {index + 1}. {phase}: {_PHASE_NOTES[phase]}" for index, phase in enumerate(PHASES))
     total = seasons * len(PHASES)
+    rounds = (
+        "in every season too"
+        if seasons <= RECENT_PLAYOFF_SEASONS
+        else f"in the last {RECENT_PLAYOFF_SEASONS} seasons only"
+    )
     return f"""You are the general manager of {team_name} (team id {team_id}) in a 12-team hockey league.
 You run the franchise for {seasons} seasons through the `gm-bench` tools. This is a benchmark: your
 score is computed when the last season ends and nothing you do outside the tools counts.
@@ -47,7 +55,10 @@ that the episode is complete and you should stop. You will call `end_phase` exac
 over the whole run.
 
 What you are scored on, in priority order
-  1. Winning over all {seasons} seasons, especially championships and deep playoff runs
+  1. Winning over all {seasons} seasons, especially championships and deep playoff runs. A title
+     counts in every season; playoff rounds count {rounds}. Both are scored as
+     your team's odds from the bracket and the teams' strength when the playoffs start, not by
+     the results of the playoff games.
   2. Being a contender consistently rather than once
   3. Regular-season record
   4. A credit for the roster, prospects, picks and cap room you leave behind. It is counted after

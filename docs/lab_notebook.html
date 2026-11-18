@@ -102,6 +102,7 @@ svg{display:block}
 <p class="lede">Internal log of how scoring and contract decisions get made: what we tried, what it showed, what we decided. Newest first. Every number cites a committed diagnostic or a published row; nothing here is a published result.</p>
 
 <nav class="toc"><b>Entries</b><ol>
+ <li><a href="#e-2026-11-18-v22-pilot-price">2026-11-18 · 2.2: the open text and score decisions, and the pilot priced</a></li>
  <li><a href="#e-2026-11-18-v22-candidate">2026-11-18 · 2.2 takes the fallback score, and the rules and text are forked</a></li>
  <li><a href="#e-2026-11-17-v22-score">2026-11-17 · 2.2 starts: the fork is a no-op, and no end-of-run score passes yet</a></li>
  <li><a href="#e-2026-10-26-planner21">2026-10-26 · What held the 2.1 searches back: the menu, not the horizon</a></li>
@@ -123,6 +124,17 @@ svg{display:block}
 </ol></nav>
 
 <!-- ======================================================================= -->
+<article class="entry" id="e-2026-11-18-v22-pilot-price">
+<header><div class="date">2026-11-18</div><h2>2.2: the open text and score decisions, and the pilot priced</h2>
+<div class="tags"><span class="tag">docs/bench_v2_2_spec.md</span><span class="tag">gm_bench/v22/brief.py</span><span class="tag">gm_bench/pricing.json</span><span class="tag">results/agentic_v21/</span><span class="tag decision">decision</span></div></header>
+
+<div class="key"><b>Tried:</b> the operator delegated the three decisions the 2.2 build left open and asked for the pilot's price check. For the price check, each candidate model's list prices were reread from the provider's page, and the cost of a five-season episode was taken from the model's committed 2.1 row (<code>api_equivalent_cost_usd</code> over its 32 episodes, <code>results/agentic_v21/</code>).</div>
+
+<p><b>Showed:</b> no list price had changed since October: Claude Sonnet 5.5 $2 input, $0.10 cache hits, $10 output; GPT-6.1 Sol the same three rates, with its long-context tier at 272K input tokens a request; DeepSeek-V4.1-Flash on OpenRouter's pinned DeepInfra host $0.20, $0.006, $0.60 at list. The OpenCode Go id for DeepSeek had no price entry, which is why its 2.1 row carries no API-equivalent cost; its tokens at OpenCode Go's catalog rates ($0.15, $0.003, $0.60) come to $3.54 for the 32 episodes. Per five-season episode under 2.1: Sonnet $1.23, Sol $0.48, DeepSeek $0.11. Sonnet read far less than the others under 2.1 (6 <code>get_status</code> calls an episode against 20 for the OpenAI rows, <code>results/diagnostics/v21_behavior/behavior.json</code>), and 2.2's text is meant to change that, so its cost is the uncertain one: Opus, with a call count like the OpenAI rows', cost 3.3 times Sonnet at twice the price.</p>
+
+<div class="decide"><b>Decided:</b> (1) <b>The gate stands; no contract-length discount.</b> The gate was written before round 2 was read, and the 0.7 discount missed it on the model rows (slope 0.87 against 0.9). Taking it anyway would make the pre-registration decorative, to remove about 3 points of over-payment that a 32-seed panel cannot detect. (2) <b>The brief now says which playoff results count</b>: a title in every season, playoff rounds in the last three only, both scored as odds from the bracket and not by the games. No panel showed a misreading, which is why the build left it out, but no tool publishes the three-season window, and the 2.2 spec's third aim is that the score depends on nothing unpublished. It is one sentence of mechanics and the pilot will show whether it moves anything. (3) <b><code>arguments: null</code> stays a call with no arguments</b>, as in 2.0 and 2.1: it replays identically, and refusing it would be a rule change with no evidence behind it. (4) <b>Pilot:</b> <code>claude-sonnet-5-5</code>, <code>gpt-6.1-sol</code> and <code>opencode-go/deepseek-v4.1-flash</code>, eight public seeds (201 to 208), five seasons, one-season smoke per model first, serial. About $15 at API-equivalent prices, budget $25 to cover Sonnet reading more; all three run on subscriptions. <b>Not run:</b> the pilot is a paid run and still needs the operator's go-ahead. The contract stays <code>gm-bench-2.2-draft</code>, unpinned.</div>
+</article>
+
 <article class="entry" id="e-2026-11-18-v22-candidate">
 <header><div class="date">2026-11-18</div><h2>2.2 takes the fallback score, and the rules and text are forked</h2>
 <div class="tags"><span class="tag">docs/bench_v2_2_spec.md</span><span class="tag">results/diagnostics/score_v3/candidates.json</span><span class="tag">results/diagnostics/v22_references/</span><span class="tag">gm_bench/v22/</span><span class="tag decision">decision</span></div></header>
