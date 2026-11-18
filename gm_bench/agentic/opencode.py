@@ -1872,7 +1872,9 @@ def run_panel(
     image = driver.ensure_image(docker=docker, env=harness_environment()) if isolation == "container" else None
     check: dict[str, Any] | None = None
     if prompt_check:
-        check = driver.check_prompt(binary=binary, model=model, variant=variant, image=image, docker=docker)
+        check = driver.check_prompt(
+            binary=binary, model=model, variant=variant, image=image, docker=docker, contract_version=contract_version
+        )
         if progress is not None:
             progress({"stage": "prompt_check", "checked": check["checked"], "problems": check["problems"]})
         if check["problems"]:

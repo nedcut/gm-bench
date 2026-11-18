@@ -292,9 +292,12 @@ def main(argv: list[str] | None = None) -> None:
     validate_contract_parser.add_argument("--json", action="store_true", help="emit machine-readable canary output")
     validate_contract_parser.add_argument(
         "--contract",
-        choices=["1.0", "2.1"],
+        choices=["1.0", "2.1", "2.2-draft"],
         default="1.0",
-        help="rules to check: 1.0 (the 1.0 simulator and score-v1, which 2.0 plays) or 2.1 (League21, score-v2)",
+        help=(
+            "rules to check: 1.0 (the 1.0 simulator and score-v1, which 2.0 plays), 2.1 (League21, score-v2) "
+            "or 2.2-draft (League22, score-v3, plus the two end-of-run canaries)"
+        ),
     )
 
     calibrate_parser = subparsers.add_parser(
@@ -331,9 +334,12 @@ def main(argv: list[str] | None = None) -> None:
     agentic_parser.add_argument("--seasons", type=int, default=5)
     agentic_parser.add_argument(
         "--contract",
-        choices=["2.0", "2.1"],
+        choices=["2.0", "2.1", "2.2-draft"],
         default="2.0",
-        help="agentic contract to play under: 2.0 (frozen, default) or 2.1 (records reset each season, score-v2)",
+        help=(
+            "agentic contract to play under: 2.0 (frozen, default), 2.1 (records reset each season, score-v2) "
+            "or 2.2-draft (unfrozen: new brief and tool text; its rows cannot be published)"
+        ),
     )
     agentic_parser.add_argument("--output", required=True, help="run directory for ledgers, events and results")
     agentic_parser.add_argument(
@@ -949,7 +955,11 @@ def _compact_result_command(args: argparse.Namespace) -> None:
 
 
 def _validate_contract_command(args: argparse.Namespace) -> None:
-    if getattr(args, "contract", "1.0") == "2.1":
+    if getattr(args, "contract", "1.0") == "2.2-draft":
+        from gm_bench.v22.validity import run_validity_canaries as run_v22
+
+        result = run_v22(seeds=args.seeds, seasons=args.seasons)
+    elif getattr(args, "contract", "1.0") == "2.1":
         from gm_bench.v21.runner import run_many as run_v21
 
         result = run_validity_canaries(seeds=args.seeds, seasons=args.seasons, run=run_v21)

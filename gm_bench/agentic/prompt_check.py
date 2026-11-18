@@ -601,16 +601,19 @@ def _capture(
     variant: str | None,
     timeout: float,
     base_environment: dict[str, str] | None = None,
+    contract_version: str | None = None,
 ) -> _Capture:
     """Launch the harness once, as an episode's first invocation, against a fresh capture server."""
-    from gm_bench.agentic.brief import nudge_message, task_brief
-    from gm_bench.agentic.episode import AgenticEpisode
     from gm_bench.agentic.opencode import DEFAULT_MAX_NUDGES, MAX_STARTUP_SERVER_ERROR_RETRIES, HarnessLaunch
+    from gm_bench.agentic.versions import brief_module, episode_class, socket_server_class
     from gm_bench.simulator import League
 
+    # The contract's own engine, server and brief: what the panel's harness will be sent.
+    brief_text = brief_module(contract_version)
+    task_brief, nudge_message = brief_text.task_brief, brief_text.nudge_message
     work = Path(tempfile.mkdtemp(prefix="gmb-prompt-check-"))
     events, errors = work / "events.jsonl", work / "stderr.log"
-    episode = AgenticEpisode(CHECK_SEED, 1, 0, ledger_path=work / "ledger.jsonl")
+    episode = episode_class(contract_version)(CHECK_SEED, 1, 0, ledger_path=work / "ledger.jsonl")
     exit_code: int | None = None
     timed_out = False
     stall_retries = 0
@@ -622,6 +625,7 @@ def _capture(
                 driver=driver,
                 evidence_paths=(events, errors),
                 base_environment=base_environment,
+                server_class=socket_server_class(contract_version),
             )
             try:
                 launch.prepare()
@@ -691,6 +695,7 @@ def run_prompt_check(
     markers: OperatorMarkers | None = None,
     timeout: float = CHECK_SECONDS,
     home: Path | None = None,
+    contract_version: str | None = None,
 ) -> dict[str, Any]:
     """Capture the harness's first requests against a loopback server, twice, and find the operator's content.
 
@@ -706,7 +711,13 @@ def run_prompt_check(
     """
     markers = operator_markers() if markers is None else markers
     home = Path.home() if home is None else home
-    options = {"binary": binary, "model": model, "variant": variant, "timeout": timeout}
+    options = {
+        "binary": binary,
+        "model": model,
+        "variant": variant,
+        "timeout": timeout,
+        "contract_version": contract_version,
+    }
     real = _capture(driver, **options)
     empty_dir = Path(tempfile.mkdtemp(prefix="gmb-empty-home-"))
     try:

@@ -6,9 +6,11 @@ byte for byte. Tool names, descriptions and input schemas are what the agent
 sees. Keep descriptions factual and short: they state mechanics, never
 strategy.
 
-Phase 0 of the 2.2 build: everything the agent sees here is still 2.0's,
-word for word (``tests/test_v22.py`` pins that until the text is forked).
-``TOOL_SURFACE_VERSION`` is bumped with the first change to it.
+What changed from the 2.0 surface, each from a misreading the 2.1 panels
+showed (``docs/bench_v2_2_spec.md``, phase 2): the pick-season arguments name
+the tradable window; ``trade``, ``extend_contract``, ``set_lineup``,
+``list_offers``, ``list_draft_class`` and ``end_phase`` state rules they left
+out; and the ``years`` ranges in the schemas are the simulator's.
 
 Tools come in four kinds:
 
@@ -23,11 +25,19 @@ from __future__ import annotations
 from typing import Any
 
 SERVER_NAME = "gm-bench"
-TOOL_SURFACE_VERSION = "gm-bench-agentic-v1"
+TOOL_SURFACE_VERSION = "gm-bench-agentic-v2"
 
 _ID = {"type": "integer"}
 _ID_LIST = {"type": "array", "items": {"type": "integer"}}
-_SEASON_LIST = {"type": "array", "items": {"type": "integer"}, "description": "draft seasons, e.g. [4, 5]"}
+_SEASON_LIST = {
+    "type": "array",
+    "items": {"type": "integer"},
+    "description": (
+        "Draft seasons of the picks, one entry per pick. Only the next 3 seasons after the current "
+        "one can be traded (get_rules pick_trading.tradable_seasons); the current season's pick "
+        "cannot, and a season outside the window is an illegal move."
+    ),
+}
 
 
 def _schema(properties: dict[str, Any] | None = None, required: list[str] | None = None) -> dict[str, Any]:
@@ -43,9 +53,9 @@ TOOLS: list[dict[str, Any]] = [
         "name": "get_status",
         "kind": "read",
         "description": (
-            "Where you are: season, phase, your team's record, cap room, picks, lineup, "
-            "standings, season history, scouting points left, your saved memo, and the "
-            "tools legal in this phase. Call this first in every phase."
+            "Where you are: season, phase, your team's record, cap room, picks (each marked "
+            "tradable_now or not), lineup, standings, season history, scouting points left, "
+            "your saved memo, and the tools legal in this phase. Call this first in every phase."
         ),
         "inputSchema": _schema(),
     },
@@ -53,8 +63,9 @@ TOOLS: list[dict[str, Any]] = [
         "name": "get_rules",
         "kind": "read",
         "description": (
-            "League rules with current numbers: salary cap, roster and lineup limits, "
-            "contract and dead-cap terms, free-agent willingness, pick trading, scouting."
+            "League rules with current numbers: salary cap, roster and lineup limits, the team "
+            "strength formula, contract, extension and dead-cap terms, free-agent willingness, "
+            "trade limits, pick trading, scouting."
         ),
         "inputSchema": _schema(),
     },
@@ -70,7 +81,10 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "list_draft_class",
         "kind": "read",
-        "description": "Prospects still available at your pick. Draft phase only.",
+        "description": (
+            "This season's draft class. In the draft phase it lists the prospects still "
+            "available at your pick; earlier in the season it lists the whole class."
+        ),
         "inputSchema": _schema(),
     },
     {
@@ -84,7 +98,8 @@ TOOLS: list[dict[str, Any]] = [
         "kind": "read",
         "description": (
             "Trade offers opponents have sent you, with offer ids for accept_trade_offer, "
-            "reject_trade_offer and counter_trade_offer. Usually only at the trade deadline."
+            "reject_trade_offer and counter_trade_offer. Offers arrive at the trade deadline and "
+            "are withdrawn when that phase closes."
         ),
         "inputSchema": _schema(),
     },
@@ -143,16 +158,28 @@ TOOLS: list[dict[str, Any]] = [
             "succeeds; shading below it may be declined, which is not penalized."
         ),
         "inputSchema": _schema(
-            {"player_id": _ID, "years": {"type": "integer", "minimum": 1}, "salary": {"type": "number"}},
+            {
+                "player_id": _ID,
+                "years": {"type": "integer", "minimum": 1, "maximum": 5},
+                "salary": {"type": "number"},
+            },
             ["player_id", "years", "salary"],
         ),
     },
     {
         "name": "extend_contract",
         "kind": "move",
-        "description": "Extend a roster player in his final contract year. Preseason only.",
+        "description": (
+            "Extend a roster player in his final contract year. Preseason only. The extension "
+            "replaces that final year: years counts from the current season, so 2 years covers "
+            "this season and the next, and the new salary applies to this season's payroll at once."
+        ),
         "inputSchema": _schema(
-            {"player_id": _ID, "years": {"type": "integer", "minimum": 1}, "salary": {"type": "number"}},
+            {
+                "player_id": _ID,
+                "years": {"type": "integer", "minimum": 2, "maximum": 5},
+                "salary": {"type": "number"},
+            },
             ["player_id", "years", "salary"],
         ),
     },
@@ -166,8 +193,11 @@ TOOLS: list[dict[str, Any]] = [
         "name": "trade",
         "kind": "move",
         "description": (
-            "Propose a trade. The partner accepts if it favors their hidden valuation. A decline "
-            "is not penalized, but after a few declines a partner stops talking for the phase."
+            "Propose a trade. It must include at least one player or pick from each team. The "
+            "partner accepts if it favors their hidden valuation. A decline is not penalized; "
+            "after 2 declines in a phase the partner refuses further offers until the next phase. "
+            "Each partner completes at most 2 trades with you per season, and proposing another "
+            "is an illegal move."
         ),
         "inputSchema": _schema(
             {
@@ -191,7 +221,10 @@ TOOLS: list[dict[str, Any]] = [
         "kind": "move",
         "description": (
             "Choose the 18 players who dress. Drives team strength directly; players outside the "
-            "lineup develop at half speed. Must satisfy the position minimums in get_rules."
+            "lineup develop at half speed. Must satisfy the position minimums in get_rules. The "
+            "lineup you set stays in force until you set another: a player you add later "
+            "dresses only when a slot is empty because someone in the lineup left the roster "
+            "or is injured."
         ),
         "inputSchema": _schema({"player_ids": _ID_LIST}, ["player_ids"]),
     },
@@ -244,7 +277,8 @@ TOOLS: list[dict[str, Any]] = [
         "description": (
             "Finish this decision phase. Opponents then act, the calendar advances, and the "
             "response tells you the next phase or that the episode is complete. There are "
-            "four phases per season; you cannot return to a phase once ended."
+            "four phases per season; you cannot return to a phase once ended. The response also "
+            "lists the calls this phase that were rejected, and which of them were penalized."
         ),
         "inputSchema": _schema(),
     },

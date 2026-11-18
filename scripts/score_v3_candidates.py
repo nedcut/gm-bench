@@ -65,6 +65,13 @@ EXTRA_SEASONS = 5
 # preseason routine (at most eight signings a window); ``contend-1g`` signs and buys
 # for strength at once, so it prices a thin roster differently.
 MANAGERS = ("pick-trader", "strategic", "contend-1g")
+# A fourth judge, reported alone and never part of the yardstick: the engine fills
+# the roster to 21 first, then ``pick-trader`` manages. It does not share the
+# eight-signing preseason limit the first two judges have.
+EXTRA_JUDGES = ("filled:pick-trader",)
+JUDGES = (*MANAGERS, *EXTRA_JUDGES)
+# Roster sizes the engine-fill candidates fill to (0 would be score-v2).
+FILL_TARGETS = (8, 10, 12, 14, 16, 18, 21)
 REFERENCE = "pick-trader"
 WINNING = ("season_wins", "expected_playoff_rounds", "expected_championships")
 ROSTER_TERMS = ("total_assets", "young_assets", "current_strength", "roster_depth")
@@ -201,6 +208,11 @@ def _end_terms(league: Any) -> dict[str, float]:
 def _future(league: Any, manager: str) -> list[float]:
     """Winning value of each of the next seasons under ``manager`` (score-v2 winning weights)."""
     future = copy.deepcopy(league)
+    kind, _, base = manager.partition(":")
+    if kind == "filled":
+        future._window_signing_appeal = {}
+        future._opponent_signings(future.user_team, random.Random(f"{future.seed}:end-of-run-refill"))
+        manager = base
     agent = planner.policy_factory(manager)()
     start = len(future.summaries)
     for _season in range(EXTRA_SEASONS):
@@ -234,6 +246,46 @@ def _refill_autopilot(league: Any) -> dict[str, float]:
     return {**_end_terms(refilled), "roster": len(refilled.user_team.roster)}
 
 
+def _players(league: Any) -> list[list[float]]:
+    """(asset value, age, contract years left) for each player on the user's roster."""
+    return [
+        [round(p.asset_value, 4), p.age, p.contract_years]
+        for p in (league.players[player_id] for player_id in league.user_team.roster)
+    ]
+
+
+def _fill(league: Any, target: int) -> dict[str, Any]:
+    """End-state terms after the engine fills the user's roster to ``target`` players.
+
+    The first loop of ``League._opponent_signings`` with the roster size as a
+    parameter: the best free agents by overall, at the published one-year
+    quote for one year (the engine draws one to three), while the payroll
+    stays within the cap plus 4. No upgrade signing afterwards, and no dice. It reads no agent policy, so it could be a contract rule.
+    """
+    filled = copy.deepcopy(league)
+    filled._window_signing_appeal = {}
+    team = filled.user_team
+    needed = max(0, target - len(team.roster))
+    candidates = sorted(
+        (filled.players[i] for i in filled.free_agents if not filled._resign_blocked(team.id, i)),
+        key=lambda player: player.overall,
+        reverse=True,
+    )
+    for player in candidates[: needed * 2]:
+        if needed <= 0:
+            break
+        salary = filled._signing_quote(player, 1, team)
+        if filled._payroll(team) + salary <= filled.cap + 4.0:
+            filled.free_agents.remove(player.id)
+            team.roster.append(player.id)
+            player.team_id = team.id
+            player.salary = salary
+            player.contract_years = 1
+            player.contract_signed_season = filled.season
+            needed -= 1
+    return {**_end_terms(filled), "roster": len(team.roster), "players": _players(filled)}
+
+
 def side(league: Any) -> dict[str, Any]:
     parts = score_components(league, league.user_team_id)
     team = league.user_team
@@ -255,8 +307,10 @@ def side(league: Any) -> dict[str, Any]:
             and t.action.get("type") == "extend_contract"
             and t.season == SEASONS
         ),
+        "players": _players(league),
         "refill": {"autopilot": _refill_autopilot(league), **{m: _refill(league, m) for m in MANAGERS}},
-        "future": {manager: _future(league, manager) for manager in MANAGERS},
+        "fill": {str(target): _fill(league, target) for target in FILL_TARGETS},
+        "future": {manager: _future(league, manager) for manager in JUDGES},
     }
 
 
@@ -379,6 +433,31 @@ CANDIDATES: dict[str, Any] = {
     },
     "refill:contend-1g": lambda r: r["refill"]["contend-1g"]["end_state"] + _next_pick_points(r),
 }
+
+
+def _term_weighted(state: dict[str, Any], record: dict[str, Any], kept: float) -> float:
+    """``state``'s end-state points with a one-year contract's asset value counted at ``kept``.
+
+    A player with one season left is gone before a second later season, so
+    his asset value is discounted: the simplest contract-aware term.
+    """
+    lost_total = sum(value * (1.0 - kept) for value, _age, years in state["players"] if years <= 1)
+    lost_young = sum(value * (1.0 - kept) for value, age, years in state["players"] if years <= 1 and age <= 24)
+    return (
+        state["end_state"] - lost_total * SCALE.total_asset - lost_young * SCALE.young_asset + _next_pick_points(record)
+    )
+
+
+# Round 2: the engine fills the roster to a given size, then score-v2's terms.
+for _target in FILL_TARGETS:
+    CANDIDATES[f"fill-{_target}"] = lambda r, t=str(_target): r["fill"][t]["end_state"] + _next_pick_points(r)
+# Round 2: score-v2 plus the next draft's picks, a one-year contract counted at a fraction.
+ONE_YEAR_KEPT = (0.9, 0.8, 0.7, 0.6, 0.5, 0.4)
+for _kept in ONE_YEAR_KEPT:
+    CANDIDATES[f"one-year@{_kept}"] = lambda r, k=_kept: _term_weighted({**r["end"], "players": r["players"]}, r, k)
+for _target in (12, 16):
+    CANDIDATES[f"fill-{_target}, one-year@0.5"] = lambda r, t=str(_target): _term_weighted(r["fill"][t], r, 0.5)
+
 # Raw features a refit candidate weights (gap to pick-trader on the same seed).
 REFIT_FEATURES = {
     "total_assets": lambda r: r["end"]["total_assets"],
@@ -506,7 +585,7 @@ def run_report(cache: Path) -> dict[str, Any]:
 
     report: dict[str, Any] = {
         "yardstick": (
-            f"score-v2 winning value over the next {EXTRA_SEASONS} seasons, mean of two scripted managers "
+            f"score-v2 winning value over the next {EXTRA_SEASONS} seasons, mean of three scripted managers "
             f"({', '.join(MANAGERS)}), as a gap to pick-trader's final league on the same seed and dice"
         ),
         "fit_seeds": [FIT_SEEDS[0], FIT_SEEDS[-1]],
@@ -537,8 +616,8 @@ def run_report(cache: Path) -> dict[str, Any]:
                     for key, value in evaluate(sample, end, (manager,)).items()
                     if key in ("slope", "intercept", "group_residual_rms", "group_residual_max_abs")
                 }
-                for manager in MANAGERS
-                if manager in _judges(name)
+                for manager in JUDGES
+                if manager in (*_judges(name), *EXTRA_JUDGES)
             }
             for label, sample in samples.items()
         }
@@ -549,6 +628,10 @@ def run_report(cache: Path) -> dict[str, Any]:
                 v2_model_lifts = lifts
             block["models"]["kendall_tau_vs_v2"] = kendall_tau(v2_model_lifts, lifts)
         report["candidates"][name] = block
+    # The one-parameter candidate, chosen on the fit seeds only: slope nearest one.
+    report["one_year_kept_chosen_on_fit"] = min(
+        ONE_YEAR_KEPT, key=lambda k: abs(report["candidates"][f"one-year@{k}"]["fit"]["slope"] - 1.0)
+    )
     # What the players left behind look like, per group (context for the residuals).
     report["end_of_run"] = {
         label: {
@@ -577,7 +660,8 @@ def run_report(cache: Path) -> dict[str, Any]:
 
 def print_report(report: dict[str, Any]) -> None:
     _print_summary(report)
-    shown = ("v2", "refill:pick-trader", "refill:autopilot")
+    chosen = f"one-year@{report['one_year_kept_chosen_on_fit']}"
+    shown = ("v2", "v2+next-pick", "refill:pick-trader", chosen)
     if "models" not in report["candidates"]["v2"]:
         return
     print(f"\n{'model row lift vs pick-trader':40s}" + "".join(f"{name:>22s}" for name in shown))
@@ -589,7 +673,7 @@ def print_report(report: dict[str, Any]) -> None:
     taus = "".join(f"{report['candidates'][name]['models']['kendall_tau_vs_v2']:>22.3f}" for name in shown)
     print(f"{'Kendall tau vs v2':40s}{taus}")
     print("\njudged by one manager at a time (slope / residual rms over groups)")
-    for name in ("v2", "refill:pick-trader", "refill:autopilot", "refill:contend-1g"):
+    for name in ("v2", "v2+next-pick", "refill:pick-trader", "fill-8", chosen):
         for label, judges in report["candidates"][name]["by_judge"].items():
             cells = "  ".join(f"{m}: {b['slope']:.2f} / {b['group_residual_rms']:.1f}" for m, b in judges.items())
             print(f"  {name:20s} {label:7s} {cells}")

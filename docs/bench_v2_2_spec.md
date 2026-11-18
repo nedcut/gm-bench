@@ -1,7 +1,8 @@
 # GM-Bench 2.2: specification (draft)
 
-Status: **draft, not frozen.** Started 2026-11-17. No fingerprint is pinned and
-no row can be published under it (`gm-bench-2.2-draft` has no lane, and
+Status: **release candidate, not frozen.** Started 2026-11-17; phases 0 to 3
+done 2026-11-18. What remains needs paid model runs (phase 4 onward). No
+fingerprint is pinned and no row can be published under it (`gm-bench-2.2-draft` has no lane, and
 `agentic-redact` refuses a contract without one). Decisions are logged in
 `docs/lab_notebook.html`; the evidence behind each queue item is in
 [bench_v2_1_queue.md](bench_v2_1_queue.md).
@@ -25,11 +26,11 @@ Each phase has a gate. Nothing paid runs before phase 4.
 | Phase | Work | Gate | Status |
 |---|---|---|---|
 | 0 | Close 2.1 intake; fork the agent-facing surface as a no-op | Every 2.1 ledger replays identically under the 2.2 engine | **Done 2026-11-17** |
-| 1 | Choose the end-of-run score (free, CPU only) | Criteria below | **Round 1 done, not passed**; round 2 open |
-| 2 | Rules, published constants, brief and tool text | `validate-contract` and the new canaries pass | Not started |
-| 3 | References: `pick-trader` plus a scripted contender, frozen before any model row | Planner and contender reruns find no exploit | Not started |
-| 4 | Public-seed pilot with the behaviour diagnostic | Predicted behaviours move; no new misreading | Not started |
-| 5 | Freeze, pre-register, smoke, first panel on the 32 private seeds | Prices checked first | Not started |
+| 1 | Choose the end-of-run score (free, CPU only) | Criteria below | **Done 2026-11-18: no candidate passed, fallback taken** |
+| 2 | Rules, published constants, brief and tool text | `validate-contract` and the new canaries pass | **Done 2026-11-18** |
+| 3 | References and a free exploit check | No scripted policy gains under 2.2; real ledgers replay | **Done 2026-11-18** (lane pins wait for the freeze) |
+| 4 | Public-seed pilot with the behaviour diagnostic | Predicted behaviours move; no new misreading | Not started (paid) |
+| 5 | Freeze, pre-register, smoke, first panel on the 32 private seeds | Prices checked first | Not started (paid) |
 | 6 | Site: 2.1 moves to an archive page; spec and notebook entries | | Not started |
 
 ## Phase 0: the fork (done)
@@ -40,25 +41,28 @@ global and `gm_bench/agentic/mcp_server.py` reads the 2.0 brief the same way.
 Both files are frozen, so `gm_bench/v22/` carries its own copies of the two
 data files and subclasses the rest:
 
-- `tools.py`, `brief.py`: forked copies. Everything the agent sees is still
-  2.0's, word for word, until phase 2.
+- `tools.py`, `brief.py`: forked copies. In phase 0 everything the agent saw
+  was still 2.0's, word for word; phase 2 changed them.
 - `episode.py`: `AgenticEpisode22`, the frozen engine with the two methods
   that read the tool list (`_execute`, `_legal_tools`) restated against the
-  2.2 tools. `league_class` and `scoring` name the league and score; both are
-  2.1's until phases 1 and 2 replace them.
+  2.2 tools. `league_class` and `scoring` name the league and score; in
+  phase 0 both were 2.1's.
 - `mcp_server.py`: `McpServer22` and `SocketMcpServer22`, the frozen server
   bound to the 2.2 tools and instructions. There is no 2.2 stdio entry
   point, which makes queue item 8 moot.
 - `contract.py`: version `gm-bench-2.2-draft` and a fingerprint over the 2.1
-  fingerprint plus the four files above. Unpinned while in draft.
+  fingerprint plus every 2.2 source (these four, and from phase 2
+  `rules.py`, `scoring.py` and `runner.py`). Unpinned while in draft.
 - `gm_bench/agentic/versions.py` (driver) now also names the brief module
   and the socket server for a contract, and `opencode.py` (the shared
   episode loop) asks it instead of importing 2.0's. The registry knows the
-  draft as `2.2-draft`. The `gm-bench agentic --contract` flag does not
-  offer it yet: `gm_bench/cli.py` is in the trajectory demo's pinned source
-  manifest (`scripts/build_trajectory_demo.py`), so adding the choice means
-  re-pinning that public provenance. That goes with phase 2, when there is
-  something different to play.
+  draft as `2.2-draft`. The prompt check (`prompt_check.py`) takes the
+  contract too, so it captures what a 2.2 panel's harness would be sent.
+  `gm-bench agentic --contract 2.2-draft` and `gm-bench validate-contract
+  --contract 2.2-draft` came with phase 2. `gm_bench/cli.py` is in the
+  trajectory demo's pinned source manifest, so that change re-pinned the
+  demo's source digest (`scripts/build_trajectory_demo.py`), as the 2.1
+  build did.
 
 No 1.0, 2.0 or 2.1 contract source was edited: fingerprints `a600b7da0c302231`,
 `07de948a4f4afbae` and `282dbf382c4ee56c` are pinned in `tests/test_v22.py`.
@@ -68,9 +72,9 @@ twelve published panels and four partial runs) were replayed under both
 `AgenticEpisode21` and `AgenticEpisode22`. Final score, score components,
 wins, illegal actions, season summaries, transactions and per-tool call
 counts are identical in all 430, and each matches its recorded `result.json`.
-`tests/test_v22.py` keeps a small version of the same check and the
-word-for-word check on the tools and brief; both are deleted by the change
-that first forks the text or the rules on purpose.
+`tests/test_v22.py` kept a small version of the same check and a
+word-for-word check on the tools and brief until phase 2 forked the text and
+the rules on purpose.
 
 **2.1 intake is closed.** `gmb-free-queue.service` was disabled on 2026-11-17
 (it restarted free panels at boot). The two stalled panels are abandoned;
@@ -114,7 +118,7 @@ Three managers play the later seasons (`pick-trader`, `strategic`,
 
 ### Gate criteria
 
-Fixed before round 2 is read:
+Fixed on 2026-11-17, before round 2 was read:
 
 1. **Calibration.** Slope of later winning on end-state gap within 0.9 to
    1.1 on the check seeds and on the model rows, under the three-manager
@@ -189,62 +193,133 @@ What it shows:
   slightly on both samples and closes the hole. **Adopt regardless of the
   rest.**
 
-### Round 2 (next, free)
+### Round 2 result (2026-11-18)
 
-1. A win-now roster is over-valued independently of extensions. Test an
-   age-aware or contract-aware asset term (the asset value of a player
-   under contract, discounted by age over the years the contract runs).
-2. Treat refill depth as one parameter (0 is score-v2, 8 is `pick-trader`'s
-   preseason, 21 is the opponent routine), chosen on the fit seeds and
-   judged on the check seeds and the model rows.
-3. Add a judge that refills fully in one preseason, so the yardstick stops
-   favouring the eight-signing routine.
-4. Settle the second half of queue item 21 here: whether an extension
-   starts next season or the quote drops its extra inflation year.
-5. Run criteria 5 and 6 on whichever candidate passes 1 to 4.
+Three additions, same file:
 
-**Fallback if no candidate passes:** score-v2 with the next draft's picks
-counted, and the brief stating exactly when the credit is taken. The Claude
-finding above says that alone removes the largest misreading.
+- **Engine fill.** The engine fills the user's roster to a set size with the
+  best free agents by overall, at the published one-year quote, within the
+  cap plus 4 (the first loop of `League._opponent_signings`, without its
+  dice), then score-v2's terms. Sizes 8 to 21.
+- **Contract-length discount.** score-v2 plus the next draft's picks, with a
+  player on a one-year contract counted at a fraction of his asset value.
+  The fraction is one parameter (0.4 to 0.9), chosen on the fit seeds only
+  as the one whose slope is nearest 1. It came out 0.7.
+- **A fourth judge**, `filled:pick-trader`: the engine fills the roster to 21
+  and then `pick-trader` manages. Reported alone, never in the yardstick,
+  which stays the three managers the gate named.
+
+| Candidate | Check seeds: slope | residual | lift SD | Model rows: slope | residual | lift SD |
+|---|---|---|---|---|---|---|
+| score-v2 (for reference) | 0.86 | 13.6 | 21.4 | 0.75 | 8.8 | 33.3 |
+| **score-v2 plus the next draft's picks (adopted)** | 0.87 | 12.4 | 21.4 | 0.74 | 8.7 | 33.6 |
+| Engine fill to 8 players | 1.05 | 14.8 | 21.5 | 0.95 | 8.8 | 30.9 |
+| Engine fill to 21 players | 1.15 | 14.5 | 20.9 | 1.12 | 9.5 | 31.4 |
+| One-year contracts counted at 0.7 | 1.06 | 8.8 | 20.2 | 0.87 | 6.9 | 32.0 |
+| One-year contracts counted at 0.5 | 1.13 | 9.3 | 19.5 | 0.92 | 7.3 | 31.6 |
+
+Against the gate:
+
+- **Engine fill fails criterion 2.** To 8 players the slope is inside 0.9 to
+  1.1 on both samples, but the residual on the check seeds is 14.8 against
+  score-v2's 13.6. Deeper fills overshoot the slope (1.13 to 1.24).
+- **The contract-length discount fails criterion 1, narrowly, twice.** At 0.7
+  the model-row slope is 0.87 against a floor of 0.9, and judged by
+  `contend-1g` alone on the model rows its residual is 16.9 against
+  score-v2's 16.7. It passes criteria 2, 3 and 4: `extend-all:pick-trader`
+  is over-paid by 4.5 points instead of 7.4. No fraction passes both
+  samples (0.6: 1.11 and 0.90).
+- **The fourth judge agrees on direction.** With the roster filled first,
+  score-v2's slope is 0.64 and 0.52; the 0.7 discount's is 0.90 and 0.66.
+  score-v2 over-pays end state under every judge.
+
+### Decision: the fallback
+
+No candidate passes, so 2.2 takes the fallback the gate named:
+**score-v3 is score-v2 plus the next draft's picks** (`gm_bench/v22/scoring.py`),
+and the brief says exactly when the credit is taken.
+
+- At final scoring the season counter has advanced, so the picks a team
+  holds for that season's draft are counted at the value of a
+  current-season pick. While a season is open its draft has been held and
+  nothing is added, so `score_after_season` is score-v2's.
+- On the 2.1 ledgers the board barely moves: `gpt-6-astra` +46.9 to +44.5,
+  `gpt-6.1-sol` +19.1 to +16.7, `claude-opus-5-5` -29.5 to -31.6,
+  `claude-sonnet-5-5` -46.8 to -48.1. Kendall tau against the 2.1 order is
+  0.97. `pick-trader` holds more next-draft picks than the model rows do.
+- **Known and accepted.** Extending every eligible player in the final
+  preseason gains about 11 points of which later seasons confirm about 4.
+  That is under the 13 points a 32-seed panel can detect, and it is now a
+  contract check (below). A win-now roster stays over-credited whatever
+  it does in the final season (`contend-1g` by 16.0 points, and
+  `rundown:contend-1g` by 15.6).
+- **Criteria 5 and 6 for the fallback.** `validate-contract --contract
+  2.2-draft` passes with the two new canaries
+  (`results/diagnostics/v22_references/validate_contract.json`):
+  `extend-everything` gains 11.2 points over `pick-trader` on the canary
+  seeds against a bound of 13, and `run-down` loses 16.6. The fair planner
+  was not rerun. Against 2.1 the game changes only by withdrawing deadline
+  offers after the deadline, and the objective by a linear pick term priced
+  as trades price it; the scripted-policy comparison in phase 3 stands in
+  for it.
+- **Queue item 21, simulator half: rejected.** An extension keeps starting
+  at once, and its quote keeps the extra inflation year. The quote the agent
+  is shown is the price charged, the tool text now says what an extension
+  does, and a price change would break the comparison of `pick-trader`
+  across 2.1 and 2.2.
+
+**Open to the operator before the freeze.** The 0.7 contract-length discount
+is the better-calibrated score and the closest miss. Taking it means
+overriding the gate, and the brief would have to state it, so it must be
+chosen before the first 2.2 row. This spec does not take it.
 
 ## Phase 2: rules, constants and text
 
 Every queue item on the agent-facing surface is either taken here or
 rejected in writing, because the next fork costs another panel rerun.
 
-| Queue item | Change in 2.2 | Where |
+| Queue item | What 2.2 does | Where |
 |---|---|---|
-| 1 | Schema and simulator agree on ranges (`years` 2 to 5 for an extension, 1 to 5 for a signing). Schema failures stay unpenalized; say so in the brief | `tools.py`, `brief.py` |
-| 2 | `list_draft_class` answers in every phase; `scout` on a prospect no longer needs a guessed id | `episode.py` |
-| 3 | `inspect_player` finds prospects, as its description promises | league subclass |
-| 4 | Log a non-object argument as not executed, so replay cannot diverge | `episode.py` |
-| 5, 6 | Refuse a call that reaches the dispatch lock after `stop()`; review admission with it | `mcp_server.py` |
-| 7 | Guard notice prints sub-second guards correctly | `episode.py` |
-| 13 | Say when the end-of-run credit is counted and which part is capped; drop the bare word "capped" | `brief.py` |
-| 14 | Name the tradable pick window in the argument description and beside the listed picks | `tools.py`, status payload |
-| 19 | State the calendar: the rest of the season and the playoffs are played when the draft phase closes, with the roster and lineup in force then | `brief.py`, `end_phase` reply |
-| 20 | Say that a stored lineup persists and new players dress only into empty slots | `tools.py`, `brief.py` |
-| 21 | Document extension terms; start and pricing decided in phase 1 | `tools.py`, league subclass |
-| 22 | `end_phase` reply lists the phase's rejected and penalized calls | `episode.py` |
-| 23 | "not an available free agent" names the cause | league subclass |
-| 24 | State the two-decline limit, the two-trades-per-partner limit and its penalty, and that a trade needs assets from both teams | `tools.py`, rules payload |
-| 25 | Say that tool calls are reported, not scored | `brief.py` |
-| 26 | Publish the strength formula (below) | rules payload |
-| 27 | Clear deadline offers when the deadline closes | league subclass |
-| new | Count the next draft's picks at final scoring | scoring |
+| 1 | Schema ranges are the simulator's: `years` 2 to 5 for an extension, 1 to 5 for a signing. A schema failure stays unpenalized, and the brief says so | `tools.py`, `brief.py` |
+| 2 | `list_draft_class` answers in every phase, so a prospect can be scouted before the draft without a guessed id | `episode.py`, `tools.py` |
+| 3 | `inspect_player` finds prospects, as its description says | `rules.py` |
+| 4 | A call whose arguments are not an object is logged as not executed, so replay skips it | `episode.py` |
+| 5 | A `tools/call` that reaches the dispatch lock after `stop()` began is refused | `mcp_server.py` |
+| 6 | Reviewed with item 5: admission already registers a connection and re-checks `stop()` under one lock. No change | |
+| 7 | **Rejected.** The sub-second guard notice only prints wrongly in tests; fixing it means restating `call_tool` | |
+| 13 | The brief says the credit is counted after the final season's contracts expire and that only cap room is capped | `brief.py` |
+| 14 | The pick-season arguments name the window; `get_rules` lists `tradable_seasons`; each listed pick carries `tradable_now` | `tools.py`, `rules.py` |
+| 19 | The brief says games are played when the preseason closes (a third) and when the draft closes (the rest and the playoffs), and that moves stay open in the draft; the `end_phase` reply that opens the draft repeats it | `brief.py`, `episode.py` |
+| 20 | `set_lineup` and the brief say a lineup persists and new players dress only into empty slots | `tools.py`, `brief.py` |
+| 21 | `extend_contract` and `get_rules` say what an extension does. The simulator half is rejected (phase 1) | `tools.py`, `rules.py` |
+| 22 | The `end_phase` reply lists the phase's rejected calls and counts the penalized ones | `episode.py` |
+| 23 | A signing refused because the player is not a free agent says where he is (another team, the waiver wire, the draft class). Still an illegal move | `rules.py` |
+| 24 | `trade` and `get_rules` state the two-decline limit, the two-trades-per-partner limit and its penalty, and that both teams must give something | `tools.py`, `rules.py`, `brief.py` |
+| 25 | The brief says tool calls are reported and do not change the score; "calling everything every phase is a cost" is gone | `brief.py` |
+| 26 | `get_rules` publishes the strength formula (below) | `rules.py` |
+| 27 | Deadline offers are withdrawn when the deadline closes | `rules.py` |
+| new | The next draft's picks count at final scoring (score-v3) | `scoring.py` |
 
-Rules changes go in `League22(League21)` and the 2.2 episode; no frozen file
-is edited.
+The surface versions are `gm-bench-agentic-v2` and
+`gm-bench-agentic-brief-v2`. Tool names and the tool-to-action mapping are
+unchanged.
 
-**Published constants** (`get_rules`), all from `League._team_strength`:
+Rules changes are in `League22(League21)` (`gm_bench/v22/rules.py`) and the
+2.2 episode; no frozen file is edited. Item 27 is the only change to how the
+game plays.
+
+**Published constants** (`get_rules`, `team_strength`), all from
+`League._team_strength`; a test checks that the published formula reproduces
+the engine's strength for every team:
 
 - 2.5 strength for each dressed goalie, up to two. The rules currently say
   "1 G" and are silent on the second.
 - Lineup slot weights by overall rank: 1.0 for the top six, 0.74 for the
   next six, 0.48 for the rest.
 - 0.25 strength lost for each unit of payroll over the cap.
-- The injury deduction used when a season is simulated, if it is not
-  already published (check in phase 2).
+- Each time games are simulated, every dressed player plays 5 to 18 overall
+  points below his rating with probability equal to his `injury_risk`. This
+  was not published either.
 
 The goalie bonus alone is worth 19 to 21 points to the scripted win-now
 policies (notebook, 2026-10-26), more than the 13 points a 32-seed panel can
@@ -259,28 +334,48 @@ Not in 2.2:
   version in each row) with the first 2.2 row.
 - **17** is phase 1.
 
-## Phase 3: references
+## Phase 3: references and the free exploit check
 
-- `pick-trader` stays the paired baseline, so the headline keeps its meaning
-  across 2.1 and 2.2.
-- A scripted contender, rebuilt under the 2.2 rules with the constants
-  published, is a second, stronger line. 2.1 showed `pick-trader` is a weak
-  bar: a fixed scripted mix reaches +66 without valuing the goalie bonus.
-- Both are frozen and pinned in the lane config before any model row.
-- `validate-contract --contract 2.2` runs the 2.0 orderings plus the two new
-  canaries from phase 1.
+`scripts/v22_reference_check.py`, no model call.
+
+- **No scripted policy gains under 2.2.** Fifteen policies (the references,
+  the four canaries, the win-now family, the two end-of-run policies) on
+  public seeds 101-172, each against `pick-trader` under the same rules
+  (`results/diagnostics/v22_references/policies.json`). Lifts change by
+  -2.6 to +2.3 from 2.1 to 2.2. The +2.3 is `accept-everything`, whose
+  illegal moves fall from 3.76 to 2.51 an episode because stale deadline
+  offers are no longer listed in the draft.
+- **Real traffic.** All 430 finished 2.1 ledgers replay through
+  `AgenticEpisode22` to a finished, scored episode with no engine error. The
+  rules differ, so those games diverge and their scores mean nothing; the
+  check is that every recorded call is answered.
+- **`pick-trader` stays the paired baseline**, so the headline keeps its
+  meaning across 2.1 and 2.2.
+- **A scripted contender is the second line.** `contend-preseason-1g`
+  (`scripts/ceiling_planner.py`), which values the now-published goalie
+  bonus, is +82.7 over `pick-trader` under 2.2 on seeds 101-172 (+84.4
+  under 2.1). `pick-trader` is a weak bar, and the top published 2.1 row is
+  about half of that.
+- **Left for the freeze.** Both reference means on the 32 private seeds, the
+  lane config that pins them, and moving the contender policy into the
+  package. They need the escrowed seeds and a frozen fingerprint.
+- `validate-contract --contract 2.2-draft` runs the 2.0 orderings under
+  `League22` and score-v3 plus the two end-of-run canaries
+  (`gm_bench/v22/validity.py`).
 
 ## Phase 4: pilot
 
 Before freezing, on **public seeds** so the text is not tuned against the
 private panel:
 
-- The planner and the contender, rerun under the 2.2 rules, as an exploit
-  search.
 - Three cheap models, one of them a Claude model: the largest 2.1 misreadings
   (roster run-down, skipped status reads, stale lineups) were Claude's.
 - The behaviour diagnostic (`scripts/diagnose_v21_behavior.py`, ported) on
-  the pilot ledgers.
+  the pilot ledgers. The port is not written; it has nothing to read until
+  the pilot runs.
+
+The text can still change after the pilot, which is why the contract is not
+frozen yet. A harness smoke on one episode comes first, as for 2.0 and 2.1.
 
 The other agent's estimate for this was about $13 at API-equivalent prices.
 It has not been checked; check `pricing.json` first.
@@ -309,13 +404,20 @@ Made 2026-11-17 (operator):
 
 - Publish the hidden strength constants.
 - 2.1 intake is closed; abandon the stalled panels, keep their directories.
-- Start with phases 0 and 1.
+- Start with phases 0 and 1; then (2026-11-18) build the rest up to the paid
+  steps.
 
-Open:
+Made 2026-11-18 (by the gate and in the build; each is in the notebook):
 
-- Which end-of-run score (phase 1, round 2), or the fallback.
-- Queue item 1's other half: whether a schema failure on a move tool should
-  be penalized as in 1.0. Draft answer: no, and say so.
-- Whether to show the engine-default lineup's strength in `get_status`
-  (item 20). Draft answer: no. The text will state the rule; showing the
-  number does part of the manager's job.
+- The end-of-run score is the fallback, score-v3.
+- A schema failure on a move tool stays unpenalized, and the brief says so.
+- `get_status` does not show the engine-default lineup's strength. The text
+  states the rule; showing the number does part of the manager's job.
+- Queue items 7 and the simulator half of 21 are rejected.
+
+Open, for the operator:
+
+- Whether to override the gate and take the 0.7 contract-length discount
+  (phase 1).
+- The pilot's models and budget, after a price check (phase 4).
+- Driver items 9 and 12 and audit item 11, before the first panel.

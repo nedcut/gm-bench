@@ -6,9 +6,17 @@ the 2.0 tool list as a module global, so the two methods that do
 (``_execute`` and ``_legal_tools``) are restated here against
 ``gm_bench.v22.tools``; everything else is inherited.
 
-Phase 0 of the 2.2 build: the league and the score are still 2.1's
-(``league_class`` and ``scoring`` below), so a 2.1 ledger replayed through
-this engine ends in the same league with the same score.
+What this engine does differently from 2.1's (``docs/bench_v2_1_queue.md``
+item numbers):
+
+- It plays ``League22`` and scores with score-v3.
+- ``list_draft_class`` answers in every phase (item 2), so a prospect can be
+  scouted before the draft without guessing an id.
+- The ``end_phase`` reply lists the phase's rejected calls (item 22), and the
+  reply that opens the draft says when the season is played (item 19).
+- A call whose arguments are not an object is logged as not executed
+  (item 4). Live it is refused; logged as executed with ``{}`` it could run
+  on replay.
 """
 
 from __future__ import annotations
@@ -17,9 +25,9 @@ from typing import Any
 
 from gm_bench.agentic.episode import ENDED_BY_AGENT, AgenticEpisode
 from gm_bench.scoring import breakdown_from_components
-from gm_bench.v21 import scoring as score_v2
-from gm_bench.v21.rules import League21
+from gm_bench.v22 import scoring as score_v3
 from gm_bench.v22.contract import BENCHMARK_VERSION
+from gm_bench.v22.rules import League22
 from gm_bench.v22.tools import (
     ACTION_TYPE_FOR_TOOL,
     TOOL_SURFACE_VERSION,
@@ -30,8 +38,10 @@ from gm_bench.v22.tools import (
 
 
 class AgenticEpisode22(AgenticEpisode):
-    league_class = League21
-    scoring = score_v2
+    league_class = League22
+    scoring = score_v3
+    # Reads that answer in one phase only; ``list_draft_class`` answers in all of them.
+    _READ_PHASE = {"list_waiver_wire": "midseason"}
 
     def _open_phase(self) -> None:
         # The 2.0 constructor builds a ``League`` and opens the first phase
@@ -40,7 +50,31 @@ class AgenticEpisode22(AgenticEpisode):
         # same league under this contract's rules (as 2.1 does).
         if not isinstance(self.league, self.league_class):
             self.league = self.league_class.new(seed=self.seed, user_team_id=self.user_team_id)
+        # Calls rejected in the phase that is opening, reported when it closes.
+        self._phase_rejections: list[dict[str, Any]] = []
         super()._open_phase()
+
+    def _close_phase(self, ended_by: str) -> dict[str, Any]:
+        rejections = self._phase_rejections
+        response = super()._close_phase(ended_by)
+        response["closed"]["rejected_calls"] = rejections
+        response["closed"]["penalized_calls"] = sum(1 for call in rejections if call["penalized"])
+        if not self.done and self.phase == "draft":
+            response["message"] = (
+                f"Season {self.season_index}, draft is open. The rest of the regular season and the "
+                "playoffs are played when you end this phase, with the roster and lineup you have then. "
+                "Call get_status."
+            )
+        return response
+
+    def _log_call(
+        self, name: str, arguments: Any, result: dict[str, Any], *, elapsed_ms: float, executed: bool
+    ) -> None:
+        # Not an object: refused before the engine acted, and the ledger cannot
+        # hold the raw value as arguments, so replay must skip the call.
+        if arguments is not None and not isinstance(arguments, dict):
+            executed = False
+        super()._log_call(name, arguments, result, elapsed_ms=elapsed_ms, executed=executed)
 
     def _write(self, record: dict[str, Any]) -> None:
         # The ledger header names its contract, so a replay picks this engine.
@@ -65,7 +99,18 @@ class AgenticEpisode22(AgenticEpisode):
         if spec["kind"] == "read":
             return self._read(name)
         action = {"type": ACTION_TYPE_FOR_TOOL[name], **arguments}
-        return self._apply(action, is_move=spec["kind"] == "move")
+        reply = self._apply(action, is_move=spec["kind"] == "move")
+        if not reply["ok"]:
+            self._phase_rejections.append(
+                {"tool": name, "message": reply["message"], "penalized": bool(reply.get("penalized"))}
+            )
+        return reply
+
+    def _read(self, name: str) -> dict[str, Any]:
+        if name == "list_draft_class":
+            observation = self.league.observation(self.phase, tier="full")
+            return {"ok": True, "message": "draft class", "data": {"prospects": observation["draft_class"]}}
+        return super()._read(name)
 
     def _legal_tools(self, available_actions: list[str]) -> list[str]:
         reads = [

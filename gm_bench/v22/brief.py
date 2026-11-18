@@ -6,21 +6,24 @@ the rules of the game, the scoring priorities and the shape of the tool
 loop. It states mechanics and never gives strategy advice. It does not carry
 rosters, markets or numbers that change per season: those are behind tools.
 
-Phase 0 of the 2.2 build: the text is still 2.0's, word for word.
-``BRIEF_VERSION`` is bumped with the first change to it.
+What changed from the 2.0 brief, each from a misreading the 2.1 panels
+showed (``docs/bench_v2_2_spec.md``, phase 2): when the season is played,
+when the end-of-run credit is counted and which part of it is capped, that a
+lineup persists, the exact decline limit, that schema failures are free, and
+that tool calls are reported and not scored.
 """
 
 from __future__ import annotations
 
 from gm_bench.protocol import PHASES
 
-BRIEF_VERSION = "gm-bench-agentic-brief-v1"
+BRIEF_VERSION = "gm-bench-agentic-brief-v2"
 
 _PHASE_NOTES = {
     "preseason": "sign free agents, extend expiring contracts (only here), trade, set your lineup",
     "midseason": "about a third of the season has been played; injuries and a waiver wire appear",
-    "trade_deadline": "opponents may have sent you offers; last trades before the playoffs",
-    "draft": "use your pick on a prospect; opponents ahead of you have already picked",
+    "trade_deadline": "opponents may have sent you offers, which are withdrawn when this phase closes",
+    "draft": "use your pick on a prospect; trades, signings and `set_lineup` stay open",
 }
 
 
@@ -37,17 +40,24 @@ Each season has four decision phases, in this order:
 In every phase you may call tools as many times as you like: read the state, gather information,
 make moves, then call `end_phase`. That is the only way time advances. Moves apply immediately and
 cannot be undone. Once you call `end_phase`, opponents act and the next phase opens; the response
-tells you where you are. After the final draft, `end_phase` reports that the episode is complete
-and you should stop. You will call `end_phase` exactly {total} times over the whole run.
+tells you where you are. Games are played at two points, each with the roster and lineup you have at
+that moment: the first third of the regular season when the preseason closes, and the other two
+thirds plus the playoffs when the draft phase closes. After the final draft, `end_phase` reports
+that the episode is complete and you should stop. You will call `end_phase` exactly {total} times
+over the whole run.
 
 What you are scored on, in priority order
   1. Winning over all {seasons} seasons, especially championships and deep playoff runs
   2. Being a contender consistently rather than once
   3. Regular-season record
-  4. A capped credit for the roster, prospects, picks and cap health you leave behind
-Illegal moves (bad ids, cap or roster violations, wrong phase) are rejected and cost score.
-Declined offers cost nothing: a trade partner or free agent turning you down is normal negotiation,
-but after a few declines in one phase a counterparty stops talking until the next phase.
+  4. A credit for the roster, prospects, picks and cap room you leave behind. It is counted after
+     the final season's contracts have expired, so a player whose contract ends with the final
+     season is not part of it. Only the cap-room part is capped.
+Illegal moves (bad ids, cap or roster violations, wrong phase, breaking a trade rule) are rejected
+and cost score. A call whose arguments do not fit the tool's schema is rejected before it reaches
+the game and costs nothing. Declined offers cost nothing: a trade partner or free agent turning you
+down is normal negotiation, but after 2 declines in one phase a counterparty refuses further offers
+until the next phase.
 
 What you can and cannot see
 Ratings you see are public estimates. True potential is hidden; `scout` gives a near-true reading
@@ -56,12 +66,12 @@ agents accept anything at or above their published quote. Opponents keep making 
 phases, so a player available now may be gone next phase.
 
 Working method
-Start each phase with `get_status`. Read `get_rules` once early. Fetch only what you need: every
-tool call is recorded and reported beside your score, so calling everything every phase is a cost.
-`get_team` shows your roster; `set_lineup` matters every phase because it decides who plays and who
-develops. You may keep notes in files here, in your own context, or with `write_memo`. Do not look
-for, read, or reason about the benchmark's source code or hidden data; the only legitimate
-information is what the tools return.
+Start each phase with `get_status`. Read `get_rules` once early. Tool calls are recorded and
+reported beside your score; they do not change the score. `get_team` shows your roster; `set_lineup`
+decides who plays and who develops. A lineup you set stays in force until you set another, and a
+player you add later dresses only when a slot in it is empty. You may keep notes in files here, in
+your own context, or with `write_memo`. Do not look for, read, or reason about the benchmark's
+source code or hidden data; the only legitimate information is what the tools return.
 
 Begin now with `get_status`."""
 

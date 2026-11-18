@@ -13,8 +13,8 @@ from pathlib import Path
 from typing import Any
 
 BENCHMARK_VERSION = "gm-bench-2.2-draft"
-SIMULATOR_VERSION = "sim-v4-league21"
-_SOURCES = ("tools.py", "brief.py", "episode.py", "mcp_server.py")
+SIMULATOR_VERSION = "sim-v4-league22"
+_SOURCES = ("tools.py", "brief.py", "rules.py", "scoring.py", "runner.py", "episode.py", "mcp_server.py")
 _DIR = Path(__file__).resolve().parent
 
 

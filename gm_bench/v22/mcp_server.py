@@ -8,6 +8,10 @@ socket admission and the run secret are inherited.
 
 There is no 2.2 stdio entry point: every harness driver serves the engine in
 process through ``SocketMcpServer22``.
+
+One behaviour differs from the frozen server (``docs/bench_v2_1_queue.md``
+item 5): a tool call that was waiting for the dispatch lock when ``stop()``
+began is refused instead of run.
 """
 
 from __future__ import annotations
@@ -18,10 +22,12 @@ import threading
 from typing import Any
 
 from gm_bench.agentic.mcp_server import (
+    _INTERNAL_ERROR,
     SUPPORTED_PROTOCOL_VERSIONS,
     McpServer,
     SocketMcpServer,
     _close_quietly,
+    _RpcError,
 )
 from gm_bench.v22.brief import server_instructions
 from gm_bench.v22.tools import SERVER_NAME, TOOL_SURFACE_VERSION, mcp_tool_listing
@@ -45,12 +51,17 @@ class McpServer22(McpServer):
 
 
 class _LockedMcpServer22(McpServer22):
-    def __init__(self, episode: Any, lock: threading.Lock, **streams: Any) -> None:
+    def __init__(self, episode: Any, lock: threading.Lock, stopping: threading.Event, **streams: Any) -> None:
         super().__init__(episode, **streams)
         self._lock = lock
+        self._stopping = stopping
 
     def _dispatch(self, method: str, params: Any) -> dict[str, Any]:
         with self._lock:
+            # ``stop()`` hangs up and lets the driver finalize the engine. A call
+            # that was queued on the lock when it began must not reach the engine.
+            if method == "tools/call" and self._stopping.is_set():
+                raise _RpcError(_INTERNAL_ERROR, "the server is stopping; this call was not executed")
             return super()._dispatch(method, params)
 
 
@@ -59,7 +70,9 @@ class SocketMcpServer22(SocketMcpServer):
         # ``SocketMcpServer._serve_connection`` with the 2.2 server class.
         reader = conn.makefile("r", encoding="utf-8", newline="\n")
         writer = io.TextIOWrapper(conn.makefile("wb"), encoding="utf-8", write_through=True)
-        server = _LockedMcpServer22(self.episode, self._lock, stdin=reader, stdout=writer, stderr=self.stderr)
+        server = _LockedMcpServer22(
+            self.episode, self._lock, self._stop, stdin=reader, stdout=writer, stderr=self.stderr
+        )
         try:
             if self.secret is None or self._authenticated(conn, reader):
                 with self._live_lock:

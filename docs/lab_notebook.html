@@ -102,6 +102,7 @@ svg{display:block}
 <p class="lede">Internal log of how scoring and contract decisions get made: what we tried, what it showed, what we decided. Newest first. Every number cites a committed diagnostic or a published row; nothing here is a published result.</p>
 
 <nav class="toc"><b>Entries</b><ol>
+ <li><a href="#e-2026-11-18-v22-candidate">2026-11-18 · 2.2 takes the fallback score, and the rules and text are forked</a></li>
  <li><a href="#e-2026-11-17-v22-score">2026-11-17 · 2.2 starts: the fork is a no-op, and no end-of-run score passes yet</a></li>
  <li><a href="#e-2026-10-26-planner21">2026-10-26 · What held the 2.1 searches back: the menu, not the horizon</a></li>
  <li><a href="#e-2026-10-26-ceiling21">2026-10-26 · Headroom under 2.1: Astra beats the clairvoyant search, so the search is no ceiling</a></li>
@@ -120,6 +121,45 @@ svg{display:block}
  <li><a href="#e-2026-10-15-v2">2026-10-15 · score-v1 vs the proposed score-v2</a></li>
  <li><a href="#e-2026-10-14-ceiling">2026-10-14 · How much headroom is above <code>pick-trader</code>?</a></li>
 </ol></nav>
+
+<!-- ======================================================================= -->
+<article class="entry" id="e-2026-11-18-v22-candidate">
+<header><div class="date">2026-11-18</div><h2>2.2 takes the fallback score, and the rules and text are forked</h2>
+<div class="tags"><span class="tag">docs/bench_v2_2_spec.md</span><span class="tag">results/diagnostics/score_v3/candidates.json</span><span class="tag">results/diagnostics/v22_references/</span><span class="tag">gm_bench/v22/</span><span class="tag decision">decision</span></div></header>
+
+<div class="key"><b>Tried:</b> round 2 of the end-of-run score, against the gate written on 2026-11-17 before it was read. Three additions to <code>scripts/score_v3_candidates.py</code>: (1) the engine fills the roster to a set size with the best free agents at the one-year quote, sizes 8 to 21, then score-v2's terms; (2) score-v2 with a player on a one-year contract counted at a fraction of his asset value, the fraction (0.4 to 0.9) chosen on the fit seeds only; (3) a fourth judge, reported alone, that fills the roster to 21 before <code>pick-trader</code> manages, so the yardstick is not only managers with an eight-signing preseason. Then phase 2 of the spec was built on the outcome: <code>League22</code>, score-v3, the 2.2 brief and tool text, and the engine replies.</div>
+
+<div class="stats">
+ <div class="stat"><div class="k">Candidates that pass the gate, both rounds</div><div class="v">0</div></div>
+ <div class="stat"><div class="k">Kendall tau, score-v3 against the 2.1 order</div><div class="v">0.97</div></div>
+ <div class="stat"><div class="k">Largest lift gained by a scripted policy, 2.1 to 2.2</div><div class="v">+2.3</div></div>
+ <div class="stat"><div class="k">Real 2.1 ledgers the 2.2 engine replays without error</div><div class="v">430 / 430</div></div>
+</div>
+
+<table>
+<thead><tr><th>Round 2 candidate</th><th class="num">Check seeds: slope</th><th class="num">residual</th><th class="num">lift SD</th><th class="num">Model rows: slope</th><th class="num">residual</th><th class="num">lift SD</th></tr></thead>
+<tbody>
+<tr><td>score-v2 (for reference)</td><td class="num">0.86</td><td class="num">13.6</td><td class="num">21.4</td><td class="num">0.75</td><td class="num">8.8</td><td class="num">33.3</td></tr>
+<tr><td><b>score-v2 plus the next draft's picks (adopted as score-v3)</b></td><td class="num">0.87</td><td class="num">12.4</td><td class="num">21.4</td><td class="num">0.74</td><td class="num">8.7</td><td class="num">33.6</td></tr>
+<tr><td>Engine fill to 8 players</td><td class="num">1.05</td><td class="num">14.8</td><td class="num">21.5</td><td class="num">0.95</td><td class="num">8.8</td><td class="num">30.9</td></tr>
+<tr><td>Engine fill to 21 players</td><td class="num">1.15</td><td class="num">14.5</td><td class="num">20.9</td><td class="num">1.12</td><td class="num">9.5</td><td class="num">31.4</td></tr>
+<tr><td>One-year contracts counted at 0.7 (chosen on the fit seeds)</td><td class="num">1.06</td><td class="num">8.8</td><td class="num">20.2</td><td class="num">0.87</td><td class="num">6.9</td><td class="num">32.0</td></tr>
+<tr><td>One-year contracts counted at 0.5</td><td class="num">1.13</td><td class="num">9.3</td><td class="num">19.5</td><td class="num">0.92</td><td class="num">7.3</td><td class="num">31.6</td></tr>
+</tbody></table>
+<div class="sub">Columns as in the 2026-11-17 entry. All from <code>candidates.json</code> (<code>fill-8</code>, <code>fill-21</code>, <code>one-year@0.7</code>, <code>one-year@0.5</code>; <code>one_year_kept_chosen_on_fit</code> is 0.7).</div>
+
+<div class="key"><b>Showed:</b>
+<ul>
+<li><b>An engine fill does not pass.</b> Filling to 8 players brings the slope inside 0.9 to 1.1 on both samples, but its residual on the check seeds is 14.8 against score-v2's 13.6 (criterion 2). Every deeper fill overshoots the slope (1.13 to 1.24 on the check seeds).</li>
+<li><b>The contract-length discount is the closest miss.</b> At 0.7 it beats score-v2 on residual and noise on both samples and cuts the over-payment of <code>extend-all:pick-trader</code> from 7.4 to 4.5 points. It fails criterion 1 twice, narrowly: the slope on the model rows is 0.87 (the gate is 0.9), and judged by <code>contend-1g</code> alone on the model rows its residual is 16.9 against score-v2's 16.7. No fraction passes both samples: 0.6 gives 1.11 on the check seeds and 0.90 on the model rows.</li>
+<li><b>The fourth judge agrees on direction.</b> With the roster filled to 21 first, score-v2's slope is 0.64 on the check seeds and 0.52 on the model rows; the 0.7 discount's is 0.90 and 0.66. score-v2 over-pays end state under every judge.</li>
+<li><b>Under score-v3 the board barely moves.</b> <code>gpt-6-astra</code> +46.9 → +44.5, <code>gpt-6.1-sol</code> +19.1 → +16.7, <code>claude-opus-5-5</code> −29.5 → −31.6, <code>claude-sonnet-5-5</code> −46.8 → −48.1 (<code>v2+next-pick</code> in <code>candidates.json</code>). <code>pick-trader</code> holds more next-draft picks than the model rows do.</li>
+<li><b>No scripted policy gains under 2.2.</b> Fifteen policies on seeds 101–172, each against <code>pick-trader</code> under the same rules (<code>v22_references/policies.json</code>): lifts change by −2.6 to +2.3. The +2.3 is <code>accept-everything</code>, whose illegal moves fall from 3.76 to 2.51 an episode because stale deadline offers are no longer listed in the draft. <code>contend-preseason-1g</code> is +82.7 under 2.2 (+84.4 under 2.1).</li>
+<li><b>The two new canaries pass, one of them closely.</b> On the canary seeds 11–34 (<code>v22_references/validate_contract.json</code>), <code>extend-everything</code> gains 11.2 points over <code>pick-trader</code> against a bound of 13; <code>run-down</code> loses 16.6.</li>
+</ul></div>
+
+<div class="decide"><b>Decided:</b> by the rule set on 2026-11-17, 2.2 takes the fallback: <b>score-v3 is score-v2 plus the next draft's picks</b>, and the brief states that the credit is counted after the final season's contracts expire and that only cap room is capped. Known and accepted: extending everything in the final preseason is over-paid by about 7 points (11 gained, about 4 confirmed by later seasons), under the 13 a 32-seed panel can detect. The 0.7 contract-length discount is recorded as the leading candidate should the operator prefer it; it must be chosen before the first 2.2 row, because the brief would have to state it. The fair planner was not rerun: against 2.1 the game changes only by withdrawing deadline offers after the deadline, and the objective by a linear pick term priced as trades price it. Queue item 21's simulator half (start an extension next season, or drop the extra inflation year from its quote) is rejected for 2.2: the quote the agent is shown is the price charged, the tool text now says what an extension does, and a price change would break the comparison of <code>pick-trader</code> across 2.1 and 2.2. Item 7 (sub-second guard notice) is rejected as test-only. The contract stays <code>gm-bench-2.2-draft</code>, unpinned, until the paid pilot (phase 4) has run.</div>
+</article>
 
 <!-- ======================================================================= -->
 <article class="entry" id="e-2026-11-17-v22-score">

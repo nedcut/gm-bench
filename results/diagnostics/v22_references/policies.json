@@ -1,0 +1,249 @@
+{
+  "seeds": [
+    101,
+    172
+  ],
+  "reference": "pick-trader",
+  "policies": {
+    "pick-trader": {
+      "2.1": {
+        "mean_score": 250.21,
+        "lift": 0.0,
+        "lift_se": 0.0,
+        "illegal_actions_per_episode": 0.01
+      },
+      "2.2-draft": {
+        "mean_score": 252.93,
+        "lift": 0.0,
+        "lift_se": 0.0,
+        "illegal_actions_per_episode": 0.01
+      },
+      "lift_change": 0.0
+    },
+    "strategic": {
+      "2.1": {
+        "mean_score": 247.55,
+        "lift": -2.66,
+        "lift_se": 1.71,
+        "illegal_actions_per_episode": 0.01
+      },
+      "2.2-draft": {
+        "mean_score": 249.47,
+        "lift": -3.46,
+        "lift_se": 1.72,
+        "illegal_actions_per_episode": 0.01
+      },
+      "lift_change": -0.8
+    },
+    "shrewd": {
+      "2.1": {
+        "mean_score": 244.01,
+        "lift": -6.2,
+        "lift_se": 2.1,
+        "illegal_actions_per_episode": 0.0
+      },
+      "2.2-draft": {
+        "mean_score": 245.93,
+        "lift": -7.0,
+        "lift_se": 2.1,
+        "illegal_actions_per_episode": 0.0
+      },
+      "lift_change": -0.8
+    },
+    "value": {
+      "2.1": {
+        "mean_score": 180.21,
+        "lift": -70.0,
+        "lift_se": 2.59,
+        "illegal_actions_per_episode": 0.0
+      },
+      "2.2-draft": {
+        "mean_score": 182.13,
+        "lift": -70.8,
+        "lift_se": 2.61,
+        "illegal_actions_per_episode": 0.0
+      },
+      "lift_change": -0.8
+    },
+    "exploit": {
+      "2.1": {
+        "mean_score": 120.39,
+        "lift": -129.82,
+        "lift_se": 2.9,
+        "illegal_actions_per_episode": 3.89
+      },
+      "2.2-draft": {
+        "mean_score": 122.31,
+        "lift": -130.62,
+        "lift_se": 2.91,
+        "illegal_actions_per_episode": 3.89
+      },
+      "lift_change": -0.8
+    },
+    "pick-hoard": {
+      "2.1": {
+        "mean_score": 136.42,
+        "lift": -113.79,
+        "lift_se": 2.91,
+        "illegal_actions_per_episode": 0.07
+      },
+      "2.2-draft": {
+        "mean_score": 138.34,
+        "lift": -114.59,
+        "lift_se": 2.92,
+        "illegal_actions_per_episode": 0.07
+      },
+      "lift_change": -0.8
+    },
+    "cap-hoard": {
+      "2.1": {
+        "mean_score": 120.25,
+        "lift": -129.97,
+        "lift_se": 3.12,
+        "illegal_actions_per_episode": 0.0
+      },
+      "2.2-draft": {
+        "mean_score": 122.17,
+        "lift": -130.77,
+        "lift_se": 3.12,
+        "illegal_actions_per_episode": 0.0
+      },
+      "lift_change": -0.8
+    },
+    "accept-everything": {
+      "2.1": {
+        "mean_score": 133.85,
+        "lift": -116.36,
+        "lift_se": 3.14,
+        "illegal_actions_per_episode": 3.76
+      },
+      "2.2-draft": {
+        "mean_score": 138.9,
+        "lift": -114.03,
+        "lift_se": 3.11,
+        "illegal_actions_per_episode": 2.51
+      },
+      "lift_change": 2.33
+    },
+    "contend-1g": {
+      "2.1": {
+        "mean_score": 302.25,
+        "lift": 52.04,
+        "lift_se": 2.93,
+        "illegal_actions_per_episode": 0.04
+      },
+      "2.2-draft": {
+        "mean_score": 302.57,
+        "lift": 49.64,
+        "lift_se": 2.94,
+        "illegal_actions_per_episode": 0.04
+      },
+      "lift_change": -2.4
+    },
+    "contend-blind": {
+      "2.1": {
+        "mean_score": 287.1,
+        "lift": 36.89,
+        "lift_se": 3.73,
+        "illegal_actions_per_episode": 0.0
+      },
+      "2.2-draft": {
+        "mean_score": 287.53,
+        "lift": 34.6,
+        "lift_se": 3.75,
+        "illegal_actions_per_episode": 0.0
+      },
+      "lift_change": -2.29
+    },
+    "contend-preseason-1g": {
+      "2.1": {
+        "mean_score": 334.62,
+        "lift": 84.41,
+        "lift_se": 3.27,
+        "illegal_actions_per_episode": 0.03
+      },
+      "2.2-draft": {
+        "mean_score": 335.61,
+        "lift": 82.68,
+        "lift_se": 3.27,
+        "illegal_actions_per_episode": 0.03
+      },
+      "lift_change": -1.73
+    },
+    "contend-preseason-blind": {
+      "2.1": {
+        "mean_score": 318.59,
+        "lift": 68.38,
+        "lift_se": 4.35,
+        "illegal_actions_per_episode": 0.03
+      },
+      "2.2-draft": {
+        "mean_score": 319.52,
+        "lift": 66.59,
+        "lift_se": 4.35,
+        "illegal_actions_per_episode": 0.03
+      },
+      "lift_change": -1.79
+    },
+    "rundown:pick-trader": {
+      "2.1": {
+        "mean_score": 233.19,
+        "lift": -17.02,
+        "lift_se": 0.47,
+        "illegal_actions_per_episode": 0.01
+      },
+      "2.2-draft": {
+        "mean_score": 235.81,
+        "lift": -17.13,
+        "lift_se": 0.48,
+        "illegal_actions_per_episode": 0.01
+      },
+      "lift_change": -0.11
+    },
+    "rundown:contend-1g": {
+      "2.1": {
+        "mean_score": 284.52,
+        "lift": 34.31,
+        "lift_se": 2.93,
+        "illegal_actions_per_episode": 0.04
+      },
+      "2.2-draft": {
+        "mean_score": 284.68,
+        "lift": 31.75,
+        "lift_se": 2.93,
+        "illegal_actions_per_episode": 0.04
+      },
+      "lift_change": -2.56
+    },
+    "extend-all:pick-trader": {
+      "2.1": {
+        "mean_score": 260.48,
+        "lift": 10.27,
+        "lift_se": 0.62,
+        "illegal_actions_per_episode": 0.03
+      },
+      "2.2-draft": {
+        "mean_score": 263.23,
+        "lift": 10.3,
+        "lift_se": 0.63,
+        "illegal_actions_per_episode": 0.03
+      },
+      "lift_change": 0.03
+    },
+    "extend-all:strategic": {
+      "2.1": {
+        "mean_score": 258.17,
+        "lift": 7.96,
+        "lift_se": 1.84,
+        "illegal_actions_per_episode": 0.01
+      },
+      "2.2-draft": {
+        "mean_score": 260.09,
+        "lift": 7.16,
+        "lift_se": 1.85,
+        "illegal_actions_per_episode": 0.01
+      },
+      "lift_change": -0.8
+    }
+  }
+}

@@ -1,0 +1,478 @@
+{
+  "baselines": [
+    {
+      "agent": "pick-trader",
+      "illegal_actions": 1,
+      "mean_score": 255.328,
+      "mean_strategy_score": 255.432,
+      "mean_total_wins": 88.708,
+      "protocol_penalty": 2.5,
+      "rejected_offers": 54
+    },
+    {
+      "agent": "strategic",
+      "illegal_actions": 1,
+      "mean_score": 250.735,
+      "mean_strategy_score": 250.839,
+      "mean_total_wins": 88.875,
+      "protocol_penalty": 2.5,
+      "rejected_offers": 0
+    },
+    {
+      "agent": "shrewd",
+      "illegal_actions": 0,
+      "mean_score": 247.854,
+      "mean_strategy_score": 247.854,
+      "mean_total_wins": 88.292,
+      "protocol_penalty": 0.0,
+      "rejected_offers": 0
+    },
+    {
+      "agent": "value",
+      "illegal_actions": 0,
+      "mean_score": 180.092,
+      "mean_strategy_score": 180.092,
+      "mean_total_wins": 78.833,
+      "protocol_penalty": 0.0,
+      "rejected_offers": 0
+    }
+  ],
+  "canaries": [
+    {
+      "agent": "exploit",
+      "illegal_actions": 77,
+      "mean_score": 123.612,
+      "mean_strategy_score": 131.633,
+      "mean_total_wins": 57.458,
+      "protocol_penalty": 192.5,
+      "rejected_offers": 2790
+    },
+    {
+      "agent": "pick-hoard",
+      "illegal_actions": 0,
+      "mean_score": 136.643,
+      "mean_strategy_score": 136.643,
+      "mean_total_wins": 61.708,
+      "protocol_penalty": 0.0,
+      "rejected_offers": 1
+    },
+    {
+      "agent": "cap-hoard",
+      "illegal_actions": 0,
+      "mean_score": 120.258,
+      "mean_strategy_score": 120.258,
+      "mean_total_wins": 55.708,
+      "protocol_penalty": 0.0,
+      "rejected_offers": 0
+    },
+    {
+      "agent": "accept-everything",
+      "illegal_actions": 56,
+      "mean_score": 143.895,
+      "mean_strategy_score": 149.729,
+      "mean_total_wins": 68.667,
+      "protocol_penalty": 140.0,
+      "rejected_offers": 0
+    },
+    {
+      "agent": "extend-everything",
+      "illegal_actions": 1,
+      "mean_score": 266.501,
+      "mean_strategy_score": 266.605,
+      "mean_total_wins": 88.833,
+      "protocol_penalty": 2.5,
+      "rejected_offers": 52
+    },
+    {
+      "agent": "run-down",
+      "illegal_actions": 1,
+      "mean_score": 238.746,
+      "mean_strategy_score": 238.851,
+      "mean_total_wins": 88.75,
+      "protocol_penalty": 2.5,
+      "rejected_offers": 54
+    }
+  ],
+  "checks": [
+    {
+      "loser": "value",
+      "margin": 75.236,
+      "metric": "mean_score",
+      "minimum_margin": 0.0,
+      "name": "honest_bar",
+      "ok": true,
+      "winner": "pick-trader"
+    },
+    {
+      "complete_pairing": true,
+      "loser": "value",
+      "margin": 16.389,
+      "metric": "paired_t",
+      "minimum_margin": 2.0,
+      "name": "honest_bar_paired_significance",
+      "ok": true,
+      "paired_mean_difference": 75.236,
+      "paired_standard_error": 4.591,
+      "seed_count": 24,
+      "winner": "pick-trader"
+    },
+    {
+      "loser": "value",
+      "margin": 67.762,
+      "metric": "mean_score",
+      "minimum_margin": 25.0,
+      "name": "cap_hygiene_bar",
+      "ok": true,
+      "winner": "shrewd"
+    },
+    {
+      "complete_pairing": true,
+      "loser": "value",
+      "margin": 15.461,
+      "metric": "paired_t",
+      "minimum_margin": 2.0,
+      "name": "cap_hygiene_bar_paired_significance",
+      "ok": true,
+      "paired_mean_difference": 67.762,
+      "paired_standard_error": 4.383,
+      "seed_count": 24,
+      "winner": "shrewd"
+    },
+    {
+      "loser": "missing-memo",
+      "margin": 24,
+      "metric": "seed_count",
+      "minimum_margin": 18,
+      "name": "mechanic_coverage",
+      "ok": true,
+      "winner": "pick-trader"
+    },
+    {
+      "loser": "missing-scouting",
+      "margin": 24,
+      "metric": "seed_count",
+      "minimum_margin": 18,
+      "name": "mechanic_coverage",
+      "ok": true,
+      "winner": "pick-trader"
+    },
+    {
+      "loser": "missing-offer_response",
+      "margin": 24,
+      "metric": "seed_count",
+      "minimum_margin": 18,
+      "name": "mechanic_coverage",
+      "ok": true,
+      "winner": "pick-trader"
+    },
+    {
+      "loser": "missing-accepted_offer",
+      "margin": 14,
+      "metric": "seed_count",
+      "minimum_margin": 6,
+      "name": "mechanic_coverage",
+      "ok": true,
+      "winner": "pick-trader"
+    },
+    {
+      "loser": "missing-pick_trade",
+      "margin": 24,
+      "metric": "seed_count",
+      "minimum_margin": 6,
+      "name": "mechanic_coverage",
+      "ok": true,
+      "winner": "pick-trader"
+    },
+    {
+      "loser": "missing-extension",
+      "margin": 24,
+      "metric": "seed_count",
+      "minimum_margin": 18,
+      "name": "mechanic_coverage",
+      "ok": true,
+      "winner": "pick-trader"
+    },
+    {
+      "loser": "missing-release",
+      "margin": 9,
+      "metric": "seed_count",
+      "minimum_margin": 3,
+      "name": "mechanic_coverage",
+      "ok": true,
+      "winner": "pick-trader"
+    },
+    {
+      "loser": "exploit",
+      "margin": 56.48,
+      "metric": "mean_score",
+      "minimum_margin": 25.0,
+      "name": "canary_final_score",
+      "ok": true,
+      "winner": "value"
+    },
+    {
+      "complete_pairing": true,
+      "loser": "exploit",
+      "margin": 14.817,
+      "metric": "paired_t",
+      "minimum_margin": 2.0,
+      "name": "canary_final_score_paired_significance",
+      "ok": true,
+      "paired_mean_difference": 56.48,
+      "paired_standard_error": 3.812,
+      "seed_count": 24,
+      "winner": "value"
+    },
+    {
+      "loser": "exploit",
+      "margin": 48.459,
+      "metric": "mean_strategy_score",
+      "minimum_margin": 25.0,
+      "name": "canary_strategy_score",
+      "ok": true,
+      "winner": "value"
+    },
+    {
+      "complete_pairing": true,
+      "loser": "exploit",
+      "margin": 14.704,
+      "metric": "paired_t",
+      "minimum_margin": 2.0,
+      "name": "canary_strategy_score_paired_significance",
+      "ok": true,
+      "paired_mean_difference": 48.459,
+      "paired_standard_error": 3.296,
+      "seed_count": 24,
+      "winner": "value"
+    },
+    {
+      "loser": "pick-hoard",
+      "margin": 43.449,
+      "metric": "mean_score",
+      "minimum_margin": 25.0,
+      "name": "canary_final_score",
+      "ok": true,
+      "winner": "value"
+    },
+    {
+      "complete_pairing": true,
+      "loser": "pick-hoard",
+      "margin": 9.762,
+      "metric": "paired_t",
+      "minimum_margin": 2.0,
+      "name": "canary_final_score_paired_significance",
+      "ok": true,
+      "paired_mean_difference": 43.449,
+      "paired_standard_error": 4.451,
+      "seed_count": 24,
+      "winner": "value"
+    },
+    {
+      "loser": "pick-hoard",
+      "margin": 43.449,
+      "metric": "mean_strategy_score",
+      "minimum_margin": 25.0,
+      "name": "canary_strategy_score",
+      "ok": true,
+      "winner": "value"
+    },
+    {
+      "complete_pairing": true,
+      "loser": "pick-hoard",
+      "margin": 9.762,
+      "metric": "paired_t",
+      "minimum_margin": 2.0,
+      "name": "canary_strategy_score_paired_significance",
+      "ok": true,
+      "paired_mean_difference": 43.449,
+      "paired_standard_error": 4.451,
+      "seed_count": 24,
+      "winner": "value"
+    },
+    {
+      "loser": "cap-hoard",
+      "margin": 59.834,
+      "metric": "mean_score",
+      "minimum_margin": 25.0,
+      "name": "canary_final_score",
+      "ok": true,
+      "winner": "value"
+    },
+    {
+      "complete_pairing": true,
+      "loser": "cap-hoard",
+      "margin": 14.571,
+      "metric": "paired_t",
+      "minimum_margin": 2.0,
+      "name": "canary_final_score_paired_significance",
+      "ok": true,
+      "paired_mean_difference": 59.834,
+      "paired_standard_error": 4.106,
+      "seed_count": 24,
+      "winner": "value"
+    },
+    {
+      "loser": "cap-hoard",
+      "margin": 59.834,
+      "metric": "mean_strategy_score",
+      "minimum_margin": 25.0,
+      "name": "canary_strategy_score",
+      "ok": true,
+      "winner": "value"
+    },
+    {
+      "complete_pairing": true,
+      "loser": "cap-hoard",
+      "margin": 14.571,
+      "metric": "paired_t",
+      "minimum_margin": 2.0,
+      "name": "canary_strategy_score_paired_significance",
+      "ok": true,
+      "paired_mean_difference": 59.834,
+      "paired_standard_error": 4.106,
+      "seed_count": 24,
+      "winner": "value"
+    },
+    {
+      "loser": "accept-everything",
+      "margin": 36.197,
+      "metric": "mean_score",
+      "minimum_margin": 25.0,
+      "name": "canary_final_score",
+      "ok": true,
+      "winner": "value"
+    },
+    {
+      "complete_pairing": true,
+      "loser": "accept-everything",
+      "margin": 8.616,
+      "metric": "paired_t",
+      "minimum_margin": 2.0,
+      "name": "canary_final_score_paired_significance",
+      "ok": true,
+      "paired_mean_difference": 36.196,
+      "paired_standard_error": 4.201,
+      "seed_count": 24,
+      "winner": "value"
+    },
+    {
+      "loser": "accept-everything",
+      "margin": 30.363,
+      "metric": "mean_strategy_score",
+      "minimum_margin": 25.0,
+      "name": "canary_strategy_score",
+      "ok": true,
+      "winner": "value"
+    },
+    {
+      "complete_pairing": true,
+      "loser": "accept-everything",
+      "margin": 7.533,
+      "metric": "paired_t",
+      "minimum_margin": 2.0,
+      "name": "canary_strategy_score_paired_significance",
+      "ok": true,
+      "paired_mean_difference": 30.363,
+      "paired_standard_error": 4.031,
+      "seed_count": 24,
+      "winner": "value"
+    },
+    {
+      "loser": "extend-everything",
+      "margin": -11.172,
+      "metric": "paired_mean_score",
+      "minimum_margin": -13.0,
+      "name": "end_of_run_gain",
+      "ok": true,
+      "winner": "pick-trader"
+    },
+    {
+      "loser": "run-down",
+      "margin": 16.582,
+      "metric": "paired_mean_score",
+      "minimum_margin": 0.0,
+      "name": "end_of_run_gain",
+      "ok": true,
+      "winner": "pick-trader"
+    }
+  ],
+  "mechanic_coverage": [
+    {
+      "accepted_actions": 120,
+      "mechanic": "memo",
+      "minimum_seed_count": 18,
+      "seed_count": 24,
+      "seed_rate": 1.0
+    },
+    {
+      "accepted_actions": 360,
+      "mechanic": "scouting",
+      "minimum_seed_count": 18,
+      "seed_count": 24,
+      "seed_rate": 1.0
+    },
+    {
+      "accepted_actions": 359,
+      "mechanic": "offer_response",
+      "minimum_seed_count": 18,
+      "seed_count": 24,
+      "seed_rate": 1.0
+    },
+    {
+      "accepted_actions": 18,
+      "mechanic": "accepted_offer",
+      "minimum_seed_count": 6,
+      "seed_count": 14,
+      "seed_rate": 0.583
+    },
+    {
+      "accepted_actions": 64,
+      "mechanic": "pick_trade",
+      "minimum_seed_count": 6,
+      "seed_count": 24,
+      "seed_rate": 1.0
+    },
+    {
+      "accepted_actions": 223,
+      "mechanic": "extension",
+      "minimum_seed_count": 18,
+      "seed_count": 24,
+      "seed_rate": 1.0
+    },
+    {
+      "accepted_actions": 12,
+      "mechanic": "release",
+      "minimum_seed_count": 3,
+      "seed_count": 9,
+      "seed_rate": 0.375
+    }
+  ],
+  "ok": true,
+  "seasons": 5,
+  "seeds": [
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34
+  ]
+}
