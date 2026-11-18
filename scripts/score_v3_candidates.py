@@ -353,6 +353,8 @@ def _ledger_job(job: tuple[str, str]) -> dict[str, Any] | None:
         episode = ProbeEpisode.from_ledger(clean, reopen=False)
     if not episode.done:
         return None
+    if episode.seasons != SEASONS:
+        raise SystemExit(f"{ledger.parent.name} of {label}: {episode.seasons} seasons, expected {SEASONS}")
     # The replay must be the game that was played: same score as the recorded result.
     recorded = json.loads((ledger.parent / "result.json").read_text(encoding="utf-8"))["final_score"]
     if abs(episode.result()["final_score"] - recorded) > 1e-6:
@@ -364,6 +366,7 @@ def _ledger_job(job: tuple[str, str]) -> dict[str, Any] | None:
 def write_private(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    os.fchmod(descriptor, 0o600)  # the mode above applies only when the file is created
     with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
         json.dump(payload, handle)
 

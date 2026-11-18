@@ -249,6 +249,10 @@ def test_a_non_object_call_is_logged_as_not_executed_so_replay_matches(tmp_path:
     live = AgenticEpisode22(17, seasons=1, ledger_path=ledger)
     assert not live.call_tool("end_phase", ["not", "an", "object"])["ok"]
     assert live.phase == "preseason"
+    live.call_tool("trade", {"partner_team_id": 1})
+    # A reopened ledger reports the same refusals, the skipped call included.
+    reopened = replay_ledger(ledger, reopen=False)
+    assert reopened._phase_rejections == live._phase_rejections and len(live._phase_rejections) == 2
     while not live.done:
         live.call_tool("end_phase", {})
     result = live.result()

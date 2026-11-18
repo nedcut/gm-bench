@@ -74,7 +74,7 @@ def run_policies(seeds: list[int], jobs: int) -> dict[str, Any]:
             block[contract] = {
                 "mean_score": round(statistics.fmean(scores), 2),
                 "lift": round(statistics.fmean(lifts), 2),
-                "lift_se": round(statistics.stdev(lifts) / len(lifts) ** 0.5, 2),
+                "lift_se": round(statistics.stdev(lifts) / len(lifts) ** 0.5, 2) if len(lifts) > 1 else 0.0,
                 "illegal_actions_per_episode": round(statistics.fmean(illegal[contract, name, s] for s in seeds), 2),
             }
         block["lift_change"] = round(block["2.2-draft"]["lift"] - block["2.1"]["lift"], 2)
@@ -90,11 +90,11 @@ def _ledger_job(path: str) -> str:
         clean.write_text("\n".join(json.dumps(r) for r in records) + "\n", encoding="utf-8")
         try:
             episode = AgenticEpisode22.from_ledger(clean, reopen=False)
+            if not episode.done:
+                return "unfinished"
+            episode.result()
         except Exception as exc:  # noqa: BLE001 - the point is to count every failure
             return f"error: {type(exc).__name__}"
-    if not episode.done:
-        return "unfinished"
-    episode.result()
     return "ok"
 
 

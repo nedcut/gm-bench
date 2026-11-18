@@ -21,6 +21,8 @@ item numbers):
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
 from gm_bench.agentic.episode import ENDED_BY_AGENT, AgenticEpisode
@@ -81,6 +83,23 @@ class AgenticEpisode22(AgenticEpisode):
         if record.get("event") == "episode":
             record = {**record, "benchmark_version": BENCHMARK_VERSION, "tool_surface": TOOL_SURFACE_VERSION}
         super()._write(record)
+
+    @classmethod
+    def from_ledger(cls, path: str | Path, *, reopen: bool = True) -> AgenticEpisode22:
+        episode = super().from_ledger(path, reopen=reopen)
+        # Replay skips a call whose arguments were not an object, so its refusal would be
+        # missing from the open phase's list. Rebuild that list from the ledger, in order.
+        records = [json.loads(line) for line in Path(path).read_text(encoding="utf-8").splitlines() if line.strip()]
+        opened = max((i for i, r in enumerate(records) if r.get("event") == "phase_open"), default=0)
+        if not episode.done:
+            episode._phase_rejections = [
+                {"tool": r["tool"], "message": r["message"], "penalized": bool(r.get("penalized"))}
+                for r in records[opened:]
+                if r.get("event") == "tool_call"
+                and not r.get("ok")
+                and (r.get("executed", True) or r["message"].startswith("invalid arguments"))
+            ]
+        return episode
 
     def _execute(self, name: str, arguments: Any) -> dict[str, Any]:
         rejections = self._phase_rejections
