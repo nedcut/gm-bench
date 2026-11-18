@@ -57,7 +57,6 @@ from typing import Any, Callable
 
 import gm_bench
 from gm_bench.agentic import _opencode_launch, _proxy
-from gm_bench.agentic.brief import nudge_message, task_brief
 from gm_bench.agentic.container import (
     HOME as CONTAINER_HOME,
 )
@@ -75,7 +74,14 @@ from gm_bench.agentic.harness import HarnessDriver
 from gm_bench.agentic.mcp_server import EPISODE_ENV, SocketMcpServer
 from gm_bench.agentic.prompt_check import PromptCheckError
 from gm_bench.agentic.provenance import driver_digest, driver_provenance
-from gm_bench.agentic.versions import contract_block, episode_class, replay_ledger, resolve
+from gm_bench.agentic.versions import (
+    brief_module,
+    contract_block,
+    episode_class,
+    replay_ledger,
+    resolve,
+    socket_server_class,
+)
 from gm_bench.agents import external_agent_environment
 from gm_bench.protocol import PHASES
 from gm_bench.runner import summarize_episodes
@@ -347,6 +353,7 @@ class HarnessLaunch:
         driver: HarnessDriver | None = None,
         evidence_paths: tuple[Path, ...] = (),
         base_environment: dict[str, str] | None = None,
+        server_class: type[SocketMcpServer] = SocketMcpServer,
     ) -> None:
         if isolation not in DRIVER_ISOLATION:
             raise ValueError(f"isolation must be one of {DRIVER_ISOLATION}, not {isolation!r}")
@@ -371,7 +378,7 @@ class HarnessLaunch:
             if isolation == "container":
                 assert image is not None
                 self._secret = secrets.token_urlsafe(32)
-                self.server = SocketMcpServer(episode, (driver_listen_host(image), 0), secret=self._secret)
+                self.server = server_class(episode, (driver_listen_host(image), 0), secret=self._secret)
                 self.server.start()
                 self.container = ContainerHarness(
                     image, self.scratch, driver_port=self.server.address[1], docker=docker, env=self.env
@@ -383,7 +390,7 @@ class HarnessLaunch:
                 # path (macOS caps Unix socket paths at 104 bytes) and mode
                 # 0600, outside the scratch.
                 self._socket_dir = Path(tempfile.mkdtemp(prefix="gmb-"))
-                self.server = SocketMcpServer(episode, self._socket_dir / "s")
+                self.server = server_class(episode, self._socket_dir / "s")
                 self.server.start()
                 self.workdir = str(self.scratch)
                 self.transport = "unix"
@@ -1052,6 +1059,7 @@ def run_episode(
         docker=docker,
         driver=driver,
         evidence_paths=(events_path, stderr_path),
+        server_class=socket_server_class(contract_version),
     )
     server = launch.server
     scratch = launch.scratch
@@ -1075,7 +1083,7 @@ def run_episode(
         launch.prepare()
 
         team_name = League.new(seed=seed, user_team_id=user_team_id).user_team.name
-        brief = task_brief(seasons, team_name, user_team_id)
+        brief = brief_module(contract_version).task_brief(seasons, team_name, user_team_id)
         command, on_kill = launch.command(
             driver.run_args(model=model, variant=variant, workdir=launch.workdir, brief=brief, isolation=isolation)
         )
@@ -1252,7 +1260,9 @@ def run_episode(
             if retry or quota_resume:
                 text = provider_resume_message(state["season"], state["phase"], seasons)
             else:
-                text = nudge_message(state["season"], state["phase"], seasons, productive_nudges, max_nudges)
+                text = brief_module(contract_version).nudge_message(
+                    state["season"], state["phase"], seasons, productive_nudges, max_nudges
+                )
             if progress is not None:
                 progress(
                     {
