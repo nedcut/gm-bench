@@ -424,5 +424,9 @@ Open, for the operator:
 
 - Whether to override the gate and take the 0.7 contract-length discount
   (phase 1).
+- Whether the brief should also say that playoff results are scored as
+  their expected value from the bracket (titles over every season, rounds
+  over the last three). It keeps 2.0's wording; no 2.1 panel showed a
+  misreading, and a reviewer asked for it.
 - The pilot's models and budget, after a price check (phase 4).
 - Driver items 9 and 12 and audit item 11, before the first panel.

@@ -85,8 +85,9 @@ class AgenticEpisode22(AgenticEpisode):
     def _execute(self, name: str, arguments: Any) -> dict[str, Any]:
         rejections = self._phase_rejections
         reply = self._run(name, arguments)
-        # Every refused call of the phase, whatever refused it; ``end_phase`` itself opens the next list.
-        if name != "end_phase" and not reply["ok"]:
+        # Every refused call of the phase, whatever refused it. A close that succeeds is not
+        # one, and ``rejections`` is the closing phase's list even once the next has opened.
+        if not reply["ok"]:
             rejections.append({"tool": name, "message": reply["message"], "penalized": bool(reply.get("penalized"))})
         return reply
 

@@ -232,10 +232,12 @@ def test_end_phase_reports_the_phases_rejected_calls_and_the_calendar() -> None:
     # A schema failure and a read refused in this phase are listed too, unpenalized.
     episode.call_tool("extend_contract", {"player_id": 1, "years": 1, "salary": 1.0})
     episode.call_tool("list_waiver_wire", {})
+    episode.call_tool("end_phase", {"now": True})  # a close refused by the schema is listed too
     assert closed_calls(episode) == [
         ("trade", True),
         ("extend_contract", False),
         ("list_waiver_wire", False),
+        ("end_phase", False),
     ]
     assert episode.call_tool("end_phase", {})["closed"]["rejected_calls"] == []
     opened = episode.call_tool("end_phase", {})

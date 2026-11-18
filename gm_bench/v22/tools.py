@@ -156,8 +156,9 @@ TOOLS: list[dict[str, Any]] = [
         "description": (
             "Offer a free agent a contract. He accepts any offer at or above his published quote "
             "for that length; shading below it may be declined, which is not penalized. The "
-            "signing must still fit under the hard cap, and a player you released this season "
-            "will not re-sign until the next."
+            "signing must still fit under the hard cap, a player you released this season will "
+            "not re-sign until the next, and a player who has declined 2 of your offers this "
+            "phase refuses until the next phase."
         ),
         "inputSchema": _schema(
             {
@@ -222,8 +223,8 @@ TOOLS: list[dict[str, Any]] = [
         "name": "set_lineup",
         "kind": "move",
         "description": (
-            "Choose the 18 players who dress. Drives team strength directly; players aged 24 or "
-            "under develop at half speed outside the lineup. Must satisfy the position minimums in get_rules. The "
+            "Choose the 18 players who dress. Drives team strength directly; players shown as "
+            "aged 23 or under develop at half speed outside the lineup. Must satisfy the position minimums in get_rules. The "
             "lineup you set stays in force until you set another: a player you add later "
             "dresses only when a slot is empty because someone in the lineup left the roster "
             "or is injured."
