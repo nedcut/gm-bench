@@ -126,9 +126,13 @@ def ledger_profile(ledger_path: Path) -> dict[str, Any]:
 
     ``tools_by_phase`` counts every logged call, executed or refused, as
     ``validate.empty_phases`` does; replay skips the refused ones.
+    ``accepted_trades`` and ``most_players_sent_in_one_trade`` cover the
+    agent's own ``trade`` proposals, which name the players sent. A rival's
+    offer that the agent accepted or countered successfully is counted under
+    ``accepted_offers``; its players are not in the call's arguments.
     """
     tools_by_phase: dict[tuple[int, str], set[str]] = {}
-    accepted_trades = signings = most_sent = 0
+    accepted_trades = accepted_offers = signings = most_sent = 0
     for line in ledger_path.read_text(encoding="utf-8").splitlines():
         record = json.loads(line) if line.strip() else {}
         if record.get("event") != "tool_call":
@@ -138,6 +142,8 @@ def ledger_profile(ledger_path: Path) -> dict[str, Any]:
             continue
         if record["tool"] == "sign_free_agent":
             signings += 1
+        elif record["tool"] in ("accept_trade_offer", "counter_trade_offer"):
+            accepted_offers += 1
         elif record["tool"] == "trade":
             accepted_trades += 1
             sent = (record.get("arguments") or {}).get("give_player_ids")
@@ -145,6 +151,7 @@ def ledger_profile(ledger_path: Path) -> dict[str, Any]:
     return {
         "tools_by_phase": tools_by_phase,
         "accepted_trades": accepted_trades,
+        "accepted_offers": accepted_offers,
         "free_agent_signings": signings,
         "most_players_sent_in_one_trade": most_sent,
     }
