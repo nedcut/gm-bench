@@ -197,7 +197,8 @@ TOOLS: list[dict[str, Any]] = [
         "kind": "move",
         "description": (
             "Propose a trade. It must include at least one player or pick from each team. The "
-            "partner accepts if it favors their hidden valuation. A decline is not penalized; "
+            "partner accepts if it favors their hidden valuation, which gives no value to a player "
+            "you signed as a free agent or claimed off waivers this season. A decline is not penalized; "
             "after 2 declines in a phase the partner refuses further offers until the next phase. "
             "Each partner completes at most 2 trades with you per season, and proposing another "
             "is an illegal move."

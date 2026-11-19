@@ -28,8 +28,8 @@ Each phase has a gate. Nothing paid runs before phase 4.
 | 0 | Close 2.1 intake; fork the agent-facing surface as a no-op | Every 2.1 ledger replays identically under the 2.2 engine | **Done 2026-11-17** |
 | 1 | Choose the end-of-run score (free, CPU only) | Criteria below | **Done 2026-11-18: no candidate passed, fallback taken** |
 | 2 | Rules, published constants, brief and tool text | `validate-contract` and the new canaries pass | **Done 2026-11-18** |
-| 3 | References and a free exploit check | No scripted policy gains under 2.2; real ledgers replay | **Done 2026-11-18** (lane pins wait for the freeze) |
-| 4 | Public-seed pilot with the behaviour diagnostic | Predicted behaviours move; no new misreading | **Run 2026-11-18: gate not met** (a trade exploit, and Sonnet still runs its roster down in half its episodes) |
+| 3 | References and a free exploit check | No scripted policy gains under 2.2; real ledgers replay | **Done 2026-11-18, rerun 2026-11-19** after the trade rule (lane pins wait for the freeze) |
+| 4 | Public-seed pilot with the behaviour diagnostic | Predicted behaviours move; no new misreading | **Run 2026-11-18: gate not met** (a trade exploit, and Sonnet still runs its roster down in half its episodes). **Exploit closed 2026-11-19**; the rerun is not yet run (paid) |
 | 5 | Freeze, pre-register, smoke, first panel on the 32 private seeds | Prices checked first | Not started (paid) |
 | 6 | Site: 2.1 moves to an archive page; spec and notebook entries | | Not started |
 
@@ -259,8 +259,9 @@ is used (all 384 match), and the replay runs under the 2.1 engine.
 - **Criteria 5 and 6 for the fallback.** `validate-contract --contract
   2.2-draft` passes with the two new canaries
   (`results/diagnostics/v22_references/validate_contract.json`):
-  `extend-everything` gains 11.2 points over `pick-trader` on the canary
-  seeds against a bound of 13, and `run-down` loses 16.6. The fair planner
+  `extend-everything` gains 11.4 points over `pick-trader` on the canary
+  seeds against a bound of 13, and `run-down` loses 16.3 (11.2 and 16.6
+  before the 2026-11-19 trade rule). The fair planner
   was not rerun. Against 2.1 the game changes only by withdrawing deadline
   offers after the deadline, and the objective by a linear pick term priced
   as trades price it; the scripted-policy comparison in phase 3 stands in
@@ -302,6 +303,7 @@ rejected in writing, because the next fork costs another panel rerun.
 | 26 | `get_rules` publishes the strength formula (below) | `rules.py` |
 | 27 | Deadline offers are withdrawn when the deadline closes | `rules.py` |
 | new | The next draft's picks count at final scoring (score-v3) | `scoring.py` |
+| new | A rival gives no trade value to a player you signed as a free agent or claimed off waivers this season. `trade` and `get_rules` say so (phase 4, "The package trade, closed") | `rules.py`, `tools.py` |
 | new | Roster cards in `get_team` carry `injured_games`. An injured player does not dress, and nothing showed which players were injured | `rules.py` |
 | new | Three inherited `get_rules` descriptions are restated as mechanics: the center bonus and expiry texts gave advice, and the free-agent text said a quote "always succeeds" (the hard cap, the re-sign block and a walk-away can still refuse it) | `rules.py`, `tools.py` |
 
@@ -346,10 +348,13 @@ Not in 2.2:
 - **No scripted policy gains under 2.2.** Fifteen policies (the references,
   the four canaries, the win-now family, the two end-of-run policies) on
   public seeds 101-172, each against `pick-trader` under the same rules
-  (`results/diagnostics/v22_references/policies.json`). Lifts change by
-  -2.6 to +2.3 from 2.1 to 2.2. The +2.3 is `accept-everything`, whose
-  illegal moves fall from 3.76 to 2.51 an episode because stale deadline
-  offers are no longer listed in the draft.
+  (`results/diagnostics/v22_references/policies.json`, rerun 2026-11-19
+  with the trade rule). Thirteen lifts change by -2.2 to +3.5 from 2.1 to
+  2.2. The +3.5 is `accept-everything`, whose illegal moves fall from 3.76
+  to 2.51 an episode because stale deadline offers are no longer listed in
+  the draft. The other two are the preseason contenders, which lose 14.2
+  and 11.5: they traded players in the season they signed them, and a
+  rival no longer pays for those.
 - **Real traffic.** All 430 finished 2.1 ledgers replay through
   `AgenticEpisode22` to a finished, scored episode with no engine error. The
   rules differ, so those games diverge and their scores mean nothing; the
@@ -358,8 +363,8 @@ Not in 2.2:
   meaning across 2.1 and 2.2.
 - **A scripted contender is the second line.** `contend-preseason-1g`
   (`scripts/ceiling_planner.py`), which values the now-published goalie
-  bonus, is +82.7 over `pick-trader` under 2.2 on seeds 101-172 (+84.4
-  under 2.1). `pick-trader` is a weak bar, and the top published 2.1 row is
+  bonus, is +70.2 over `pick-trader` under 2.2 on seeds 101-172 (+84.4
+  under 2.1; +82.7 under 2.2 before the trade rule). `pick-trader` is a weak bar, and the top published 2.1 row is
   about half of that.
 - **Left for the freeze.** Both reference means on the 32 private seeds, the
   lane config that pins them, and moving the contender policy into the
@@ -496,15 +501,78 @@ tier.
 
 Before a freeze:
 
-1. Close the package trade. The options are a rule (a partner refuses a
-   trade that leaves it over a roster limit, or values only the players who
-   would make its lineup) or a cap on players per trade. It is a simulator
-   change, so `pick-trader` and the other references must be replayed, and
-   the 2.1 ledgers checked for the same pattern.
+1. ~~Close the package trade.~~ Done 2026-11-19, below.
 2. Decide whether Sonnet's run-down is now the model's own choice, given
    that the brief states the rule, or whether the tools should show it
    (the status could list the contracts that end with the final season).
 3. Rerun the pilot on the same seeds, with DeepSeek once a key works.
+
+### The package trade, closed (2026-11-19)
+
+`scripts/diagnose_package_trades.py`, no model call; figures in
+`results/diagnostics/package_trades/report.json`.
+
+**The 2.1 rows.** Every panel ledger behind the twelve committed 2.1 rows
+was read for players sent in a trade in the season they were signed. No row
+used the exploit at the pilot's scale. Sol's two pilot episodes sent 132 and
+105 such players, up to 13 in one trade. The most in any 2.1 episode is 23,
+in `minimax-m3.1-flash-free`, which is also the only row with an episode
+that sent four or more in one trade (2 of its 32 episodes, at most 6). Astra
+tops out at 11 in an episode, Opus at 8, Sol at 6, three in a trade at most.
+The 2.1 rows stand as played: the contract allowed it and it is frozen.
+Sonnet's pilot seed 205 (+144.9, its best) was a mild case too: 21 sent,
+four in one trade.
+
+**A scripted replica.** After each decision of a scripted base policy, the
+replica signs free agents and offers packages of them for rivals' cheap
+high-value players. It reads asset values from the league (not the
+partner's hidden bias), so it tests a rule and is not a policy an agent
+could run as written. Under the rules the pilot ran, it adds 91.9 to the
+contender and 81.8 to `pick-trader` on the pilot's seeds, with about 21
+accepted trades and 134 signings an episode. That is the pilot's pattern,
+at about a third of Sol's two episodes.
+
+**The cause is not package size.** A rival pays full asset value for a free
+agent it could have signed itself. Rules that limit how many bodies move
+leave that in place:
+
+| Rule (seeds 201-208) | Contender over `pick-trader` | Replica's gain on the contender | Largest on a seed | Trades per episode |
+|---|---|---|---|---|
+| 2.2 as the pilot ran it | +66.0 | +91.9 | +152.5 | 20.9 |
+| Rival roster maximum of 26 | +61.2 | +37.6 | +72.5 | 21.8 |
+| Rival roster maximum of 24 | +51.6 | +11.2 | +55.6 | 13.8 |
+| Rival counts only players who would dress for it | +42.1 | +49.6 | +133.2 | 10.1 |
+| Rival counts as many players as assets it sends, plus one | +46.4 | +22.2 | +69.4 | 9.4 |
+| The same, plus none | +42.5 | +3.2 | +29.2 | 2.1 |
+| **No value for a player signed or claimed this season** | +39.7 | 0.0 | 0.0 | 0.0 |
+
+**The rule.** A rival gives no trade value to a player you signed as a free
+agent or claimed off waivers this season: it could have had him for the
+same price. He can still be included in a trade, and counts for nothing.
+The season after, he is valued like anyone else. It applies wherever a
+rival values your players, so a rival's deadline offer does not ask for one
+either. `trade` and `get_rules` state it. It is in
+`League22._partner_valuation_bias`; no frozen source changed.
+
+**What it costs.** The scripted contender falls from +66.0 to +39.7 on
+these seeds (+82.7 to +70.2 on seeds 101-172), because it was doing a mild
+version of the same thing. `pick-trader` moves by 1.8 points. Legitimate
+play it removes: signing a free agent and trading him for value in the
+same season.
+
+**What is left.** The way around a same-season rule is to sign in the draft
+phase and trade the season after. The replica's `carry` mode does that: it
+adds 12.6 to the contender (largest seed +42.0, about one trade an episode)
+and loses 10.8 on `pick-trader`, against +118.9 and +95.9 before the rule.
+Trading several of your own longer-held players for one better one is
+untouched; it is bounded by the roster you have.
+
+**Not yet shown.** The replica is a script. Whether a model finds another
+route is what the pilot rerun is for. The pilot's ledgers no longer replay
+to their recorded scores, since the rule refuses trades they made, so
+`results/diagnostics/v22_pilot/behavior.json` is a record of the engine at
+`adf10b7` and `scripts/diagnose_v22_pilot.py` runs only on pilots played
+after this change.
 
 ## Phase 5: freeze and first panel
 
@@ -555,10 +623,20 @@ Made 2026-11-18 (operator delegated them; reasons in the notebook):
   `opencode-go/deepseek-v4.1-flash`, 8 public seeds, 5 seasons, with a
   budget of $25 at API-equivalent prices (phase 4).
 
+Made 2026-11-19 (operator asked for the fix; the choice of rule is in the
+notebook):
+
+- The package trade is closed by valuation, not by a roster limit: a rival
+  gives no trade value to a player signed as a free agent or claimed off
+  waivers this season. A rival roster maximum and lineup-only valuation
+  were tried first and left the replica paying.
+
 Open, for the operator:
 
-- How to close the package trade the pilot found, and whether Sonnet's
-  roster run-down needs more than the brief (phase 4, pilot result).
+- Whether Sonnet's roster run-down needs more than the brief (phase 4,
+  pilot result).
+- The pilot rerun on the same seeds (paid), which is what shows whether a
+  model finds another route around the trade rule.
 - A working key for DeepSeek: the OpenCode Go subscription is inactive and
   the OpenRouter key has expired.
 - Driver items 9 and 12 and audit item 11, before the first panel.

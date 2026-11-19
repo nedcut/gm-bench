@@ -13,6 +13,11 @@ harness version, not seeds, so read a difference as a change in behaviour
 only where it is large against the 2.1 spread. Two scripted policies are
 played on the pilot's seeds under the 2.2 rules for scale.
 
+The replay runs the engine as it is now. The 2026-11-18 pilot was played
+before a rival stopped paying for same-season signings (2026-11-19), so its
+ledgers no longer replay to their recorded scores and this script refuses
+them; the committed ``behavior.json`` is from the engine at ``adf10b7``.
+
 Several run directories for one model (a pilot split to stay in budget) are
 pooled. Each episode's score, its lift and its trade profile (accepted
 trades, free-agent signings, the most players sent in one accepted trade) are

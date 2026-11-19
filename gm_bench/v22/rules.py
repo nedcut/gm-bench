@@ -5,13 +5,14 @@ Contract source for 2.2 (fingerprinted by ``gm_bench.v22.contract``).
 change here is one a 2.1 panel showed models misreading
 (``docs/bench_v2_1_queue.md``; item numbers below are that file's).
 
-No game mechanic changes except item 27. Strength, prices, trades, the draft
-and every random draw are 2.1's.
+Two game mechanics change: item 27, and what a rival pays for a player you
+picked up for nothing this season (below). Strength, prices, the draft and
+every random draw are 2.1's.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from gm_bench.models import CENTER_SHARE, LINEUP_SIZE
@@ -55,7 +56,23 @@ class League22(League21):
     - Trade-deadline offers are withdrawn when the deadline closes (item 27).
       2.1 kept them listed through the draft phase, where accepting a stale
       one was a penalized move.
+    - A rival gives no trade value to a player you signed as a free agent or
+      claimed off waivers this season: it could have had him for the same
+      price. Under 2.1 a rival paid full asset value for each such player and
+      summed them, so packages of cheap signings bought its best young
+      players (the 2026-11-18 pilot; ``scripts/diagnose_package_trades.py``).
     """
+
+    # Player id -> the season you signed him as a free agent or claimed him.
+    acquired_free: dict[int, int] = field(default_factory=dict)
+
+    def _acquired_free_this_season(self, player_id: int | str) -> bool:
+        return self.acquired_free.get(player_id) == self.season and player_id in self.user_team.roster  # type: ignore[arg-type]
+
+    def _partner_valuation_bias(self, partner_id: int, player_id: int | str) -> float:
+        if self._acquired_free_this_season(player_id):
+            return 0.0
+        return super()._partner_valuation_bias(partner_id, player_id)
 
     def observation(self, phase: str, **kwargs: Any) -> dict[str, Any]:
         payload = super().observation(phase, **kwargs)
@@ -116,7 +133,8 @@ class League22(League21):
                 "offer until the next phase; those refusals are not penalized. Each partner "
                 f"completes at most {TRADE_LIMIT_PER_PARTNER} trades with you per season, counting "
                 "accepted offers and counters; proposing or accepting another is an illegal move "
-                "and is penalized."
+                "and is penalized. A partner gives no trade value to a player you signed as a free "
+                "agent or claimed off waivers this season."
             ),
         }
         rules["contracts"]["extension_terms"] = (
@@ -172,9 +190,18 @@ class League22(League21):
             reason = f"no player with id {player_id}"
         if reason is None:
             super()._sign_free_agent(action, phase)
+            if player_id in self.user_team.roster:
+                self.acquired_free[player_id] = self.season
         else:
             # Same outcome as 2.1's "player is not an available free agent": an illegal move.
             self._record(action, phase, False, reason)
+
+    def _claim_waiver(self, action: dict[str, Any], phase: str) -> ActionResult:
+        held = set(self.user_team.roster)
+        result = super()._claim_waiver(action, phase)
+        for player_id in set(self.user_team.roster) - held:
+            self.acquired_free[player_id] = self.season
+        return result
 
     def run_autopilot_opponents(self, phase: str = "preseason") -> None:
         super().run_autopilot_opponents(phase)

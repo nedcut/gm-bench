@@ -13,7 +13,7 @@
         "illegal_actions_per_episode": 0.01
       },
       "2.2-draft": {
-        "mean_score": 252.93,
+        "mean_score": 251.76,
         "lift": 0.0,
         "lift_se": 0.0,
         "illegal_actions_per_episode": 0.01
@@ -28,12 +28,12 @@
         "illegal_actions_per_episode": 0.01
       },
       "2.2-draft": {
-        "mean_score": 249.47,
-        "lift": -3.46,
-        "lift_se": 1.72,
+        "mean_score": 249.58,
+        "lift": -2.17,
+        "lift_se": 1.5,
         "illegal_actions_per_episode": 0.01
       },
-      "lift_change": -0.8
+      "lift_change": 0.49
     },
     "shrewd": {
       "2.1": {
@@ -44,11 +44,11 @@
       },
       "2.2-draft": {
         "mean_score": 245.93,
-        "lift": -7.0,
-        "lift_se": 2.1,
+        "lift": -5.83,
+        "lift_se": 2.0,
         "illegal_actions_per_episode": 0.0
       },
-      "lift_change": -0.8
+      "lift_change": 0.37
     },
     "value": {
       "2.1": {
@@ -59,11 +59,11 @@
       },
       "2.2-draft": {
         "mean_score": 182.13,
-        "lift": -70.8,
-        "lift_se": 2.61,
+        "lift": -69.63,
+        "lift_se": 2.56,
         "illegal_actions_per_episode": 0.0
       },
-      "lift_change": -0.8
+      "lift_change": 0.37
     },
     "exploit": {
       "2.1": {
@@ -73,12 +73,12 @@
         "illegal_actions_per_episode": 3.89
       },
       "2.2-draft": {
-        "mean_score": 122.31,
-        "lift": -130.62,
-        "lift_se": 2.91,
-        "illegal_actions_per_episode": 3.89
+        "mean_score": 123.58,
+        "lift": -128.18,
+        "lift_se": 2.92,
+        "illegal_actions_per_episode": 3.31
       },
-      "lift_change": -0.8
+      "lift_change": 1.64
     },
     "pick-hoard": {
       "2.1": {
@@ -89,11 +89,11 @@
       },
       "2.2-draft": {
         "mean_score": 138.34,
-        "lift": -114.59,
-        "lift_se": 2.92,
+        "lift": -113.41,
+        "lift_se": 2.94,
         "illegal_actions_per_episode": 0.07
       },
-      "lift_change": -0.8
+      "lift_change": 0.38
     },
     "cap-hoard": {
       "2.1": {
@@ -104,11 +104,11 @@
       },
       "2.2-draft": {
         "mean_score": 122.17,
-        "lift": -130.77,
-        "lift_se": 3.12,
+        "lift": -129.59,
+        "lift_se": 3.02,
         "illegal_actions_per_episode": 0.0
       },
-      "lift_change": -0.8
+      "lift_change": 0.38
     },
     "accept-everything": {
       "2.1": {
@@ -119,11 +119,11 @@
       },
       "2.2-draft": {
         "mean_score": 138.9,
-        "lift": -114.03,
-        "lift_se": 3.11,
+        "lift": -112.86,
+        "lift_se": 2.96,
         "illegal_actions_per_episode": 2.51
       },
-      "lift_change": 2.33
+      "lift_change": 3.5
     },
     "contend-1g": {
       "2.1": {
@@ -133,12 +133,12 @@
         "illegal_actions_per_episode": 0.04
       },
       "2.2-draft": {
-        "mean_score": 302.57,
-        "lift": 49.64,
-        "lift_se": 2.94,
+        "mean_score": 302.19,
+        "lift": 50.43,
+        "lift_se": 2.81,
         "illegal_actions_per_episode": 0.04
       },
-      "lift_change": -2.4
+      "lift_change": -1.61
     },
     "contend-blind": {
       "2.1": {
@@ -148,12 +148,12 @@
         "illegal_actions_per_episode": 0.0
       },
       "2.2-draft": {
-        "mean_score": 287.53,
-        "lift": 34.6,
-        "lift_se": 3.75,
+        "mean_score": 287.57,
+        "lift": 35.81,
+        "lift_se": 3.72,
         "illegal_actions_per_episode": 0.0
       },
-      "lift_change": -2.29
+      "lift_change": -1.08
     },
     "contend-preseason-1g": {
       "2.1": {
@@ -163,12 +163,12 @@
         "illegal_actions_per_episode": 0.03
       },
       "2.2-draft": {
-        "mean_score": 335.61,
-        "lift": 82.68,
-        "lift_se": 3.27,
+        "mean_score": 321.99,
+        "lift": 70.23,
+        "lift_se": 3.52,
         "illegal_actions_per_episode": 0.03
       },
-      "lift_change": -1.73
+      "lift_change": -14.18
     },
     "contend-preseason-blind": {
       "2.1": {
@@ -178,12 +178,12 @@
         "illegal_actions_per_episode": 0.03
       },
       "2.2-draft": {
-        "mean_score": 319.52,
-        "lift": 66.59,
-        "lift_se": 4.35,
+        "mean_score": 308.6,
+        "lift": 56.84,
+        "lift_se": 4.04,
         "illegal_actions_per_episode": 0.03
       },
-      "lift_change": -1.79
+      "lift_change": -11.54
     },
     "rundown:pick-trader": {
       "2.1": {
@@ -193,12 +193,12 @@
         "illegal_actions_per_episode": 0.01
       },
       "2.2-draft": {
-        "mean_score": 235.81,
-        "lift": -17.13,
+        "mean_score": 235.2,
+        "lift": -16.56,
         "lift_se": 0.48,
         "illegal_actions_per_episode": 0.01
       },
-      "lift_change": -0.11
+      "lift_change": 0.46
     },
     "rundown:contend-1g": {
       "2.1": {
@@ -208,12 +208,12 @@
         "illegal_actions_per_episode": 0.04
       },
       "2.2-draft": {
-        "mean_score": 284.68,
-        "lift": 31.75,
-        "lift_se": 2.93,
+        "mean_score": 283.83,
+        "lift": 32.07,
+        "lift_se": 2.92,
         "illegal_actions_per_episode": 0.04
       },
-      "lift_change": -2.56
+      "lift_change": -2.24
     },
     "extend-all:pick-trader": {
       "2.1": {
@@ -223,12 +223,12 @@
         "illegal_actions_per_episode": 0.03
       },
       "2.2-draft": {
-        "mean_score": 263.23,
-        "lift": 10.3,
-        "lift_se": 0.63,
+        "mean_score": 261.78,
+        "lift": 10.03,
+        "lift_se": 0.6,
         "illegal_actions_per_episode": 0.03
       },
-      "lift_change": 0.03
+      "lift_change": -0.24
     },
     "extend-all:strategic": {
       "2.1": {
@@ -238,12 +238,12 @@
         "illegal_actions_per_episode": 0.01
       },
       "2.2-draft": {
-        "mean_score": 260.09,
-        "lift": 7.16,
-        "lift_se": 1.85,
+        "mean_score": 260.1,
+        "lift": 8.34,
+        "lift_se": 1.71,
         "illegal_actions_per_episode": 0.01
       },
-      "lift_change": -0.8
+      "lift_change": 0.38
     }
   }
 }
