@@ -26,6 +26,7 @@ from gm_bench.models import pick_value
 from gm_bench.v21 import contract as v21_contract
 from gm_bench.v21 import scoring as score_v2
 from gm_bench.v21.episode import ledger_benchmark_version
+from gm_bench.v21.rules import League21
 from gm_bench.v22 import brief as brief_v22
 from gm_bench.v22 import contract as v22_contract
 from gm_bench.v22 import rules as rules_v22
@@ -345,3 +346,55 @@ def test_canary_checks_run_under_2_2() -> None:
         "extend-everything",
         "run-down",
     ]
+
+
+# -- the package trade ------------------------------------------------------------
+
+
+def _signing_and_target(league: League22) -> tuple[int, int, int]:
+    """A free agent, and a rival player the rival values at less than him when he is not a new signing."""
+    free_agent = max(league.free_agents, key=lambda i: league.players[i].overall)
+    partner = next(team for team in league.teams.values() if team.id != league.user_team_id)
+    # A rival parts with a player it values at nothing for nothing, as under 2.1, so pick one it values.
+    valued = [i for i in partner.roster if league.players[i].asset_value > 1.0]
+    target = min(valued, key=lambda i: league.players[i].asset_value)
+    return free_agent, partner.id, target
+
+
+def test_a_rival_gives_no_value_to_a_player_signed_this_season() -> None:
+    league = League22.new(seed=17)
+    free_agent, partner_id, target = _signing_and_target(league)
+    quote = league._signing_quote(league.players[free_agent], 2)
+    signing = {"type": "sign_free_agent", "player_id": free_agent, "years": 2, "salary": quote}
+    trade = {
+        "type": "trade",
+        "partner_team_id": partner_id,
+        "give_player_ids": [free_agent],
+        "receive_player_ids": [target],
+    }
+    assert league.apply_actions([signing], "preseason")[-1].accepted
+    assert league.acquired_free == {free_agent: league.season}
+    assert league._partner_valuation_bias(partner_id, free_agent) == 0.0
+    result = league.apply_actions([trade], "preseason")[-1]
+    # A decline, not an illegal move: the rival simply sees nothing coming back.
+    assert not result.accepted and "too light" in result.message and league.illegal_actions == 0
+    # The season after, he is valued like anyone else.
+    league.season += 1
+    assert league._partner_valuation_bias(partner_id, free_agent) > 0.0
+    league.begin_decision_window()
+    assert league.apply_actions([trade], "preseason")[-1].accepted
+
+
+def test_a_waiver_claim_is_valued_like_a_signing_and_the_text_says_so() -> None:
+    league = League22.new(seed=17)
+    league.prepare_midseason()
+    claimed = league.waiver_wire[0]
+    assert league.apply_actions([{"type": "claim_waiver", "player_id": claimed}], "midseason")[-1].accepted
+    assert league._partner_valuation_bias(1, claimed) == 0.0
+    # Rivals' own players, your other players and picks keep 2.1's valuation.
+    other = next(i for i in league.user_team.roster if i != claimed)
+    assert league._partner_valuation_bias(1, other) == League21._partner_valuation_bias(league, 1, other)
+    assert league._partner_valuation_bias(1, "pick:2") == League21._partner_valuation_bias(league, 1, "pick:2")
+    sentence = "signed as a free agent or claimed off waivers this season"
+    assert sentence in league.observation("preseason")["rules"]["trades"]["description"]
+    assert sentence in tools_v22.TOOLS_BY_NAME["trade"]["description"]

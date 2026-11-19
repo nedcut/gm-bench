@@ -102,6 +102,7 @@ svg{display:block}
 <p class="lede">Internal log of how scoring and contract decisions get made: what we tried, what it showed, what we decided. Newest first. Every number cites a committed diagnostic or a published row; nothing here is a published result.</p>
 
 <nav class="toc"><b>Entries</b><ol>
+ <li><a href="#e-2026-11-19-package-trade">2026-11-19 · The package trade: no 2.1 row at the pilot's scale, and closed by valuation</a></li>
  <li><a href="#e-2026-11-18-v22-pilot">2026-11-18 · 2.2 pilot: the text works, a trade exploit appears, the freeze waits</a></li>
  <li><a href="#e-2026-11-18-v22-pilot-price">2026-11-18 · 2.2: the open text and score decisions, and the pilot priced</a></li>
  <li><a href="#e-2026-11-18-v22-candidate">2026-11-18 · 2.2 takes the fallback score, and the rules and text are forked</a></li>
@@ -125,6 +126,29 @@ svg{display:block}
 </ol></nav>
 
 <!-- ======================================================================= -->
+<article class="entry" id="e-2026-11-19-package-trade">
+<header><div class="date">2026-11-19</div><h2>The package trade: no 2.1 row at the pilot's scale, and closed by valuation</h2>
+<div class="tags"><span class="tag">results/diagnostics/package_trades/report.json</span><span class="tag">scripts/diagnose_package_trades.py</span><span class="tag">results/diagnostics/v22_references/policies.json</span><span class="tag">gm_bench/v22/rules.py</span><span class="tag decision">decision</span></div></header>
+
+<div class="key"><b>Tried:</b> three things the pilot entry below left open, none with a model call. (1) Every panel ledger behind the twelve committed 2.1 rows was read for players sent in a trade in the season they were signed. (2) Sol's pattern was written as a script: after each decision of a scripted base policy, sign free agents and offer packages of them for rivals' cheap high-value players. It reads asset values from the league, not the partner's hidden bias, so it tests a rule and is not a policy an agent could run as written. (3) The script and the references were played on the pilot's seeds (201 to 208) under 2.2 as the pilot ran it and under six candidate rules. All figures are in <code>results/diagnostics/package_trades/report.json</code>: the rows under <code>v21_rows</code> (per-model aggregates only), the pilot's episodes under <code>pilot_2_2_before_the_fix</code>, the rules under <code>rules</code>.</div>
+
+<div class="stats">
+ <div class="stat"><div class="k">Same-season signings sent in one episode: Sol's two pilot episodes</div><div class="v">132, 105</div></div>
+ <div class="stat"><div class="k">The most in any episode of a 2.1 row (<code>minimax-m3.1-flash-free</code>)</div><div class="v">23</div></div>
+ <div class="stat"><div class="k">The replica's gain on the contender: before the rule, after it</div><div class="v">+91.9, 0.0</div></div>
+</div>
+
+<p><b>Showed:</b> no 2.1 row used the exploit at the pilot's scale. <code>minimax-m3.1-flash-free</code> is the only row with an episode that sent four or more same-season signings in one trade (2 of 32 episodes, at most 6 in a trade); Astra's largest episode sent 11, Opus's 8, Sol's 6, never more than three in a trade. The 2.1 rows stand as played. The replica reproduces the pattern: under the pilot's rules it adds 91.9 to the scripted contender and 81.8 to <code>pick-trader</code>, with about 21 accepted trades and 134 signings an episode. The two rules the pilot entry proposed do not close it. A rival roster maximum of 26, above any roster a scripted reference produces, leaves the replica +37.6 on the contender; a maximum of 24 leaves +11.2 with +55.6 on one seed and still 14 trades an episode. Counting only players who would dress for the rival leaves +49.6, because many free agents would dress. The cause is not the size of the package: a rival pays full asset value for a free agent it could have signed itself. A rule aimed at that (no value for a player signed as a free agent or claimed off waivers this season) leaves the replica with no trade to make. The way around it, signing in the draft phase to trade the season after, adds 12.6 to the contender (largest seed +42.0, about one trade an episode) and loses 10.8 on <code>pick-trader</code>, against +118.9 and +95.9 before.</p>
+
+<div>
+ <h3>What the replica adds to the scripted contender, by rule <span class="sub">· seeds 201 to 208, mean of eight</span></h3>
+ <svg id="c-package" width="100%" height="260"></svg>
+ <div class="sub"><code>rules.*.replica_on_contend-preseason-1g.gain_over_its_base</code> in <code>report.json</code>. The tick is the largest gain on one seed. The contender's own lift over <code>pick-trader</code> under each rule is in the same file.</div>
+</div>
+
+<div class="decide"><b>Decided:</b> 2.2 closes the trade by valuation. In <code>League22</code>, a rival gives no trade value to a player you signed as a free agent or claimed off waivers this season; <code>trade</code> and <code>get_rules</code> say so, and no frozen source changed. The cost is known: the scripted contender falls from +66.0 to +39.7 over <code>pick-trader</code> on these seeds, and from +82.7 to +70.2 on seeds 101 to 172 (<code>results/diagnostics/v22_references/policies.json</code>, rerun), because it was doing a mild version of the same thing; the other thirteen reference lifts move by −2.2 to +3.5 from 2.1. <code>validate-contract --contract 2.2-draft</code> still passes (<code>v22_references/validate_contract.json</code>, rerun): <code>extend-everything</code> gains 11.4 against the bound of 13 (11.2 before), and <code>pick-trader</code> completes a pick trade on 21 of the 24 canary seeds where it did on all 24. The rule also removes one legitimate play, signing a free agent and trading him for value in the same season. Not shown yet: that a model finds no other route. That needs the pilot rerun, which is a paid run and is not authorized. The 2026-11-18 pilot's ledgers no longer replay to their scores, since the rule refuses trades they made; its <code>behavior.json</code> is a record of the engine at <code>adf10b7</code>.</div>
+</article>
+
 <article class="entry" id="e-2026-11-18-v22-pilot">
 <header><div class="date">2026-11-18</div><h2>2.2 pilot: the text works, a trade exploit appears, the freeze waits</h2>
 <div class="tags"><span class="tag">results/diagnostics/v22_pilot/behavior.json</span><span class="tag">scripts/diagnose_v22_pilot.py</span><span class="tag">docs/bench_v2_2_spec.md</span><span class="tag decision">decision</span></div></header>
@@ -762,6 +786,15 @@ function drawPlanner21(){const s=svg('c-planner21');
  s.setAttribute('height',H+22)}
 
 // --- 2026-10-26 ceiling under 2.1: searches (public seeds) vs published rows (private panel) ---
+function drawPackage(){const s=svg('c-package');
+ const rows=[["2.2 as the pilot ran it",91.9,152.5,'--chart-4'],["Rival roster maximum of 26",37.6,72.5,'--chart-1'],["Rival roster maximum of 24",11.2,55.6,'--chart-1'],["Only players who would dress",49.6,133.2,'--chart-1'],["Assets sent plus one counted",22.2,69.4,'--chart-1'],["Assets sent, no more, counted",3.2,29.2,'--chart-1'],["No value for this season's signings",0,0,'--chart-3']];
+ const W=s.clientWidth,L=Math.min(230,W*.44),R=44,T=4,rh=30,x=v=>L+v/160*(W-L-R),H=T+rows.length*rh;
+ for(let t=0;t<=160;t+=40){mk(s,'line',{x1:x(t),x2:x(t),y1:T,y2:H,stroke:css('--border'),'stroke-width':t==0?1.5:.6});mk(s,'text',{x:x(t),y:H+15,'text-anchor':'middle','font-size':10.5,fill:css('--muted-foreground')},'+'+t)}
+ rows.forEach(([n,v,m,c],i)=>{const y=T+i*rh+rh/2;mk(s,'text',{x:0,y:y+4,'font-size':12,fill:css('--foreground')},n);
+  const b=mk(s,'rect',{x:x(0),y:y-7,width:Math.max(x(v)-x(0),1.5),height:14,rx:3,fill:css(c)});hover(b,`${n}: mean gain +${v}, largest seed +${m}`);
+  if(m>0)mk(s,'line',{x1:x(m),x2:x(m),y1:y-8,y2:y+8,stroke:css('--foreground'),'stroke-width':1.5});
+  mk(s,'text',{x:x(Math.max(v,m))+6,y:y+4,'font-size':11,fill:css('--muted-foreground')},'+'+v)});
+ s.setAttribute('height',H+22)}
 function drawCeiling21(){const s=svg('c-ceiling21');
  const rows=[["gpt-6-astra (private panel)",46.9,5.2,'--chart-4'],["Clairvoyant search, 101–124",33.1,2.7,'--chart-3'],["Fair planner, 125–172",23.1,2.9,'--chart-1'],["Fair planner, 101–124",20.1,4.1,'--chart-1'],["gpt-6.1-sol (private panel)",19.1,4.5,'--chart-4']];
  const W=s.clientWidth,L=Math.min(210,W*.42),R=40,T=4,rh=34,x=v=>L+v/60*(W-L-R),H=T+rows.length*rh;
@@ -856,7 +889,7 @@ function drawBehaviorGap(){const s=svg('c-behavior-gap');
   mk(s,'text',{x:x(Math.max(v+1.96*se,0))+6,y:y+4,'font-size':11,fill:css('--muted-foreground')},sgn(+v.toFixed(1)))});
  s.setAttribute('height',H+22)}
 
-function drawAll(){drawPlanner21();drawCeiling21();drawBehaviorGap();drawRound();drawRoundSd();drawSite();drawDraft();drawResidual();drawCanary21();drawDecomposition();drawContinuation();drawStrip();drawSeeds();drawIntervals();drawCeiling()}
+function drawAll(){drawPackage();drawPlanner21();drawCeiling21();drawBehaviorGap();drawRound();drawRoundSd();drawSite();drawDraft();drawResidual();drawCanary21();drawDecomposition();drawContinuation();drawStrip();drawSeeds();drawIntervals();drawCeiling()}
 drawAll();addEventListener('resize',drawAll);
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',drawAll);
 </script>

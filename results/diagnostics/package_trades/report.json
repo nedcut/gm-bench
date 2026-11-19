@@ -1,0 +1,805 @@
+{
+  "note": "v21_rows holds per-model aggregates only: the panel's seeds and per-episode scores are private. rules is played on public seeds; the replica reads asset values from the league, so it is a test of the rule, not a policy an agent could run as written.",
+  "seeds": [
+    201,
+    202,
+    203,
+    204,
+    205,
+    206,
+    207,
+    208
+  ],
+  "v21_rows": {
+    "models": {
+      "claude-haiku-5-5": {
+        "row": "results/agentic_v21/claude-2.1.281-claude-haiku-5-5-panel-32x5.json",
+        "episodes": 32,
+        "accepted_trades": {
+          "mean": 1.44,
+          "max": 5
+        },
+        "free_agent_signings": {
+          "mean": 14.16,
+          "max": 30
+        },
+        "most_players_sent_in_one_trade": {
+          "mean": 0.91,
+          "max": 3
+        },
+        "same_season_signings_sent": {
+          "mean": 0.03,
+          "max": 1
+        },
+        "most_same_season_signings_in_one_trade": {
+          "mean": 0.03,
+          "max": 1
+        },
+        "episodes_sending_4_or_more_same_season_signings_in_one_trade": 0
+      },
+      "claude-opus-5-5": {
+        "row": "results/agentic_v21/claude-2.1.281-claude-opus-5-5-panel-32x5.json",
+        "episodes": 32,
+        "accepted_trades": {
+          "mean": 6.41,
+          "max": 12
+        },
+        "free_agent_signings": {
+          "mean": 17.47,
+          "max": 29
+        },
+        "most_players_sent_in_one_trade": {
+          "mean": 2.22,
+          "max": 3
+        },
+        "same_season_signings_sent": {
+          "mean": 1.34,
+          "max": 8
+        },
+        "most_same_season_signings_in_one_trade": {
+          "mean": 0.72,
+          "max": 3
+        },
+        "episodes_sending_4_or_more_same_season_signings_in_one_trade": 0
+      },
+      "claude-sonnet-5-5": {
+        "row": "results/agentic_v21/claude-2.1.281-claude-sonnet-5-5-panel-32x5.json",
+        "episodes": 32,
+        "accepted_trades": {
+          "mean": 1.19,
+          "max": 5
+        },
+        "free_agent_signings": {
+          "mean": 14.25,
+          "max": 34
+        },
+        "most_players_sent_in_one_trade": {
+          "mean": 1.0,
+          "max": 4
+        },
+        "same_season_signings_sent": {
+          "mean": 0.0,
+          "max": 0
+        },
+        "most_same_season_signings_in_one_trade": {
+          "mean": 0.0,
+          "max": 0
+        },
+        "episodes_sending_4_or_more_same_season_signings_in_one_trade": 0
+      },
+      "gpt-6-astra": {
+        "row": "results/agentic_v21/codex-0.162.1-gpt-6-astra-panel-32x5.json",
+        "episodes": 32,
+        "accepted_trades": {
+          "mean": 6.12,
+          "max": 9
+        },
+        "free_agent_signings": {
+          "mean": 12.22,
+          "max": 33
+        },
+        "most_players_sent_in_one_trade": {
+          "mean": 3.84,
+          "max": 7
+        },
+        "same_season_signings_sent": {
+          "mean": 1.06,
+          "max": 11
+        },
+        "most_same_season_signings_in_one_trade": {
+          "mean": 0.59,
+          "max": 3
+        },
+        "episodes_sending_4_or_more_same_season_signings_in_one_trade": 0
+      },
+      "gpt-6-luna": {
+        "row": "results/agentic_v21/codex-0.162.1-gpt-6-luna-panel-32x5.json",
+        "episodes": 32,
+        "accepted_trades": {
+          "mean": 0.47,
+          "max": 2
+        },
+        "free_agent_signings": {
+          "mean": 8.62,
+          "max": 21
+        },
+        "most_players_sent_in_one_trade": {
+          "mean": 0.41,
+          "max": 2
+        },
+        "same_season_signings_sent": {
+          "mean": 0.0,
+          "max": 0
+        },
+        "most_same_season_signings_in_one_trade": {
+          "mean": 0.0,
+          "max": 0
+        },
+        "episodes_sending_4_or_more_same_season_signings_in_one_trade": 0
+      },
+      "gpt-6.1-sol": {
+        "row": "results/agentic_v21/codex-0.162.1-gpt-6.1-sol-panel-32x5.json",
+        "episodes": 32,
+        "accepted_trades": {
+          "mean": 7.0,
+          "max": 14
+        },
+        "free_agent_signings": {
+          "mean": 13.66,
+          "max": 27
+        },
+        "most_players_sent_in_one_trade": {
+          "mean": 3.62,
+          "max": 7
+        },
+        "same_season_signings_sent": {
+          "mean": 0.94,
+          "max": 6
+        },
+        "most_same_season_signings_in_one_trade": {
+          "mean": 0.53,
+          "max": 3
+        },
+        "episodes_sending_4_or_more_same_season_signings_in_one_trade": 0
+      },
+      "deepseek-v4-pro": {
+        "row": "results/agentic_v21/opencode-2.0.27-deepseek-v4-pro-panel-32x5.json",
+        "episodes": 32,
+        "accepted_trades": {
+          "mean": 0.31,
+          "max": 4
+        },
+        "free_agent_signings": {
+          "mean": 7.97,
+          "max": 19
+        },
+        "most_players_sent_in_one_trade": {
+          "mean": 0.16,
+          "max": 2
+        },
+        "same_season_signings_sent": {
+          "mean": 0.09,
+          "max": 3
+        },
+        "most_same_season_signings_in_one_trade": {
+          "mean": 0.03,
+          "max": 1
+        },
+        "episodes_sending_4_or_more_same_season_signings_in_one_trade": 0
+      },
+      "deepseek-v4.1-flash": {
+        "row": "results/agentic_v21/opencode-2.0.27-deepseek-v4.1-flash-panel-32x5.json",
+        "episodes": 32,
+        "accepted_trades": {
+          "mean": 0.91,
+          "max": 4
+        },
+        "free_agent_signings": {
+          "mean": 7.03,
+          "max": 24
+        },
+        "most_players_sent_in_one_trade": {
+          "mean": 0.72,
+          "max": 3
+        },
+        "same_season_signings_sent": {
+          "mean": 0.0,
+          "max": 0
+        },
+        "most_same_season_signings_in_one_trade": {
+          "mean": 0.0,
+          "max": 0
+        },
+        "episodes_sending_4_or_more_same_season_signings_in_one_trade": 0
+      },
+      "glm-5.3-flash": {
+        "row": "results/agentic_v21/opencode-2.0.27-glm-5.3-flash-panel-32x5.json",
+        "episodes": 32,
+        "accepted_trades": {
+          "mean": 3.12,
+          "max": 8
+        },
+        "free_agent_signings": {
+          "mean": 12.28,
+          "max": 23
+        },
+        "most_players_sent_in_one_trade": {
+          "mean": 2.25,
+          "max": 5
+        },
+        "same_season_signings_sent": {
+          "mean": 0.31,
+          "max": 3
+        },
+        "most_same_season_signings_in_one_trade": {
+          "mean": 0.25,
+          "max": 2
+        },
+        "episodes_sending_4_or_more_same_season_signings_in_one_trade": 0
+      },
+      "mimo-v2.6-flash": {
+        "row": "results/agentic_v21/opencode-2.0.27-mimo-v2.6-flash-panel-32x5.json",
+        "episodes": 32,
+        "accepted_trades": {
+          "mean": 0.72,
+          "max": 4
+        },
+        "free_agent_signings": {
+          "mean": 9.75,
+          "max": 17
+        },
+        "most_players_sent_in_one_trade": {
+          "mean": 0.84,
+          "max": 5
+        },
+        "same_season_signings_sent": {
+          "mean": 0.09,
+          "max": 1
+        },
+        "most_same_season_signings_in_one_trade": {
+          "mean": 0.09,
+          "max": 1
+        },
+        "episodes_sending_4_or_more_same_season_signings_in_one_trade": 0
+      },
+      "mimo-v2.6-pro": {
+        "row": "results/agentic_v21/opencode-2.0.27-mimo-v2.6-pro-panel-32x5.json",
+        "episodes": 32,
+        "accepted_trades": {
+          "mean": 1.38,
+          "max": 5
+        },
+        "free_agent_signings": {
+          "mean": 9.44,
+          "max": 22
+        },
+        "most_players_sent_in_one_trade": {
+          "mean": 1.38,
+          "max": 5
+        },
+        "same_season_signings_sent": {
+          "mean": 0.31,
+          "max": 3
+        },
+        "most_same_season_signings_in_one_trade": {
+          "mean": 0.28,
+          "max": 3
+        },
+        "episodes_sending_4_or_more_same_season_signings_in_one_trade": 0
+      },
+      "minimax-m3.1-flash-free": {
+        "row": "results/agentic_v21/opencode-2.0.27-minimax-m3.1-flash-free-panel-32x5.json",
+        "episodes": 32,
+        "accepted_trades": {
+          "mean": 3.94,
+          "max": 14
+        },
+        "free_agent_signings": {
+          "mean": 15.09,
+          "max": 48
+        },
+        "most_players_sent_in_one_trade": {
+          "mean": 2.16,
+          "max": 6
+        },
+        "same_season_signings_sent": {
+          "mean": 2.66,
+          "max": 23
+        },
+        "most_same_season_signings_in_one_trade": {
+          "mean": 0.94,
+          "max": 6
+        },
+        "episodes_sending_4_or_more_same_season_signings_in_one_trade": 2
+      }
+    },
+    "skipped_runs": [
+      "killed-20261016-opencode-2.0.27-mimo-v2.6-flash-panel-32x5-v21",
+      "opencode-2.0.27-minimax-m3-panel-32x5-v21",
+      "opencode-2.0.27-nemotron-3.5-super-vl-free-panel-32x5-v21",
+      "quota-junk-20261017-opencode-2.0.27-space-bunny-free-panel-32x5-v21"
+    ]
+  },
+  "pilot_2_2_before_the_fix": {
+    "claude-sonnet-5-5": [
+      {
+        "seed": 201,
+        "accepted_trades": 4,
+        "free_agent_signings": 15,
+        "most_players_sent_in_one_trade": 3,
+        "same_season_signings_sent": 0,
+        "most_same_season_signings_in_one_trade": 0
+      },
+      {
+        "seed": 202,
+        "accepted_trades": 3,
+        "free_agent_signings": 11,
+        "most_players_sent_in_one_trade": 3,
+        "same_season_signings_sent": 0,
+        "most_same_season_signings_in_one_trade": 0
+      },
+      {
+        "seed": 203,
+        "accepted_trades": 9,
+        "free_agent_signings": 22,
+        "most_players_sent_in_one_trade": 4,
+        "same_season_signings_sent": 0,
+        "most_same_season_signings_in_one_trade": 0
+      },
+      {
+        "seed": 204,
+        "accepted_trades": 1,
+        "free_agent_signings": 14,
+        "most_players_sent_in_one_trade": 0,
+        "same_season_signings_sent": 0,
+        "most_same_season_signings_in_one_trade": 0
+      },
+      {
+        "seed": 205,
+        "accepted_trades": 17,
+        "free_agent_signings": 30,
+        "most_players_sent_in_one_trade": 4,
+        "same_season_signings_sent": 21,
+        "most_same_season_signings_in_one_trade": 4
+      },
+      {
+        "seed": 206,
+        "accepted_trades": 1,
+        "free_agent_signings": 6,
+        "most_players_sent_in_one_trade": 0,
+        "same_season_signings_sent": 0,
+        "most_same_season_signings_in_one_trade": 0
+      },
+      {
+        "seed": 207,
+        "accepted_trades": 6,
+        "free_agent_signings": 31,
+        "most_players_sent_in_one_trade": 5,
+        "same_season_signings_sent": 0,
+        "most_same_season_signings_in_one_trade": 0
+      },
+      {
+        "seed": 208,
+        "accepted_trades": 0,
+        "free_agent_signings": 4,
+        "most_players_sent_in_one_trade": 0,
+        "same_season_signings_sent": 0,
+        "most_same_season_signings_in_one_trade": 0
+      }
+    ],
+    "gpt-6.1-sol": [
+      {
+        "seed": 201,
+        "accepted_trades": 6,
+        "free_agent_signings": 14,
+        "most_players_sent_in_one_trade": 6,
+        "same_season_signings_sent": 0,
+        "most_same_season_signings_in_one_trade": 0
+      },
+      {
+        "seed": 202,
+        "accepted_trades": 4,
+        "free_agent_signings": 4,
+        "most_players_sent_in_one_trade": 3,
+        "same_season_signings_sent": 0,
+        "most_same_season_signings_in_one_trade": 0
+      },
+      {
+        "seed": 203,
+        "accepted_trades": 8,
+        "free_agent_signings": 25,
+        "most_players_sent_in_one_trade": 5,
+        "same_season_signings_sent": 1,
+        "most_same_season_signings_in_one_trade": 1
+      },
+      {
+        "seed": 204,
+        "accepted_trades": 31,
+        "free_agent_signings": 142,
+        "most_players_sent_in_one_trade": 13,
+        "same_season_signings_sent": 132,
+        "most_same_season_signings_in_one_trade": 13
+      },
+      {
+        "seed": 205,
+        "accepted_trades": 8,
+        "free_agent_signings": 17,
+        "most_players_sent_in_one_trade": 5,
+        "same_season_signings_sent": 4,
+        "most_same_season_signings_in_one_trade": 2
+      },
+      {
+        "seed": 206,
+        "accepted_trades": 10,
+        "free_agent_signings": 12,
+        "most_players_sent_in_one_trade": 3,
+        "same_season_signings_sent": 0,
+        "most_same_season_signings_in_one_trade": 0
+      },
+      {
+        "seed": 207,
+        "accepted_trades": 35,
+        "free_agent_signings": 117,
+        "most_players_sent_in_one_trade": 9,
+        "same_season_signings_sent": 105,
+        "most_same_season_signings_in_one_trade": 8
+      },
+      {
+        "seed": 208,
+        "accepted_trades": 6,
+        "free_agent_signings": 9,
+        "most_players_sent_in_one_trade": 3,
+        "same_season_signings_sent": 1,
+        "most_same_season_signings_in_one_trade": 1
+      }
+    ],
+    "gpt-6-luna": [
+      {
+        "seed": 201,
+        "accepted_trades": 2,
+        "free_agent_signings": 12,
+        "most_players_sent_in_one_trade": 1,
+        "same_season_signings_sent": 0,
+        "most_same_season_signings_in_one_trade": 0
+      },
+      {
+        "seed": 202,
+        "accepted_trades": 0,
+        "free_agent_signings": 8,
+        "most_players_sent_in_one_trade": 0,
+        "same_season_signings_sent": 0,
+        "most_same_season_signings_in_one_trade": 0
+      },
+      {
+        "seed": 203,
+        "accepted_trades": 1,
+        "free_agent_signings": 9,
+        "most_players_sent_in_one_trade": 0,
+        "same_season_signings_sent": 0,
+        "most_same_season_signings_in_one_trade": 0
+      },
+      {
+        "seed": 204,
+        "accepted_trades": 0,
+        "free_agent_signings": 17,
+        "most_players_sent_in_one_trade": 0,
+        "same_season_signings_sent": 0,
+        "most_same_season_signings_in_one_trade": 0
+      },
+      {
+        "seed": 205,
+        "accepted_trades": 0,
+        "free_agent_signings": 6,
+        "most_players_sent_in_one_trade": 0,
+        "same_season_signings_sent": 0,
+        "most_same_season_signings_in_one_trade": 0
+      },
+      {
+        "seed": 206,
+        "accepted_trades": 0,
+        "free_agent_signings": 3,
+        "most_players_sent_in_one_trade": 0,
+        "same_season_signings_sent": 0,
+        "most_same_season_signings_in_one_trade": 0
+      },
+      {
+        "seed": 207,
+        "accepted_trades": 1,
+        "free_agent_signings": 6,
+        "most_players_sent_in_one_trade": 0,
+        "same_season_signings_sent": 0,
+        "most_same_season_signings_in_one_trade": 0
+      },
+      {
+        "seed": 208,
+        "accepted_trades": 0,
+        "free_agent_signings": 6,
+        "most_players_sent_in_one_trade": 0,
+        "same_season_signings_sent": 0,
+        "most_same_season_signings_in_one_trade": 0
+      }
+    ]
+  },
+  "rules": {
+    "unfixed": {
+      "description": "2.2 as the pilot ran it: a rival pays full value for every player it receives.",
+      "pick_trader_mean_score": 260.3,
+      "lift_over_pick_trader": {
+        "contend-preseason-1g": 66.0,
+        "strategic": -8.9
+      },
+      "replica_on_pick-trader": {
+        "lift_over_pick_trader": 81.8,
+        "gain_over_its_base": 81.8,
+        "largest_gain_over_its_base_on_a_seed": 145.6,
+        "accepted_trades_per_episode": 20.1,
+        "signings_per_episode": 117.8,
+        "most_players_sent_in_one_trade": 12
+      },
+      "replica_on_contend-preseason-1g": {
+        "lift_over_pick_trader": 157.9,
+        "gain_over_its_base": 91.9,
+        "largest_gain_over_its_base_on_a_seed": 152.5,
+        "accepted_trades_per_episode": 20.9,
+        "signings_per_episode": 133.9,
+        "most_players_sent_in_one_trade": 15
+      },
+      "carry_on_pick-trader": {
+        "lift_over_pick_trader": 95.9,
+        "gain_over_its_base": 95.9,
+        "largest_gain_over_its_base_on_a_seed": 114.5,
+        "accepted_trades_per_episode": 23.5,
+        "signings_per_episode": 137.6,
+        "most_players_sent_in_one_trade": 14
+      },
+      "carry_on_contend-preseason-1g": {
+        "lift_over_pick_trader": 184.9,
+        "gain_over_its_base": 118.9,
+        "largest_gain_over_its_base_on_a_seed": 170.1,
+        "accepted_trades_per_episode": 23.5,
+        "signings_per_episode": 154.0,
+        "most_players_sent_in_one_trade": 15
+      }
+    },
+    "roster-max-26": {
+      "description": "A trade may not put the rival's roster above ``MAX`` (no scripted reference's rival exceeds 25).",
+      "pick_trader_mean_score": 260.3,
+      "lift_over_pick_trader": {
+        "contend-preseason-1g": 61.2,
+        "strategic": -8.9
+      },
+      "replica_on_pick-trader": {
+        "lift_over_pick_trader": 68.2,
+        "gain_over_its_base": 68.2,
+        "largest_gain_over_its_base_on_a_seed": 93.9,
+        "accepted_trades_per_episode": 19.1,
+        "signings_per_episode": 98.9,
+        "most_players_sent_in_one_trade": 10
+      },
+      "replica_on_contend-preseason-1g": {
+        "lift_over_pick_trader": 98.8,
+        "gain_over_its_base": 37.6,
+        "largest_gain_over_its_base_on_a_seed": 72.5,
+        "accepted_trades_per_episode": 21.8,
+        "signings_per_episode": 98.8,
+        "most_players_sent_in_one_trade": 10
+      },
+      "carry_on_pick-trader": {
+        "lift_over_pick_trader": 46.5,
+        "gain_over_its_base": 46.5,
+        "largest_gain_over_its_base_on_a_seed": 77.2,
+        "accepted_trades_per_episode": 21.5,
+        "signings_per_episode": 105.4,
+        "most_players_sent_in_one_trade": 11
+      },
+      "carry_on_contend-preseason-1g": {
+        "lift_over_pick_trader": 89.0,
+        "gain_over_its_base": 27.8,
+        "largest_gain_over_its_base_on_a_seed": 140.3,
+        "accepted_trades_per_episode": 21.4,
+        "signings_per_episode": 99.4,
+        "most_players_sent_in_one_trade": 10
+      }
+    },
+    "roster-max-24": {
+      "description": "",
+      "pick_trader_mean_score": 260.3,
+      "lift_over_pick_trader": {
+        "contend-preseason-1g": 51.6,
+        "strategic": -8.9
+      },
+      "replica_on_pick-trader": {
+        "lift_over_pick_trader": 26.1,
+        "gain_over_its_base": 26.1,
+        "largest_gain_over_its_base_on_a_seed": 70.6,
+        "accepted_trades_per_episode": 15.2,
+        "signings_per_episode": 62.6,
+        "most_players_sent_in_one_trade": 11
+      },
+      "replica_on_contend-preseason-1g": {
+        "lift_over_pick_trader": 62.8,
+        "gain_over_its_base": 11.2,
+        "largest_gain_over_its_base_on_a_seed": 55.6,
+        "accepted_trades_per_episode": 13.8,
+        "signings_per_episode": 51.0,
+        "most_players_sent_in_one_trade": 8
+      },
+      "carry_on_pick-trader": {
+        "lift_over_pick_trader": -2.8,
+        "gain_over_its_base": -2.8,
+        "largest_gain_over_its_base_on_a_seed": 25.1,
+        "accepted_trades_per_episode": 15.1,
+        "signings_per_episode": 67.4,
+        "most_players_sent_in_one_trade": 7
+      },
+      "carry_on_contend-preseason-1g": {
+        "lift_over_pick_trader": 54.2,
+        "gain_over_its_base": 2.6,
+        "largest_gain_over_its_base_on_a_seed": 55.4,
+        "accepted_trades_per_episode": 14.5,
+        "signings_per_episode": 64.2,
+        "most_players_sent_in_one_trade": 9
+      }
+    },
+    "lineup-only": {
+      "description": "The rival counts an incoming player only if he would dress for it (top 18 by overall).",
+      "pick_trader_mean_score": 259.1,
+      "lift_over_pick_trader": {
+        "contend-preseason-1g": 42.1,
+        "strategic": -7.7
+      },
+      "replica_on_pick-trader": {
+        "lift_over_pick_trader": 88.8,
+        "gain_over_its_base": 88.8,
+        "largest_gain_over_its_base_on_a_seed": 149.9,
+        "accepted_trades_per_episode": 13.6,
+        "signings_per_episode": 76.0,
+        "most_players_sent_in_one_trade": 18
+      },
+      "replica_on_contend-preseason-1g": {
+        "lift_over_pick_trader": 91.7,
+        "gain_over_its_base": 49.6,
+        "largest_gain_over_its_base_on_a_seed": 133.2,
+        "accepted_trades_per_episode": 10.1,
+        "signings_per_episode": 32.8,
+        "most_players_sent_in_one_trade": 9
+      },
+      "carry_on_pick-trader": {
+        "lift_over_pick_trader": 81.6,
+        "gain_over_its_base": 81.6,
+        "largest_gain_over_its_base_on_a_seed": 154.0,
+        "accepted_trades_per_episode": 15.9,
+        "signings_per_episode": 92.8,
+        "most_players_sent_in_one_trade": 17
+      },
+      "carry_on_contend-preseason-1g": {
+        "lift_over_pick_trader": 104.0,
+        "gain_over_its_base": 61.9,
+        "largest_gain_over_its_base_on_a_seed": 126.9,
+        "accepted_trades_per_episode": 13.4,
+        "signings_per_episode": 67.8,
+        "most_players_sent_in_one_trade": 14
+      }
+    },
+    "count-limit-plus-1": {
+      "description": "The rival counts only its best incoming players: as many as the assets it sends, plus ``EXTRA``.",
+      "pick_trader_mean_score": 260.3,
+      "lift_over_pick_trader": {
+        "contend-preseason-1g": 46.4,
+        "strategic": -8.9
+      },
+      "replica_on_pick-trader": {
+        "lift_over_pick_trader": 23.2,
+        "gain_over_its_base": 23.2,
+        "largest_gain_over_its_base_on_a_seed": 59.2,
+        "accepted_trades_per_episode": 8.8,
+        "signings_per_episode": 31.1,
+        "most_players_sent_in_one_trade": 6
+      },
+      "replica_on_contend-preseason-1g": {
+        "lift_over_pick_trader": 68.6,
+        "gain_over_its_base": 22.2,
+        "largest_gain_over_its_base_on_a_seed": 69.4,
+        "accepted_trades_per_episode": 9.4,
+        "signings_per_episode": 28.1,
+        "most_players_sent_in_one_trade": 5
+      },
+      "carry_on_pick-trader": {
+        "lift_over_pick_trader": 2.1,
+        "gain_over_its_base": 2.1,
+        "largest_gain_over_its_base_on_a_seed": 37.0,
+        "accepted_trades_per_episode": 9.0,
+        "signings_per_episode": 46.8,
+        "most_players_sent_in_one_trade": 7
+      },
+      "carry_on_contend-preseason-1g": {
+        "lift_over_pick_trader": 39.2,
+        "gain_over_its_base": -7.2,
+        "largest_gain_over_its_base_on_a_seed": 36.5,
+        "accepted_trades_per_episode": 8.1,
+        "signings_per_episode": 39.9,
+        "most_players_sent_in_one_trade": 6
+      }
+    },
+    "count-limit-plus-0": {
+      "description": "",
+      "pick_trader_mean_score": 260.3,
+      "lift_over_pick_trader": {
+        "contend-preseason-1g": 42.5,
+        "strategic": -8.9
+      },
+      "replica_on_pick-trader": {
+        "lift_over_pick_trader": 0.8,
+        "gain_over_its_base": 0.8,
+        "largest_gain_over_its_base_on_a_seed": 19.2,
+        "accepted_trades_per_episode": 1.4,
+        "signings_per_episode": 2.2,
+        "most_players_sent_in_one_trade": 2
+      },
+      "replica_on_contend-preseason-1g": {
+        "lift_over_pick_trader": 45.7,
+        "gain_over_its_base": 3.2,
+        "largest_gain_over_its_base_on_a_seed": 29.2,
+        "accepted_trades_per_episode": 2.1,
+        "signings_per_episode": 3.6,
+        "most_players_sent_in_one_trade": 3
+      },
+      "carry_on_pick-trader": {
+        "lift_over_pick_trader": -16.3,
+        "gain_over_its_base": -16.3,
+        "largest_gain_over_its_base_on_a_seed": 6.9,
+        "accepted_trades_per_episode": 1.4,
+        "signings_per_episode": 25.0,
+        "most_players_sent_in_one_trade": 2
+      },
+      "carry_on_contend-preseason-1g": {
+        "lift_over_pick_trader": 16.3,
+        "gain_over_its_base": -26.2,
+        "largest_gain_over_its_base_on_a_seed": -4.8,
+        "accepted_trades_per_episode": 2.2,
+        "signings_per_episode": 23.2,
+        "most_players_sent_in_one_trade": 3
+      }
+    },
+    "fixed": {
+      "description": "``League22`` as it stands: no value for a player signed or claimed this season.",
+      "pick_trader_mean_score": 258.5,
+      "lift_over_pick_trader": {
+        "contend-preseason-1g": 39.7,
+        "strategic": -7.1
+      },
+      "replica_on_pick-trader": {
+        "lift_over_pick_trader": 0.0,
+        "gain_over_its_base": 0.0,
+        "largest_gain_over_its_base_on_a_seed": 0.0,
+        "accepted_trades_per_episode": 0.0,
+        "signings_per_episode": 0.0,
+        "most_players_sent_in_one_trade": 0
+      },
+      "replica_on_contend-preseason-1g": {
+        "lift_over_pick_trader": 39.7,
+        "gain_over_its_base": 0.0,
+        "largest_gain_over_its_base_on_a_seed": 0.0,
+        "accepted_trades_per_episode": 0.0,
+        "signings_per_episode": 0.0,
+        "most_players_sent_in_one_trade": 0
+      },
+      "carry_on_pick-trader": {
+        "lift_over_pick_trader": -10.8,
+        "gain_over_its_base": -10.8,
+        "largest_gain_over_its_base_on_a_seed": 14.6,
+        "accepted_trades_per_episode": 2.9,
+        "signings_per_episode": 24.5,
+        "most_players_sent_in_one_trade": 12
+      },
+      "carry_on_contend-preseason-1g": {
+        "lift_over_pick_trader": 52.3,
+        "gain_over_its_base": 12.6,
+        "largest_gain_over_its_base_on_a_seed": 42.0,
+        "accepted_trades_per_episode": 1.1,
+        "signings_per_episode": 30.0,
+        "most_players_sent_in_one_trade": 10
+      }
+    }
+  }
+}
