@@ -31,6 +31,24 @@
       "agentic_fingerprint": "cf75e37bd6dbac45"
     }
   ],
+  "smoke_runs": [
+    {
+      "run": "smoke-claude-sonnet-5-5",
+      "seasons": 1,
+      "api_equivalent_cost_usd": 0.74
+    },
+    {
+      "run": "smoke-gpt-6.1-sol",
+      "seasons": 1,
+      "api_equivalent_cost_usd": 0.34
+    },
+    {
+      "run": "smoke-gpt-6-luna",
+      "seasons": 1,
+      "api_equivalent_cost_usd": 0.02
+    }
+  ],
+  "total_api_equivalent_cost_usd": 23.03,
   "seeds": [
     201,
     202,
@@ -147,7 +165,73 @@
           "api_equivalent_cost_usd": 15.39,
           "api_equivalent_cost_per_episode": 1.92,
           "tool_calls_per_episode": 141.9
-        }
+        },
+        "by_episode": [
+          {
+            "seed": 201,
+            "final_score": 284.9,
+            "lift_over_pick_trader": 11.3,
+            "accepted_trades": 4,
+            "free_agent_signings": 15,
+            "most_players_sent_in_one_trade": 3
+          },
+          {
+            "seed": 202,
+            "final_score": 239.1,
+            "lift_over_pick_trader": -13.2,
+            "accepted_trades": 3,
+            "free_agent_signings": 11,
+            "most_players_sent_in_one_trade": 3
+          },
+          {
+            "seed": 203,
+            "final_score": 254.6,
+            "lift_over_pick_trader": 3.7,
+            "accepted_trades": 9,
+            "free_agent_signings": 22,
+            "most_players_sent_in_one_trade": 4
+          },
+          {
+            "seed": 204,
+            "final_score": 266.1,
+            "lift_over_pick_trader": 46.5,
+            "accepted_trades": 1,
+            "free_agent_signings": 14,
+            "most_players_sent_in_one_trade": 0
+          },
+          {
+            "seed": 205,
+            "final_score": 412.6,
+            "lift_over_pick_trader": 144.9,
+            "accepted_trades": 17,
+            "free_agent_signings": 30,
+            "most_players_sent_in_one_trade": 4
+          },
+          {
+            "seed": 206,
+            "final_score": 251.1,
+            "lift_over_pick_trader": 16.4,
+            "accepted_trades": 1,
+            "free_agent_signings": 6,
+            "most_players_sent_in_one_trade": 0
+          },
+          {
+            "seed": 207,
+            "final_score": 268.1,
+            "lift_over_pick_trader": -14.8,
+            "accepted_trades": 6,
+            "free_agent_signings": 31,
+            "most_players_sent_in_one_trade": 5
+          },
+          {
+            "seed": 208,
+            "final_score": 287.3,
+            "lift_over_pick_trader": -13.8,
+            "accepted_trades": 0,
+            "free_agent_signings": 4,
+            "most_players_sent_in_one_trade": 0
+          }
+        ]
       },
       "panel_2_1": {
         "episodes": 32,
@@ -326,7 +410,73 @@
           "api_equivalent_cost_usd": 5.67,
           "api_equivalent_cost_per_episode": 0.71,
           "tool_calls_per_episode": 232.0
-        }
+        },
+        "by_episode": [
+          {
+            "seed": 201,
+            "final_score": 343.4,
+            "lift_over_pick_trader": 69.7,
+            "accepted_trades": 6,
+            "free_agent_signings": 14,
+            "most_players_sent_in_one_trade": 6
+          },
+          {
+            "seed": 202,
+            "final_score": 330.1,
+            "lift_over_pick_trader": 77.8,
+            "accepted_trades": 4,
+            "free_agent_signings": 4,
+            "most_players_sent_in_one_trade": 3
+          },
+          {
+            "seed": 203,
+            "final_score": 316.7,
+            "lift_over_pick_trader": 65.8,
+            "accepted_trades": 8,
+            "free_agent_signings": 25,
+            "most_players_sent_in_one_trade": 5
+          },
+          {
+            "seed": 204,
+            "final_score": 502.1,
+            "lift_over_pick_trader": 282.5,
+            "accepted_trades": 31,
+            "free_agent_signings": 142,
+            "most_players_sent_in_one_trade": 13
+          },
+          {
+            "seed": 205,
+            "final_score": 345.7,
+            "lift_over_pick_trader": 78.0,
+            "accepted_trades": 8,
+            "free_agent_signings": 17,
+            "most_players_sent_in_one_trade": 5
+          },
+          {
+            "seed": 206,
+            "final_score": 319.3,
+            "lift_over_pick_trader": 84.6,
+            "accepted_trades": 10,
+            "free_agent_signings": 12,
+            "most_players_sent_in_one_trade": 3
+          },
+          {
+            "seed": 207,
+            "final_score": 569.7,
+            "lift_over_pick_trader": 286.8,
+            "accepted_trades": 35,
+            "free_agent_signings": 117,
+            "most_players_sent_in_one_trade": 9
+          },
+          {
+            "seed": 208,
+            "final_score": 321.5,
+            "lift_over_pick_trader": 20.4,
+            "accepted_trades": 6,
+            "free_agent_signings": 9,
+            "most_players_sent_in_one_trade": 3
+          }
+        ]
       },
       "panel_2_1": {
         "episodes": 32,
@@ -502,7 +652,73 @@
           "api_equivalent_cost_usd": 0.87,
           "api_equivalent_cost_per_episode": 0.11,
           "tool_calls_per_episode": 151.5
-        }
+        },
+        "by_episode": [
+          {
+            "seed": 201,
+            "final_score": 222.5,
+            "lift_over_pick_trader": -51.2,
+            "accepted_trades": 2,
+            "free_agent_signings": 12,
+            "most_players_sent_in_one_trade": 1
+          },
+          {
+            "seed": 202,
+            "final_score": 290.4,
+            "lift_over_pick_trader": 38.1,
+            "accepted_trades": 0,
+            "free_agent_signings": 8,
+            "most_players_sent_in_one_trade": 0
+          },
+          {
+            "seed": 203,
+            "final_score": 274.1,
+            "lift_over_pick_trader": 23.2,
+            "accepted_trades": 1,
+            "free_agent_signings": 9,
+            "most_players_sent_in_one_trade": 0
+          },
+          {
+            "seed": 204,
+            "final_score": 292.5,
+            "lift_over_pick_trader": 72.9,
+            "accepted_trades": 0,
+            "free_agent_signings": 17,
+            "most_players_sent_in_one_trade": 0
+          },
+          {
+            "seed": 205,
+            "final_score": 295.5,
+            "lift_over_pick_trader": 27.8,
+            "accepted_trades": 0,
+            "free_agent_signings": 6,
+            "most_players_sent_in_one_trade": 0
+          },
+          {
+            "seed": 206,
+            "final_score": 296.8,
+            "lift_over_pick_trader": 62.1,
+            "accepted_trades": 0,
+            "free_agent_signings": 3,
+            "most_players_sent_in_one_trade": 0
+          },
+          {
+            "seed": 207,
+            "final_score": 283.4,
+            "lift_over_pick_trader": 0.4,
+            "accepted_trades": 1,
+            "free_agent_signings": 6,
+            "most_players_sent_in_one_trade": 0
+          },
+          {
+            "seed": 208,
+            "final_score": 324.5,
+            "lift_over_pick_trader": 23.5,
+            "accepted_trades": 0,
+            "free_agent_signings": 6,
+            "most_players_sent_in_one_trade": 0
+          }
+        ]
       },
       "panel_2_1": {
         "episodes": 32,

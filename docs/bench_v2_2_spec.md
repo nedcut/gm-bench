@@ -478,18 +478,18 @@ What is new, and blocks the freeze:
   570; its other six are 317 to 346) it signed minimum-salary free agents
   in bulk and traded packages of them, up to 13 at once, to a rival for one
   good player or for that rival's future picks: 31 and 35 accepted trades
-  an episode, 57 signings in one trade deadline. The rival's valuation
+  an episode, with 142 and 117 free-agent signings (per episode under
+  `by_episode` in `results/diagnostics/v22_pilot/behavior.json`). The rival's valuation
   (`League._trade`) sums the asset value of every player it receives, and
   no roster maximum stops it taking a twelfth replacement-level body. The scripted contender on the same seeds is +66 over `pick-trader`;
   these two episodes are +283 and +287. The trade code is 2.1's, untouched
   by 2.2, so the hole is in 2.1 as well; no 2.1 row was seen to use it at
-  this scale, and that has not been checked ledger by ledger. A first
-  scripted version of it (sign the eight cheapest, trade them for picks)
-  loses 18 points, so it takes choosing partners and targets to work.
+  this scale, and that has not been checked ledger by ledger.
 - Sol's empty phases rose from under 1% to 15%, almost all of them drafts
   where it held no pick because it had traded them.
 
-Costs: $23.03 at API-equivalent prices against the $25 budget (Sonnet
+Costs: $23.03 at API-equivalent prices (`total_api_equivalent_cost_usd`
+in the same file, smokes included) against the $25 budget (Sonnet
 $16.13 with its smoke, Sol $6.01, Luna $0.89), all on subscriptions. Sol's
 figure may be low: some request may have crossed its 272K long-context
 tier.

@@ -14,11 +14,15 @@ only where it is large against the 2.1 spread. Two scripted policies are
 played on the pilot's seeds under the 2.2 rules for scale.
 
 Several run directories for one model (a pilot split to stay in budget) are
-pooled.
+pooled. Each episode's score, its lift and its trade profile (accepted
+trades, free-agent signings, the most players sent in one accepted trade) are
+listed too: the seeds are public. ``--smoke`` names the one-season smoke runs,
+whose cost counts toward the pilot's total and nothing else.
 
 Usage::
 
     python scripts/diagnose_v22_pilot.py ~/gmb-runs/v22-pilot/<run> [...] \\
+        [--smoke ~/gmb-runs/v22-pilot/<smoke run> ...] \\
         [--out results/diagnostics/v22_pilot/behavior.json]
 """
 
@@ -107,7 +111,9 @@ class _Probe(AgenticEpisode22):
             "penalized": bool(reply.get("penalized")),
             "message": message,
             "years": args.get("years"),
-            "gives_current_pick": self.season_index in (args.get("give_pick_seasons") or []),
+            # A refused scalar here stays in the ledger with its arguments, so test the type.
+            "gives_current_pick": isinstance(args.get("give_pick_seasons"), list)
+            and self.season_index in args["give_pick_seasons"],
             "whereabouts": None,
         }
         phase["calls"].append(call)
@@ -115,8 +121,39 @@ class _Probe(AgenticEpisode22):
         return reply
 
 
+def ledger_profile(ledger_path: Path) -> dict[str, Any]:
+    """What the ledger alone shows: the tools called in each phase, and the trade profile.
+
+    ``tools_by_phase`` counts every logged call, executed or refused, as
+    ``validate.empty_phases`` does; replay skips the refused ones.
+    """
+    tools_by_phase: dict[tuple[int, str], set[str]] = {}
+    accepted_trades = signings = most_sent = 0
+    for line in ledger_path.read_text(encoding="utf-8").splitlines():
+        record = json.loads(line) if line.strip() else {}
+        if record.get("event") != "tool_call":
+            continue
+        tools_by_phase.setdefault((record["season"], record["phase"]), set()).add(str(record["tool"]))
+        if not (record.get("ok") and record.get("executed", True)):
+            continue
+        if record["tool"] == "sign_free_agent":
+            signings += 1
+        elif record["tool"] == "trade":
+            accepted_trades += 1
+            sent = (record.get("arguments") or {}).get("give_player_ids")
+            most_sent = max(most_sent, len(sent) if isinstance(sent, list) else 0)
+    return {
+        "tools_by_phase": tools_by_phase,
+        "accepted_trades": accepted_trades,
+        "free_agent_signings": signings,
+        "most_players_sent_in_one_trade": most_sent,
+    }
+
+
 def measure_episode(episode_dir: Path, recorded: dict[str, Any]) -> dict[str, Any]:
     probe = _Probe.from_ledger(episode_dir / "ledger.jsonl", reopen=False)
+    profile = ledger_profile(episode_dir / "ledger.jsonl")
+    tools_by_phase = profile.pop("tools_by_phase")
     result = probe.result()
     if result.get("benchmark_version", BENCHMARK_VERSION) != BENCHMARK_VERSION:
         raise SystemExit(f"{episode_dir}: not a {BENCHMARK_VERSION} ledger")
@@ -126,7 +163,7 @@ def measure_episode(episode_dir: Path, recorded: dict[str, Any]) -> dict[str, An
     if len(phases) != 4 * FINAL_SEASON:
         raise SystemExit(f"{episode_dir}: expected {4 * FINAL_SEASON} phases, replayed {len(phases)}")
     for phase in phases:
-        phase["empty"] = {c["tool"] for c in phase["calls"]} <= EMPTY_PHASE_TOOLS
+        phase["empty"] = tools_by_phase.get((phase["season"], phase["phase"]), set()) <= EMPTY_PHASE_TOOLS
         phase["read_status"] = any(c["tool"] == "get_status" for c in phase["calls"])
     components = result["score_components"]
     terms = {g: sum(components[f"{name}_contribution"] for name in names) for g, names in v21.TERM_GROUPS.items()}
@@ -142,6 +179,7 @@ def measure_episode(episode_dir: Path, recorded: dict[str, Any]) -> dict[str, An
         "calls": probe.calls,
         "roster_end": len(probe.league.user_team.roster),
         "roster_before_final_rollover": probe.roster_before_final_rollover,
+        "trade_profile": profile,
     }
 
 
@@ -158,6 +196,7 @@ def _scripted(seeds: list[int]) -> dict[str, dict[str, float]]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("runs", nargs="+", type=Path, help="2.2-draft pilot run directories")
+    parser.add_argument("--smoke", nargs="*", type=Path, default=[], help="smoke runs, counted in the cost only")
     parser.add_argument("--out", type=Path, default=OUT)
     args = parser.parse_args(argv)
     by_model: dict[str, list[dict[str, Any]]] = {}
@@ -190,6 +229,11 @@ def main(argv: list[str] | None = None) -> int:
             }
         )
         print(f"{model:24s} {run_dir.name}: {len(dirs)} episodes replayed, scores match", file=sys.stderr)
+    smokes = []
+    for run_dir in (run.expanduser() for run in args.smoke):
+        run = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
+        cost = float(run["agentic_summary"].get("api_equivalent_cost_usd") or 0.0)
+        smokes.append({"run": run_dir.name, "seasons": run["seasons"], "api_equivalent_cost_usd": round(cost, 2)})
     baseline = json.loads(BASELINE.read_text(encoding="utf-8"))["models"]
     seeds = sorted({e["seed"] for episodes in by_model.values() for e in episodes})
     scripted = _scripted(seeds)
@@ -211,7 +255,18 @@ def main(argv: list[str] | None = None) -> int:
             "api_equivalent_cost_per_episode": round(cost["api_equivalent_cost_usd"] / cost["episodes"], 2),
             "tool_calls_per_episode": round(cost["tool_calls"] / cost["episodes"], 1),
         }
+        summary["by_episode"] = [
+            {
+                "seed": e["seed"],
+                "final_score": round(e["final_score"], 1),
+                "lift_over_pick_trader": round(lift, 1),
+                **e["trade_profile"],
+            }
+            for e, lift in zip(episodes, lifts, strict=True)
+        ]
         models[model] = {"pilot_2_2": summary, "panel_2_1": baseline.get(model)}
+    total = sum(block["api_equivalent_cost_usd"] for block in usage.values())
+    total += sum(smoke["api_equivalent_cost_usd"] for smoke in smokes)
     report = {
         "contract": BENCHMARK_VERSION,
         "note": (
@@ -219,6 +274,8 @@ def main(argv: list[str] | None = None) -> int:
             "seeds. The contract is an unpinned draft, so these are not publishable rows."
         ),
         "sources": sources,
+        "smoke_runs": smokes,
+        "total_api_equivalent_cost_usd": round(total, 2),
         "seeds": seeds,
         "scripted_2_2": {
             name: {
