@@ -102,6 +102,7 @@ svg{display:block}
 <p class="lede">Internal log of how scoring and contract decisions get made: what we tried, what it showed, what we decided. Newest first. Every number cites a committed diagnostic or a published row; nothing here is a published result.</p>
 
 <nav class="toc"><b>Entries</b><ol>
+ <li><a href="#e-2026-11-18-v22-pilot">2026-11-18 · 2.2 pilot: the text works, a trade exploit appears, the freeze waits</a></li>
  <li><a href="#e-2026-11-18-v22-pilot-price">2026-11-18 · 2.2: the open text and score decisions, and the pilot priced</a></li>
  <li><a href="#e-2026-11-18-v22-candidate">2026-11-18 · 2.2 takes the fallback score, and the rules and text are forked</a></li>
  <li><a href="#e-2026-11-17-v22-score">2026-11-17 · 2.2 starts: the fork is a no-op, and no end-of-run score passes yet</a></li>
@@ -124,6 +125,23 @@ svg{display:block}
 </ol></nav>
 
 <!-- ======================================================================= -->
+<article class="entry" id="e-2026-11-18-v22-pilot">
+<header><div class="date">2026-11-18</div><h2>2.2 pilot: the text works, a trade exploit appears, the freeze waits</h2>
+<div class="tags"><span class="tag">results/diagnostics/v22_pilot/behavior.json</span><span class="tag">scripts/diagnose_v22_pilot.py</span><span class="tag">docs/bench_v2_2_spec.md</span><span class="tag decision">decision</span></div></header>
+
+<div class="key"><b>Tried:</b> the phase 4 pilot, on the operator's go-ahead: <code>claude-sonnet-5-5</code>, <code>gpt-6.1-sol</code> and <code>gpt-6-luna</code> under <code>gm-bench-2.2-draft</code>, eight public seeds (201 to 208), five seasons, in the container on the 2.1 rows' harness versions, each after a one-season smoke. Luna stood in for DeepSeek, which could not run: OpenCode Go reported no active subscription and the OpenRouter key had expired. The 2.1 behaviour diagnostic was ported to the 2.2 engine (<code>scripts/diagnose_v22_pilot.py</code>); every replayed score matches its run. All figures below are in <code>results/diagnostics/v22_pilot/behavior.json</code>: the per-model measures under <code>models</code>, each episode's score, lift and trade counts under <code>by_episode</code> (the seeds are public), and the cost with its smokes under <code>total_api_equivalent_cost_usd</code>. The per-model measures sit beside each model's 2.1 panel figures from <code>results/diagnostics/v21_behavior/behavior.json</code>. The two share a model and harness, not seeds.</div>
+
+<div class="stats">
+ <div class="stat"><div class="k">Calls refused for a pick season outside the window (45% of 2.1's penalized calls)</div><div class="v">0</div></div>
+ <div class="stat"><div class="k">Sonnet episodes ending with 5 or fewer players (2.1: 23 of 32)</div><div class="v">4 of 8</div></div>
+ <div class="stat"><div class="k">Sol's lift over <code>pick-trader</code>; the scripted contender's is +66</div><div class="v">+120.7</div></div>
+</div>
+
+<p><b>Showed:</b> the text changes did what they were written for. No call was refused over the pick window. Lineups at draft close beat the engine default for all three models (Sonnet −1.61 to +0.20, Luna −1.11 to +0.82). Penalized calls per episode fell for all three (Sonnet 1.34 to 0.62, Sol 2.47 to 2.12, Luna 0.66 to 0.25). Roster at final scoring rose: Sonnet 4.7 to 9.1, Sol 16.2 to 18.5, Luna 15.9 to 19.5. Two things did not go to plan. <b>Sonnet</b> still let its roster expire in half its episodes and still closed 54% of its phases without reading the status (71% under 2.1), though the brief now says when the credit is counted. <b>Sol</b> found an exploit in two of its eight episodes: it signed minimum-salary free agents in bulk and traded packages of up to 13 of them to a rival for one good player or for the rival's future picks, 31 and 35 accepted trades and 142 and 117 free-agent signings an episode. Those two episodes scored 283 and 287 above <code>pick-trader</code> on their seeds; Sol's other six scored between 317 and 346 in total, in line with the scripted contender. The rival's side of a trade sums the asset value of each player received and no roster maximum applies, so a pile of replacement-level players buys a star. The trade code is 2.1's, so the hole is not new with 2.2; whether a 2.1 row used it has not been checked.</p>
+
+<div class="decide"><b>Decided:</b> the pilot gate (predicted behaviours move, no new misreading) is <b>not met, and 2.2 is not frozen</b>. The package trade has to be closed first, which is a simulator change and so needs the references replayed and the 2.1 ledgers checked for the same pattern; the options are in the spec. Sonnet's run-down is left as an open question: the rule is now stated, so it may be the model's own play, or the status may need to show the contracts that end with the final season. Cost: $23.03 at API-equivalent prices against a $25 budget, all on subscriptions (Sonnet $1.92 an episode against $1.23 under 2.1, Sol $0.71 against $0.48, Luna $0.11 against $0.14); Sol's may be low, since a request may have crossed its long-context tier. The pilot is to be rerun on the same seeds once the trade is closed, with DeepSeek when a key works.</div>
+</article>
+
 <article class="entry" id="e-2026-11-18-v22-pilot-price">
 <header><div class="date">2026-11-18</div><h2>2.2: the open text and score decisions, and the pilot priced</h2>
 <div class="tags"><span class="tag">docs/bench_v2_2_spec.md</span><span class="tag">gm_bench/v22/brief.py</span><span class="tag">gm_bench/pricing.json</span><span class="tag">results/agentic_v21/</span><span class="tag decision">decision</span></div></header>
